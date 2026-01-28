@@ -1,0 +1,8 @@
+{
+  "entryPoints": ["../../src"],
+  "out": "../../.docs/html",
+  "readme": "../../README.md",
+  "categorizeByGroup": true,
+  "includeVersion": true,
+  "cleanOutputDir": false
+}

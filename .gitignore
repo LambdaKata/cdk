@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+lib/
+*.js
+*.d.ts
+*.js.map
+
+# Keep source files
+!jest.config.js
+
+# Test coverage
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# npm
+*.tgz
+.npmrc
+
+# CDK
+cdk.out/

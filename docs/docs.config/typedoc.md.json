@@ -1,0 +1,11 @@
+{
+  "entryPoints": ["../../src"],
+  "out": "../../.docs",
+  "plugin": ["typedoc-plugin-markdown"],
+  "categorizeByGroup": true,
+  "readme": "../../README.md",
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "pretty": true,
+  "cleanOutputDir": false
+}
