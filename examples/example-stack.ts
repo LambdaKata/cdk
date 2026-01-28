@@ -72,7 +72,7 @@ import * as path from 'path';
 
 // Import the kata wrapper from the @lambda-kata/cdk package
 // In a real project, you would install this via: npm install @lambda-kata/cdk
-import { kata } from '../src/index';
+import { kata } from '@lambda-kata/cdk';
 
 /**
  * Example CDK Stack demonstrating Lambda Kata integration.

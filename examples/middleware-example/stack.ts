@@ -49,7 +49,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 
 // Import the kata wrapper from the @lambda-kata/cdk package
-import { kata } from '../../src/index';
+import { kata } from '@lambda-kata/cdk';
 
 /**
  * Example CDK Stack demonstrating the middleware mechanism.

@@ -140,7 +140,6 @@ Transforms a Node.js Lambda function to use Lambda Kata runtime.
 | Option | Type | Description |
 |--------|------|-------------|
 | `unlicensedBehavior` | `'warn' \| 'fail'` | Behavior when account is not licensed. Default: `'warn'` |
-| `licensingEndpoint` | `string` | Override licensing service endpoint |
 | `bundlePath` | `string` | Custom path to JavaScript bundle |
 | `middlewarePath` | `string` | Path to middleware TypeScript/JavaScript file |
 | `handlerResolver` | `Function` | Inline handler resolver function |
@@ -160,6 +159,10 @@ See the [examples](./examples) directory:
 - [Basic Usage](./examples/example-stack.ts) - Simple kata() transformation
 - [Middleware Example](./examples/middleware-example) - Custom handler resolution with middleware file
 - [Config Layer Example](./examples/config-layer-example) - Handler path configuration
+
+## Contributing
+
+**Security:** Report vulnerabilities privately to [raman@worktif.com](mailto:raman@worktif.com)
 
 ## License
 
