@@ -22,11 +22,11 @@
   },
   "files": [
     "out/dist/**/*",
-    "lib/**/*.d.ts"
+    "out/tsc/src/**/*.d.ts"
   ],
   "exports": {
     ".": {
-      "types": "./lib/index.d.ts",
+      "types": "./out/tsc/index.d.ts",
       "default": "./out/dist/index.js"
     }
   },
@@ -62,6 +62,7 @@
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@worktif/utils": "^0.2.34",
     "aws-cdk-lib": "^2.130.0",
     "constructs": "^10.3.0",
     "esbuild": "^0.27.2",
