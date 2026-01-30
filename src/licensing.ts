@@ -20,6 +20,7 @@
  */
 
 import { LicensingResponse } from './types';
+import * as PROCESS from 'node:process';
 
 /**
  * Default licensing service endpoint for Lambda Kata.
@@ -133,7 +134,8 @@ export class HttpLicensingService implements LicensingService {
    * @throws Error if the request fails or times out
    */
   private async makeRequest(accountId: string): Promise<LicensingResponse> {
-    const url = `${this.endpoint}/entitlement/${accountId}`;
+    // const url = `${this.endpoint}/entitlement/${accountId}`;
+    const url = `${this.endpoint}/license/check`;
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -141,11 +143,15 @@ export class HttpLicensingService implements LicensingService {
 
     try {
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': '@lambda-kata/cdk',
         },
+        body: JSON.stringify({
+          accountId,
+          productCode: 'lambda-kata-runtime',
+        }),
         signal: controller.signal,
       });
 
