@@ -1,3 +1,15 @@
+/*
+ * MIT
+ * Copyright (C) 2025–present Raman Marozau, Work Target Insight Function. All rights reserved.
+ * Contact: raman@worktif.com
+ *
+ * This file is part of the Licensed Work: lambda_kata_npm_cdk, <worktif_lambda_kata_npm_cdk>.
+ * Use of this software is governed by the MIT; see the LICENSE file
+ * or https://choosealicense.com/licenses/mit/ for details.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /**
  * Property-Based Tests for Lambda Layer Build Structure
  *
@@ -42,7 +54,7 @@ const EXPECTED_PYTHON_MODULES = [
 /**
  * Expected shared library files in the layer
  * These are the .so files from c_shared_objects/ plus js_bridge.so
- * 
+ *
  * **Validates: Requirement 4.4**
  * THE Lambda_Layer SHALL contain all required C shared libraries (`.so` files)
  */
@@ -62,7 +74,7 @@ const EXPECTED_SHARED_LIBRARIES = [
 
 /**
  * Expected JavaScript runtime files in the layer
- * 
+ *
  * **Validates: Requirement 4.5**
  * THE Lambda_Layer SHALL contain the JavaScript runtime components
  */
@@ -529,7 +541,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
     /**
      * Unit tests for layer structure file paths
-     * 
+     *
      * **Validates: Requirements 4.1, 4.2, 4.4, 4.5**
      * - 4.1: THE Lambda_Layer SHALL contain the Python handler module at `/opt/python/lambdakata/optimized_handler.py`
      * - 4.2: THE Lambda_Layer SHALL contain all required Python modules in the `lambdakata` package
@@ -539,7 +551,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
     describe('Layer Structure File Paths', () => {
         /**
          * Test: Verify optimized_handler.pyc exists at correct path
-         * 
+         *
          * **Validates: Requirement 4.1**
          * THE Lambda_Layer SHALL contain the Python handler module at `/opt/python/lambdakata/optimized_handler.py`
          * (Note: shipped as .pyc bytecode per Requirement 4.3)
@@ -563,7 +575,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify all required Python modules are present
-         * 
+         *
          * **Validates: Requirement 4.2**
          * THE Lambda_Layer SHALL contain all required Python modules in the `lambdakata` package
          */
@@ -583,7 +595,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify all required .so files are present
-         * 
+         *
          * **Validates: Requirement 4.4**
          * THE Lambda_Layer SHALL contain all required C shared libraries (`.so` files)
          */
@@ -604,7 +616,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify shared library file detection
-         * 
+         *
          * **Validates: Requirement 4.4**
          */
         it('should correctly identify shared library files', () => {
@@ -618,7 +630,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify JS runtime files are present
-         * 
+         *
          * **Validates: Requirement 4.5**
          * THE Lambda_Layer SHALL contain the JavaScript runtime components
          */
@@ -630,7 +642,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify JS file detection
-         * 
+         *
          * **Validates: Requirement 4.5**
          */
         it('should correctly identify JavaScript files', () => {
@@ -643,7 +655,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify layer paths follow AWS Lambda conventions
-         * 
+         *
          * **Validates: Requirements 4.1, 4.2**
          */
         it('should use correct AWS Lambda layer paths', () => {
@@ -659,7 +671,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify __init__.py (as bytecode) is present for package structure
-         * 
+         *
          * **Validates: Requirement 4.2**
          */
         it('should have __init__.pyc for lambdakata package', () => {
@@ -677,7 +689,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify libgomp.so.1 is expected in lib directory
-         * 
+         *
          * **Validates: Requirement 4.4** (OpenMP support)
          */
         it('should expect libgomp.so.1 for OpenMP support', () => {
@@ -738,7 +750,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify optimized_handler.pyc exists at correct path in actual layer
-         * 
+         *
          * **Validates: Requirement 4.1**
          */
         it('should contain optimized_handler.pyc at correct path if layer is built', () => {
@@ -758,7 +770,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify all required .so files are present in actual layer
-         * 
+         *
          * **Validates: Requirement 4.4**
          */
         it('should contain all required shared libraries if layer is built', () => {
@@ -783,7 +795,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify JS runtime files are present in actual layer
-         * 
+         *
          * **Validates: Requirement 4.5**
          */
         it('should contain JS runtime files if layer is built', () => {
@@ -811,7 +823,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify lib directory contains libgomp.so.1 in actual layer
-         * 
+         *
          * **Validates: Requirement 4.4** (OpenMP support)
          */
         it('should contain libgomp.so.1 in lib directory if layer is built', () => {
@@ -834,7 +846,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
 
         /**
          * Test: Verify layer has all required directory structure
-         * 
+         *
          * **Validates: Requirements 4.1, 4.2, 4.4, 4.5**
          */
         it('should have complete directory structure if layer is built', () => {

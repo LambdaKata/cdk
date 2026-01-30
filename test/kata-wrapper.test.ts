@@ -1,3 +1,15 @@
+/*
+ * MIT
+ * Copyright (C) 2025–present Raman Marozau, Work Target Insight Function. All rights reserved.
+ * Contact: raman@worktif.com
+ *
+ * This file is part of the Licensed Work: lambda_kata_npm_cdk, <worktif_lambda_kata_npm_cdk>.
+ * Use of this software is governed by the MIT; see the LICENSE file
+ * or https://choosealicense.com/licenses/mit/ for details.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 /**
  * Unit Tests for kata-wrapper transformation logic
  *
@@ -226,7 +238,7 @@ describe('kata-wrapper', () => {
          * - 3.4: THE kata_Wrapper SHALL NOT set the `JS_HANDLER_PATH` environment variable
          * - 4.1: THE kata_Wrapper SHALL NOT add the `JS_HANDLER_PATH` environment variable to transformed Lambdas
          * - 4.2: THE kata_Wrapper SHALL continue to set other required environment variables
-         * 
+         *
          * Note: JS_HANDLER_PATH is now stored in a config layer instead of an environment variable.
          * See "Config Layer Handler Path" tests for config layer verification.
          */
