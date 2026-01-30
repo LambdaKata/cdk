@@ -7,7 +7,7 @@
  * Use of this software is governed by the Apache-2.0; see the LICENSE file
  * or https://www.apache.org/licenses/LICENSE-2.0 for details.
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { Metafile } from 'esbuild';
