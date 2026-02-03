@@ -142,7 +142,7 @@ describe('kata() Wrapper Integration Tests', () => {
 
                         try {
                             // Apply kata transformation
-                            const result = await kataWithAccountId(lambda, '123456789012', {
+                            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                                 licensingService: mockLicensing,
                             });
 
@@ -214,7 +214,7 @@ describe('kata() Wrapper Integration Tests', () => {
 
                         try {
                             // Apply kata transformation - Node.js layer will likely fail
-                            const result = await kataWithAccountId(lambda, '123456789012', {
+                            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                                 licensingService: mockLicensing,
                             });
 
@@ -271,7 +271,7 @@ describe('kata() Wrapper Integration Tests', () => {
 
                 try {
                     // Apply kata transformation
-                    const result = await kataWithAccountId(lambda, '123456789012', {
+                    const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                         licensingService: mockLicensing,
                     });
 
@@ -321,7 +321,7 @@ describe('kata() Wrapper Integration Tests', () => {
                 mockLicensing.setEntitled('123456789012', layerArn);
 
                 // Apply kata transformation
-                const result = await kataWithAccountId(lambda, '123456789012', {
+                const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                     licensingService: mockLicensing,
                 });
 
@@ -373,7 +373,7 @@ describe('kata() Wrapper Integration Tests', () => {
             // No setEntitled call - account is not entitled
 
             // Apply kata transformation
-            const result = await kataWithAccountId(lambda, '999999999999', {
+            const result = await kataWithAccountId(lambda, '999999999999', 'us-east-1', {
                 licensingService: mockLicensing,
             });
 
@@ -413,7 +413,7 @@ describe('kata() Wrapper Integration Tests', () => {
             mockLicensing.setSimulateServiceError(true, 'Licensing service temporarily unavailable');
 
             // Apply kata transformation
-            const result = await kataWithAccountId(lambda, '123456789012', {
+            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                 licensingService: mockLicensing,
             });
 
@@ -459,10 +459,10 @@ describe('kata() Wrapper Integration Tests', () => {
 
             try {
                 // Apply kata transformation to both functions
-                const nodejsResult = await kataWithAccountId(nodejsLambda, '123456789012', {
+                const nodejsResult = await kataWithAccountId(nodejsLambda, '123456789012', 'us-east-1', {
                     licensingService: mockLicensing,
                 });
-                const pythonResult = await kataWithAccountId(pythonLambda, '123456789012', {
+                const pythonResult = await kataWithAccountId(pythonLambda, '123456789012', 'us-east-1', {
                     licensingService: mockLicensing,
                 });
 
@@ -525,7 +525,7 @@ describe('kata() Wrapper Integration Tests', () => {
 
             try {
                 // Apply kata transformation
-                await kataWithAccountId(lambda, '123456789012', {
+                await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                     licensingService: mockLicensing,
                 });
 
@@ -589,7 +589,7 @@ describe('kata() Wrapper Integration Tests', () => {
 
             try {
                 // Apply kata transformation
-                await kataWithAccountId(lambda, '123456789012', {
+                await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
                     licensingService: mockLicensing,
                 });
 

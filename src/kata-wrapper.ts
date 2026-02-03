@@ -211,6 +211,7 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
  *
  * @param lambda - The Node.js Lambda function to transform
  * @param accountId - The AWS account ID to use for licensing check
+ * @param region - The AWS region for deployment (from Stack.of(lambda).region)
  * @param props - Optional configuration for the transformation
  * @returns Promise resolving to the transformation result
  *
@@ -219,6 +220,7 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
 export async function kataWithAccountId<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   accountId: string,
+  region: string,
   props?: KataWrapperOptions,
 ): Promise<KataResult> {
   // Validate input
@@ -233,6 +235,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   // Handle the licensing response
   if (licensingResponse.entitled && licensingResponse.layerArn) {
     // Apply transformation for entitled accounts with Node.js layer support
+    // Use the provided region parameter (from Stack.of(lambda).region)
     await applyTransformationWithNodeSupport(lambda, {
       originalHandler: getOriginalHandler(lambda),
       targetRuntime: Runtime.PYTHON_3_12,
@@ -241,7 +244,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
       bundlePath: props?.bundlePath,
       middlewarePath: props?.middlewarePath,
       handlerResolver: props?.handlerResolver,
-    }, accountId, lambda.stack.region);
+    }, accountId, region);
 
     return {
       transformed: true,
@@ -297,7 +300,11 @@ async function performKataTransformation<T extends NodejsFunction | LambdaFuncti
   }
 
   // Perform the transformation with the resolved account ID
-  return kataWithAccountId(lambda, accountId, props);
+  // Use Stack.of() to get the correct deployment region
+  const { Stack } = await import('aws-cdk-lib');
+  const deploymentRegion = Stack.of(lambda).region;
+
+  return kataWithAccountId(lambda, accountId, deploymentRegion, props);
 }
 
 /**

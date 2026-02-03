@@ -432,7 +432,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       mockLicensing.setEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -457,7 +457,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       // Account is not entitled (no setEntitled call)
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -496,7 +496,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         // Account is not entitled (no setEntitled call)
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -513,7 +513,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -537,7 +537,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -555,7 +555,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -578,7 +578,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -598,7 +598,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -627,7 +627,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -654,7 +654,7 @@ describe('kata-wrapper', () => {
           'Lambda Kata not enabled: AWS account is not entitled. Subscribe via AWS Marketplace to enable.',
         );
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -679,7 +679,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setNotEntitledMessage('Custom licensing error: Account 123456789012 not found');
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -709,7 +709,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -734,7 +734,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -768,7 +768,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -852,7 +852,7 @@ describe('kata-wrapper', () => {
         mockLicensing.setNotEntitledMessage('Account not found in entitlement database');
 
         await expect(
-          kataWithAccountId(lambda, '123456789012', {
+          kataWithAccountId(lambda, '123456789012', 'us-east-1', {
             licensingService: mockLicensing,
             unlicensedBehavior: 'fail',
           }),
@@ -875,7 +875,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -898,7 +898,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -1007,7 +1007,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       mockLicensing.setEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -1365,7 +1365,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setEntitled('123456789012', layerArn);
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -1395,7 +1395,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         // Account is not entitled (no setEntitled call)
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
