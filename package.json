@@ -1,12 +1,11 @@
 {
-  "name": "@lambdakata/cdk",
-  "version": "0.1.3-rc.97",
+  "name": "@lambda-kata/cdk",
+  "version": "0.1.3-rc.3",
   "description": "AWS CDK integration for Lambda Kata - Node.js Lambdas running via Lambda Kata runtime",
   "main": "out/dist/index.js",
   "types": "out/tsc/src/index.d.ts",
   "scripts": {
-    "build": "rm -rf ./dist && rm -rf ./out && rm -rf ./lib && yarn run build:cdk && yarn run build:snapstart && yarn run types",
-    "build:snapstart": "yarn run build:config && node dist/utils/build.js --target=snapstartHandler",
+    "build": "rm -rf ./dist && rm -rf ./out && rm -rf ./lib && yarn run build:cdk && yarn run types",
     "types": "tsc --emitDeclarationOnly && tsc-alias",
     "build:cdk": "yarn run build:config && node dist/utils/build.js --target=cdk",
     "build:minify": "yarn run build:config && node dist/utils/build.js",
@@ -19,7 +18,7 @@
     "docs": "yarn run docs:md && yarn run docs:html",
     "docs:md": "typedoc --options ./docs/docs.config/typedoc.md.json",
     "docs:html": "typedoc --options ./docs/docs.config/typedoc.html.json",
-    "npm:publish": "yarn run build && npm publish --access public"
+    "npm:publish": "npm publish --access public"
   },
   "files": [
     "out/dist/**/*",
@@ -51,14 +50,11 @@
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.0.0",
-    "constructs": "^10.0.0",
-    "esbuild": "^0.23.0"
+    "constructs": "^10.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.500.0",
-    "@aws-sdk/client-s3": "^3.500.0",
     "@aws-sdk/client-sts": "^3.500.0",
-    "@lambda-kata/licensing": "0.1.33",
     "dotenv": "^17.2.3",
     "reflect-metadata": "^0.2.2"
   },
@@ -77,11 +73,5 @@
     "ts-jest": "^29.1.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.3.3"
-  },
-  "peerDependenciesMeta": {
-    "esbuild": {
-      "optional": true
-    }
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  }
 }

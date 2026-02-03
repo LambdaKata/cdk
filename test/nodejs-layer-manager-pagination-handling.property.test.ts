@@ -257,7 +257,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * the system should find the layer regardless of pagination boundaries.
          */
         it('should handle pagination to find layers across all pages', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryPaginationConfig(),
@@ -287,7 +287,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -298,7 +298,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * the system should return null after checking all pages.
          */
         it('should return null when no matching layers exist across all pages', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryPaginationConfig(),
@@ -333,7 +333,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -344,7 +344,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * empty pagination gracefully.
          */
         it('should handle empty pagination results gracefully', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     async (searchOptions) => {
@@ -369,7 +369,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -380,7 +380,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * the system should handle errors gracefully and provide appropriate feedback.
          */
         it('should handle pagination errors gracefully', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     fc.integer({ min: 1, max: 3 }), // Error on which page
@@ -417,7 +417,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * AWS SDK v3 pagination utilities correctly.
          */
         it('should use AWS SDK v3 pagination utilities correctly', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryPaginationConfig(),
@@ -441,7 +441,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -452,7 +452,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * the system should efficiently process all pages without performance degradation.
          */
         it('should efficiently handle large paginated results', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     fc.record({
@@ -507,7 +507,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
          * appropriate information about the pagination process.
          */
         it('should provide appropriate logging for pagination operations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryPaginationConfig(),
@@ -549,7 +549,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

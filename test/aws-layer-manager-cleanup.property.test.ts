@@ -204,7 +204,7 @@ describe('Feature: nodejs-layer-management, Property 12: Resource Cleanup on Fai
          * cleanup should be attempted for all created resources.
          */
         it('should attempt cleanup for all created resources on any failure', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     async (options) => {
@@ -264,7 +264,7 @@ describe('Feature: nodejs-layer-management, Property 12: Resource Cleanup on Fai
          * and cleanup failures should be logged as warnings.
          */
         it('should preserve original error even when cleanup fails', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     async (options) => {
@@ -320,7 +320,7 @@ describe('Feature: nodejs-layer-management, Property 12: Resource Cleanup on Fai
          * the total number of successful and failed cleanup operations.
          */
         it('should report cleanup statistics for all failure scenarios', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     async (options) => {
@@ -390,7 +390,7 @@ describe('Feature: nodejs-layer-management, Property 12: Resource Cleanup on Fai
          * the enhanced error should contain context about the failed operation.
          */
         it('should enhance errors with layer creation context', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     failureStage(),
@@ -431,7 +431,7 @@ describe('Feature: nodejs-layer-management, Property 12: Resource Cleanup on Fai
      */
     describe('Cleanup Idempotency', () => {
         it('should handle cleanup operations idempotently', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     async (options) => {

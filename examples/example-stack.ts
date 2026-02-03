@@ -31,7 +31,7 @@
  *
  * 2. **Runtime Transformation**: The `kata()` wrapper transforms your Lambda:
  *    - Runtime: Node.js → Python 3.12
- *    - Handler: Your handler → `handler.lambda_handler`
+ *    - Handler: Your handler → `lambdakata.optimized_handler.lambda_handler`
  *
  * 3. **Layer Provides the Handler**: The Lambda Kata Layer (attached automatically)
  *    contains the Python handler at `/opt/python/lambdakata/optimized_handler.py`.
@@ -60,7 +60,7 @@
  *
  * ## Benefits
  *
- * - **SnapStart Optimization**: Near-zero cold start times (automatically enabled)
+ * - **SnapStart Optimization**: Near-zero cold start times
  * - **No Code Changes**: Your JavaScript code works as-is
  * - **Minimal Overhead**: <1ms execution overhead
  * - **AWS Marketplace Integration**: Licensing validated at deploy time
@@ -82,8 +82,8 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 
-// Import the kata wrapper from the @lambdakata/cdk package
-// In a real project, you would install this via: npm install @lambdakata/cdk
+// Import the kata wrapper from the @lambda-kata/cdk package
+// In a real project, you would install this via: npm install @lambda-kata/cdk
 import { kata } from '../src';
 
 /**
@@ -141,14 +141,12 @@ export class ExampleLambdaKataStack extends Stack {
         //   - Runtime: nodejs18.x
         //   - Handler: index.handler
         //   - Layers: (none)
-        //   - SnapStart: (not configured)
         //   - Environment: { LOG_LEVEL: 'INFO', MY_CONFIG_VALUE: 'example' }
         //
         // AFTER kata() (if licensed):
         //   - Runtime: python3.12
-        //   - Handler: handler.lambda_handler
+        //   - Handler: lambdakata.optimized_handler.lambda_handler
         //   - Layers: [arn:aws:lambda:REGION:ACCOUNT:layer:lambda-kata:VERSION, config-layer]
-        //   - SnapStart: { ApplyOn: 'PublishedVersions' }  // Automatically enabled!
         //   - Environment: {
         //       LOG_LEVEL: 'INFO',           // Original preserved
         //       MY_CONFIG_VALUE: 'example',  // Original preserved

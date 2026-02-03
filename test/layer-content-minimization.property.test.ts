@@ -543,7 +543,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
          * only the Node.js binary in the correct directory structure.
          */
         it('should create layers with only essential Node.js binary in correct structure', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     async (options) => {
@@ -579,7 +579,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -590,7 +590,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
          * like documentation, headers, and development tools.
          */
         it('should exclude prohibited content from layers', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     nodeVersion(),
                     architecture(),
@@ -619,7 +619,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -630,7 +630,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
          * directory structure (/opt/nodejs/bin/).
          */
         it('should enforce correct Lambda Layer directory structure', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     nodeVersion(),
                     architecture(),
@@ -653,7 +653,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -664,7 +664,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
          * identify minimal vs non-minimal layers.
          */
         it('should correctly validate layer content minimization', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     nodeVersion(),
                     architecture(),
@@ -693,7 +693,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -704,7 +704,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
          * binary size should be reasonable and the structure should be correct.
          */
         it('should generate appropriate binary sizes and structure for all combinations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     nodeVersion(),
                     architecture(),
@@ -734,7 +734,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

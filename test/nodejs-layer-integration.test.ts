@@ -41,7 +41,7 @@ describe('Node.js Layer Integration Tests', () => {
 
         try {
             // Apply kata transformation - Node.js layer creation will likely fail in test environment
-            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
+            const result = await kataWithAccountId(lambda, '123456789012', {
                 licensingService: mockLicensingService,
             });
 

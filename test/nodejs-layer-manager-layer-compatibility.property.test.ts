@@ -169,7 +169,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * should return true only when all criteria are met.
          */
         it('should validate layer compatibility based on all criteria', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryLayerRequirements(),
                     fc.boolean(), // Version match
@@ -203,7 +203,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -214,7 +214,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * compatibility should depend only on age requirements.
          */
         it('should require exact version and architecture match for compatibility', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryNodeVersion(),
                     arbitraryArchitecture(),
@@ -260,7 +260,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -271,7 +271,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * should respect both explicit and default age limits.
          */
         it('should respect age limits in compatibility assessment', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryNodeVersion(),
                     arbitraryArchitecture(),
@@ -321,7 +321,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -332,7 +332,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * provide insight into the decision-making process.
          */
         it('should provide detailed logging for compatibility decisions', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryLayerInfo(),
                     arbitraryLayerRequirements(),
@@ -381,7 +381,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -392,7 +392,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * be deterministic and consistent across multiple calls.
          */
         it('should provide consistent compatibility assessment results', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryLayerInfo(),
                     arbitraryLayerRequirements(),
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -433,7 +433,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
          * the system should handle boundary conditions correctly.
          */
         it('should handle edge cases in compatibility assessment', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     arbitraryNodeVersion(),
                     arbitraryArchitecture(),
@@ -479,7 +479,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

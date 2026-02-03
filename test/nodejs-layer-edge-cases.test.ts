@@ -93,10 +93,10 @@ describe('Node.js Layer Management - Edge Cases and Error Conditions', () => {
 
     describe('Docker Unavailable Scenarios', () => {
         describe('DockerRuntimeDetector', () => {
-            it('should throw VERSION_DETECTION_FAILED when Docker command not found', async () => {
+            it('should throw DOCKER_UNAVAILABLE when Docker command not found', async () => {
                 const detector = new DockerRuntimeDetector({
                     logger,
-                    enableFallback: true, // Enable fallback to see if it works
+                    enableFallback: false,
                 });
 
                 // Mock spawn to simulate Docker not installed
@@ -108,25 +108,28 @@ describe('Node.js Layer Management - Edge Cases and Error Conditions', () => {
 
                     // Simulate command not found error
                     setTimeout(() => {
-                        const error = Object.assign(new Error('spawn docker ENOENT'), {
+                        mockProcess.emit('error', Object.assign(new Error('spawn docker ENOENT'), {
                             code: 'ENOENT',
                             errno: -2,
                             syscall: 'spawn docker',
                             path: 'docker',
                             spawnargs: ['pull', 'public.ecr.aws/lambda/nodejs:20-x86_64']
-                        });
-                        mockProcess.emit('error', error);
-                        // Also emit close event to prevent hanging
-                        setTimeout(() => mockProcess.emit('close', 1), 5);
+                        }));
                     }, 10);
 
                     return mockProcess;
                 });
 
-                // With fallback enabled, should return fallback version instead of throwing
-                const result = await detector.detectNodeVersion('nodejs20.x', 'x86_64');
-                expect(result.version).toBe('20.10.0');
-                expect(result.runtimeName).toBe('nodejs20.x');
+                await expect(detector.detectNodeVersion('nodejs20.x', 'x86_64'))
+                    .rejects
+                    .toThrow(NodeRuntimeLayerError);
+
+                await expect(detector.detectNodeVersion('nodejs20.x', 'x86_64'))
+                    .rejects
+                    .toMatchObject({
+                        code: ErrorCodes.VERSION_DETECTION_FAILED,
+                        message: expect.stringContaining('Failed to detect Node.js version from Docker image'),
+                    });
             });
 
             it('should throw VERSION_DETECTION_FAILED when Docker daemon not running', async () => {

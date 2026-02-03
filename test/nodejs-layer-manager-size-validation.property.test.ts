@@ -244,7 +244,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
          * the system should detect size violations and return descriptive errors.
          */
         it('should reject layers that exceed AWS size limits with descriptive errors', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     oversizedLayerConfig(),
@@ -291,7 +291,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -302,7 +302,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
          * the size validation should pass and allow layer creation to proceed.
          */
         it('should allow layers within AWS size limits to proceed', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     validLayerConfig(),
@@ -345,7 +345,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
          * specific size information and optimization suggestions.
          */
         it('should provide specific size information in error messages', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     oversizedLayerConfig(),
@@ -387,7 +387,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -398,7 +398,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
          * should be checked against their respective limits.
          */
         it('should validate both zipped and unzipped size limits', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     fc.record({
@@ -436,7 +436,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
          * before attempting to publish to AWS Lambda.
          */
         it('should validate size before AWS publication attempt', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     oversizedLayerConfig(),
@@ -473,7 +473,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

@@ -222,7 +222,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
          * should use cached results without performing Docker operations.
          */
         it('should cache version information and avoid repeated Docker operations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryCacheTtl(),
@@ -270,7 +270,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -281,7 +281,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
          * after the specified time and trigger new Docker operations.
          */
         it('should respect cache TTL and perform new Docker operations after expiration', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryCacheTtl(),
@@ -331,7 +331,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -342,7 +342,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
          * each combination should have its own cache entry.
          */
         it('should maintain separate cache entries for different runtime/architecture combinations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryRuntimeArchPair(),
@@ -424,7 +424,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
          * gracefully and not cache failed results.
          */
         it('should not cache failed version detection attempts', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryCacheTtl(),
@@ -496,7 +496,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
          * for monitoring and management.
          */
         it('should provide cache management and monitoring capabilities', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     fc.array(arbitraryRuntimeArchPair(), { minLength: 1, maxLength: 5 }),
                     arbitraryCacheTtl(),

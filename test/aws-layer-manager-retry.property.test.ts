@@ -253,7 +253,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * attempt retries up to maxRetries with exponential backoff delays.
          */
         it('should implement exponential backoff for retryable errors', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     retryableError(),
                     retryConfig(),
@@ -302,7 +302,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -313,7 +313,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * AWS API throttling and implement appropriate backoff.
          */
         it('should respect rate limiting with appropriate backoff', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     fc.constantFrom('ThrottlingException', 'TooManyRequestsException', 'RequestLimitExceeded'),
                     retryConfig(),
@@ -367,7 +367,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -378,7 +378,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * the system should fail with the last error.
          */
         it('should fail after exhausting maximum retries', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     retryableError(),
                     retryConfig(),
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -433,7 +433,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * failures and maintain proper state information.
          */
         it('should implement circuit breaker pattern correctly', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     retryableError(),
                     retryConfig(),
@@ -509,7 +509,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * exponentially with each retry attempt.
          */
         it('should calculate exponential backoff delays correctly', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     retryConfig(),
                     fc.integer({ min: 0, max: 4 }), // attempt number
@@ -539,7 +539,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -550,7 +550,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
          * errors as retryable or non-retryable.
          */
         it('should correctly classify error types for retry decisions', () => {
-            return fc.assert(
+            fc.assert(
                 fc.property(
                     fc.oneof(retryableError(), nonRetryableError()),
                     retryConfig(),
@@ -583,7 +583,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

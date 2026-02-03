@@ -315,7 +315,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should use the specified region for all operations.
          */
         it('should use custom region configuration for all AWS operations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerCreationOptions(),
                     arbitraryRegion(),
@@ -346,7 +346,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -357,7 +357,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should use the specified credentials for authentication.
          */
         it('should use custom credentials configuration for AWS authentication', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryCredentials(),
@@ -386,7 +386,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -397,7 +397,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should use the specified endpoint for API calls.
          */
         it('should use custom endpoint configuration for AWS API calls', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryEndpoint(),
@@ -427,7 +427,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -438,7 +438,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should respect all provided configuration options.
          */
         it('should use comprehensive AWS SDK configuration with all settings', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerCreationOptions(),
                     arbitraryAwsSdkConfig(),
@@ -481,7 +481,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -492,7 +492,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the system should use default AWS SDK configuration.
          */
         it('should use default AWS SDK configuration when no custom config provided', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     async (searchOptions) => {
@@ -514,7 +514,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -525,7 +525,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should maintain configuration consistency across operations.
          */
         it('should maintain configuration consistency across multiple operations', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryLayerCreationOptions(),
@@ -565,7 +565,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -576,7 +576,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * the Layer_Manager should respect the custom retry configuration.
          */
         it('should respect custom retry configuration in AWS SDK settings', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerCreationOptions(),
                     fc.integer({ min: 1, max: 10 }), // maxAttempts
@@ -607,7 +607,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -618,7 +618,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
          * successfully initialize and use the provided configuration.
          */
         it('should successfully initialize with any valid AWS SDK configuration', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryLayerSearchOptions(),
                     arbitraryAwsSdkConfig(),
@@ -661,7 +661,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
                         }
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

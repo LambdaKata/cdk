@@ -323,7 +323,7 @@ describe('ensureNodeRuntimeLayer Properties', () => {
                     });
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
@@ -392,7 +392,7 @@ describe('ensureNodeRuntimeLayer Properties', () => {
                     expect(mockLayerManager.findExistingLayer).toHaveBeenCalledTimes(3);
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 

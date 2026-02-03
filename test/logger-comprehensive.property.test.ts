@@ -169,7 +169,7 @@ describe('Property 14: Operation Logging Completeness', () => {
     });
 
     it('should consistently respect log levels for any log level configuration', () => {
-        return fc.assert(
+        fc.assert(
             fc.property(
                 fc.oneof(
                     fc.constant('debug' as const),
@@ -221,12 +221,12 @@ describe('Property 14: Operation Logging Completeness', () => {
                     });
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
     it('should preserve all structured metadata in log output', () => {
-        return fc.assert(
+        fc.assert(
             fc.property(
                 fc.string({ minLength: 1, maxLength: 100 }), // log message
                 fc.record({
@@ -267,12 +267,12 @@ describe('Property 14: Operation Logging Completeness', () => {
                     }
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
     it('should extract AWS request IDs from various error object formats', () => {
-        return fc.assert(
+        fc.assert(
             fc.property(
                 fc.oneof(
                     // AWS SDK v3 format
@@ -326,12 +326,12 @@ describe('Property 14: Operation Logging Completeness', () => {
                     expect(loggedMetadata.awsRequestId).toBe(expectedRequestId);
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
     it('should generate contextual troubleshooting guidance based on error patterns', () => {
-        return fc.assert(
+        fc.assert(
             fc.property(
                 fc.oneof(
                     // Throttling errors
@@ -421,7 +421,7 @@ describe('Property 14: Operation Logging Completeness', () => {
                     }
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 

@@ -201,7 +201,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
          * the function should use the provided configuration for AWS operations.
          */
         it('should accept and use optional AWS SDK configuration', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryBaseOptions(),
                     fc.option(arbitraryAwsSdkConfig(), { nil: undefined }),
@@ -233,7 +233,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -244,7 +244,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
          * the function should use the provided logger for debugging and monitoring.
          */
         it('should accept and use optional logger configuration', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryBaseOptions(),
                     fc.option(arbitraryLogger(), { nil: undefined }),
@@ -274,7 +274,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -285,7 +285,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
          * the function should use both configurations correctly.
          */
         it('should handle both optional parameters together', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryBaseOptions(),
                     fc.option(arbitraryAwsSdkConfig(), { nil: undefined }),
@@ -319,7 +319,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -330,7 +330,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
          * the function should use default configurations and execute successfully.
          */
         it('should work correctly without any optional parameters', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryBaseOptions(),
                     async (baseOptions) => {
@@ -357,7 +357,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
 
@@ -368,7 +368,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
          * the function should respect the region configuration.
          */
         it('should respect region configuration in AWS SDK config', () => {
-            return fc.assert(
+            fc.assert(
                 fc.asyncProperty(
                     arbitraryBaseOptions(),
                     arbitraryRegion(),
@@ -400,7 +400,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
                         return true;
                     }
                 ),
-                { numRuns: 15 }
+                { numRuns: 100 }
             );
         });
     });

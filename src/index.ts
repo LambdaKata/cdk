@@ -11,14 +11,14 @@
  */
 
 /**
- * @lambdakata/cdk - AWS CDK integration for Lambda Kata
+ * @lambda-kata/cdk - AWS CDK integration for Lambda Kata
  *
  * This package provides CDK constructs to transform Node.js Lambda functions
  * to run via the Lambda Kata runtime.
  *
  * @example
  * ```typescript
- * import { kata } from '@lambdakata/cdk';
+ * import { kata } from '@lambda-kata/cdk';
  * import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
  *
  * const myFunction = new NodejsFunction(this, 'MyFunction', {
@@ -35,115 +35,86 @@ export { KataProps, LicensingResponse, TransformationConfig } from './types';
 
 // Licensing service exports
 export {
-  LicensingService,
-  LicenseCheckParams,
-  HttpLicensingService,
-  createLicensingService,
-  isValidAccountId,
+    LicensingService,
+    HttpLicensingService,
+    createLicensingService,
+    isValidAccountId,
 } from './licensing';
 
 // Mock licensing service for testing
 export {
-  MockLicensingService,
-  createMockLicensingService,
+    MockLicensingService,
+    createMockLicensingService,
 } from './mock-licensing';
 
 // Account resolver exports
 export {
-  resolveAccountId,
-  resolveAccountIdWithSource,
-  isValidAccountIdFormat,
-  AccountResolutionError,
-  AccountResolutionResult,
-  AccountResolverOptions,
+    resolveAccountId,
+    resolveAccountIdWithSource,
+    isValidAccountIdFormat,
+    AccountResolutionError,
+    AccountResolutionResult,
+    AccountResolverOptions,
 } from './account-resolver';
-
-// Synchronous account resolver exports
-export {
-  resolveAccountIdSync,
-  resolveAccountIdSyncWithSource,
-  resolveRegionSync,
-  SyncAccountResolutionError,
-  SyncAccountResolutionResult,
-  SyncAccountResolverOptions,
-} from './sync-account-resolver';
 
 // kata wrapper exports
 export {
-  kata,
-  kataWithAccountId,
-  applyTransformation,
-  handleUnlicensed,
-  isKataTransformed,
-  getKataPromise,
-  extractBundlePathFromHandler,
-  extractNodeVersion,
-  KataWrapperOptions,
-  KataResult,
+    kata,
+    kataWithAccountId,
+    applyTransformation,
+    handleUnlicensed,
+    isKataTransformed,
+    getKataPromise,
+    KataWrapperOptions,
+    KataResult,
 } from './kata-wrapper';
-
-// SnapStart activation exports
-export {
-  SnapStartActivator,
-  SnapStartActivatorProps,
-} from './snapstart-construct';
-
-export {
-  activateSnapStart,
-  SnapStartActivationResult,
-  SnapStartActivatorConfig,
-} from './snapstart-activator';
 
 // Config layer exports
 export {
-  createKataConfigLayer,
-  generateConfigContent,
-  KataConfigLayerProps,
-  CONFIG_DIR_NAME,
-  CONFIG_FILE_NAME,
-  HANDLER_CONFIG_KEY,
+    createKataConfigLayer,
+    generateConfigContent,
+    KataConfigLayerProps,
+    CONFIG_DIR_NAME,
+    CONFIG_FILE_NAME,
+    HANDLER_CONFIG_KEY,
 } from './config-layer';
 
 // Node.js Layer Management exports
 export {
-  EnsureNodeRuntimeLayerOptions,
-  EnsureNodeRuntimeLayerResult,
-  NodeVersionInfo,
-  LayerInfo,
-  LayerSearchOptions,
-  LayerRequirements,
-  LayerCreationOptions,
-  Logger,
-  RuntimeDetector,
-  LayerManager,
-  ErrorCodes,
-  NodeRuntimeLayerError,
-  VersionCacheEntry,
-  LayerMetadata,
-  // New deployment functionality exports
-  NodejsLayerDeploymentOptions,
-  NodejsLayerDeploymentResult,
-  MultiArchitectureDeploymentResult,
+    EnsureNodeRuntimeLayerOptions,
+    EnsureNodeRuntimeLayerResult,
+    NodeVersionInfo,
+    LayerInfo,
+    LayerSearchOptions,
+    LayerRequirements,
+    LayerCreationOptions,
+    Logger,
+    RuntimeDetector,
+    LayerManager,
+    ErrorCodes,
+    NodeRuntimeLayerError,
+    VersionCacheEntry,
+    LayerMetadata,
 } from './nodejs-layer-manager';
 
 // Docker Runtime Detector exports
 export {
-  DockerRuntimeDetector,
-  DockerRuntimeDetectorOptions,
+    DockerRuntimeDetector,
+    DockerRuntimeDetectorOptions,
 } from './docker-runtime-detector';
 
 // AWS Layer Manager exports
 export {
-  AWSLayerManager,
-  AWSLayerManagerOptions,
+    AWSLayerManager,
+    AWSLayerManagerOptions,
 } from './aws-layer-manager';
 
 // Logger exports
 export {
-  NoOpLogger,
-  ConsoleLogger,
-  createDefaultLogger,
-  OperationTimer,
+    NoOpLogger,
+    ConsoleLogger,
+    createDefaultLogger,
+    OperationTimer,
 } from './logger';
 
 // Main API function export
