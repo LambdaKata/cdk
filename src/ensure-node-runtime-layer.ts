@@ -353,10 +353,15 @@ function validateInputParameters(options: EnsureNodeRuntimeLayerOptions): void {
  * Layer names follow the pattern: lambda-kata-nodejs-${runtimeName}-${architecture}
  * This ensures uniqueness across different runtime and architecture combinations.
  *
- * @param runtimeName - The AWS Lambda runtime name
+ * AWS Lambda layer names must match pattern: [a-zA-Z0-9-_]+
+ * This function sanitizes the runtime name by replacing dots with dashes.
+ *
+ * @param runtimeName - The AWS Lambda runtime name (e.g., "nodejs18.x")
  * @param architecture - The target architecture
- * @returns Standardized layer name
+ * @returns Standardized layer name (e.g., "lambda-kata-nodejs-nodejs18-x-x86_64")
  */
 function generateLayerName(runtimeName: string, architecture: string): string {
-  return `lambda-kata-nodejs-${runtimeName}-${architecture}`;
+  // Replace dots with dashes to comply with AWS layer name pattern
+  const sanitizedRuntime = runtimeName.replace(/\./g, '-');
+  return `lambda-kata-nodejs-${sanitizedRuntime}-${architecture}`;
 }

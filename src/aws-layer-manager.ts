@@ -1455,8 +1455,10 @@ export class AWSLayerManager implements LayerManager {
     }
 
     // Fall back to parsing layer name
-    // Expected format: lambda-kata-nodejs-nodejs20.x-x86_64
-    const nameMatch = layerName.match(/lambda-kata-nodejs-nodejs(\d+)\.x-(\w+)/);
+    // Supports both formats:
+    // - Old: lambda-kata-nodejs-nodejs20.x-x86_64 (with dot)
+    // - New: lambda-kata-nodejs-nodejs20-x-x86_64 (with dash)
+    const nameMatch = layerName.match(/lambda-kata-nodejs-nodejs(\d+)[.-]x-(\w+)/);
     if (nameMatch) {
       const majorVersion = nameMatch[1];
       const architecture = nameMatch[2];
