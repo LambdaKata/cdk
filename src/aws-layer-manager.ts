@@ -215,7 +215,7 @@ class CircuitBreaker {
 
     /**
      * Executes an operation with circuit breaker protection.
-     * 
+     *
      * @param operation - The operation to execute
      * @returns Promise resolving to operation result
      * @throws Error if circuit is open or operation fails
@@ -595,7 +595,7 @@ export class AWSLayerManager implements LayerManager {
 
     /**
      * Performs the actual layer creation operation without concurrent coordination.
-     * 
+     *
      * This is the core layer creation logic extracted from the original createNodeLayer
      * method to separate concerns between concurrent coordination and actual creation.
      *
@@ -1201,7 +1201,8 @@ export class AWSLayerManager implements LayerManager {
         const dockerArch = architecture === 'x86_64' ? 'amd64' : 'arm64';
 
         // Build AWS Lambda Docker image name
-        const dockerImage = `public.ecr.aws/lambda/nodejs:${lambdaRuntime}-${dockerArch}`;
+        // const dockerImage = `public.ecr.aws/lambda/nodejs:${lambdaRuntime}-${dockerArch}`;
+        const dockerImage = `amazon/aws-lambda-nodejs:${lambdaRuntime}-${dockerArch}`;
         const containerName = `lambda-kata-extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const binaryPath = path.join(tempDir, 'node');
 
@@ -2103,7 +2104,7 @@ except Exception as e:
 
     /**
      * Legacy cleanup method for backward compatibility.
-     * 
+     *
      * @deprecated Use performComprehensiveCleanup with ResourceTracker instead
      * @param tempDir - Temporary directory to remove (if exists)
      * @param zipFilePath - ZIP file to remove (if exists)
@@ -2123,7 +2124,7 @@ except Exception as e:
 
     /**
      * Legacy Docker extraction method for backward compatibility.
-     * 
+     *
      * @deprecated Use extractNodeBinaryFromDockerWithTracking instead
      */
     private async extractNodeBinaryFromDocker(
@@ -2136,7 +2137,7 @@ except Exception as e:
     }
     /**
      * Creates an enhanced error with cleanup context preservation.
-     * 
+     *
      * Preserves the original error while adding context about the layer creation
      * operation that failed. This maintains debugging capability while providing
      * additional context for troubleshooting.
@@ -2161,7 +2162,7 @@ except Exception as e:
 
     /**
      * Performs comprehensive cleanup of all tracked resources.
-     * 
+     *
      * Cleans up Docker containers, temporary directories, and ZIP files.
      * Cleanup failures are logged as warnings but do not prevent the cleanup
      * of other resources or mask the original error.

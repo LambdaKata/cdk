@@ -346,7 +346,8 @@ export class DockerRuntimeDetector implements RuntimeDetector {
         // Extract major version from runtime name (e.g., "nodejs20.x" -> "20")
         const majorVersion = runtimeName.replace('nodejs', '').replace('.x', '');
 
-        return `public.ecr.aws/lambda/nodejs:${majorVersion}-${architecture}`;
+        // return `public.ecr.aws/lambda/nodejs:${majorVersion}-${architecture}`;
+        return `amazon/aws-lambda-nodejs:${majorVersion}-${architecture}`;
     }
 
     /**
