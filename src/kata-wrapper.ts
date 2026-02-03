@@ -300,9 +300,37 @@ async function performKataTransformation<T extends NodejsFunction | LambdaFuncti
   }
 
   // Perform the transformation with the resolved account ID
-  // Use Stack.of() to get the correct deployment region
-  const { Stack } = await import('aws-cdk-lib');
-  const deploymentRegion = Stack.of(lambda).region;
+  // CRITICAL: Extract deployment region from Stack, handling CDK tokens
+  const { Stack, Token } = await import('aws-cdk-lib');
+  const stack = Stack.of(lambda);
+
+  // Stack.region may be a CDK Token (unresolved) during synthesis
+  // We need a concrete region value for AWS SDK operations
+  let deploymentRegion: string;
+
+  if (Token.isUnresolved(stack.region)) {
+    // Region is a token - try to get explicit region from context or env
+    const contextRegion = stack.node.tryGetContext('aws:cdk:region') as string | undefined;
+
+    if (contextRegion && typeof contextRegion === 'string') {
+      deploymentRegion = contextRegion;
+    } else {
+      // Cannot determine region - this will cause layer deployment to use AWS default region
+      // Log warning and use a placeholder that will fail explicitly
+      Annotations.of(lambda).addWarning(
+        'Cannot determine deployment region for Node.js layer. ' +
+        'Stack region is unresolved (CDK token). ' +
+        'Please specify region explicitly in Stack env: ' +
+        'new Stack(app, "MyStack", { env: { region: "us-east-1" } })'
+      );
+      // Use stack.region anyway - it will be resolved during CloudFormation deployment
+      // but AWS SDK calls during synthesis will use default credentials region
+      deploymentRegion = stack.region;
+    }
+  } else {
+    // Region is resolved - use it directly
+    deploymentRegion = stack.region;
+  }
 
   return kataWithAccountId(lambda, accountId, deploymentRegion, props);
 }
