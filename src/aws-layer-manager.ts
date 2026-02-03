@@ -2403,7 +2403,7 @@ export class AWSLayerManager implements LayerManager {
       // Calculate original directory size for optimization metrics
       const originalSize = await this.calculateDirectorySize(layerDir);
 
-      // Use Python's zipfile module with maximum compression
+      // Use Python's zipfile module with streaming for large files
       await this.executeCommand('python3', [
         '-c',
         `
@@ -2415,28 +2415,27 @@ import time
 def create_optimized_zip(source_dir, zip_path):
     start_time = time.time()
     total_original_size = 0
-    total_compressed_size = 0
     file_count = 0
     
-    # Use maximum compression level
+    # Use maximum compression level with streaming
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
         for root, dirs, files in os.walk(source_dir):
             for file in files:
                 file_path = os.path.join(root, file)
                 arc_name = os.path.relpath(file_path, source_dir)
                 
-                # Get file info and preserve permissions
-                file_info = zipfile.ZipInfo(arc_name)
+                # Get file size for metrics
                 stat_info = os.stat(file_path)
-                file_info.external_attr = stat_info.st_mode << 16
+                total_original_size += stat_info.st_size
                 
-                # Read and compress file content
-                with open(file_path, 'rb') as f:
-                    file_data = f.read()
-                    total_original_size += len(file_data)
-                    
-                zipf.writestr(file_info, file_data)
+                # Use write() instead of writestr() for streaming large files
+                # This avoids loading entire file into memory
+                zipf.write(file_path, arc_name, compress_type=zipfile.ZIP_DEFLATED)
                 file_count += 1
+                
+                # Print progress for large files
+                if stat_info.st_size > 10 * 1024 * 1024:  # >10MB
+                    print(f"Compressed: {arc_name} ({stat_info.st_size / (1024*1024):.1f}MB)", file=sys.stderr)
     
     # Calculate final compressed size
     final_size = os.path.getsize(zip_path)
@@ -2526,7 +2525,10 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
   }
 
   /**
-   * Fallback ZIP creation using system zip command.
+   * Fallback ZIP creation using system zip command with streaming.
+   *
+   * This method uses the system 'zip' command which handles large files
+   * efficiently without loading them into memory.
    *
    * @param layerDir - Directory containing the layer contents
    * @param zipFilePath - Target ZIP file path
@@ -2534,29 +2536,36 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
    * @throws Error if ZIP creation fails
    */
   private async createZipFallback(layerDir: string, zipFilePath: string): Promise<string> {
-    this.logger.debug('Using fallback ZIP creation', {
+    this.logger.info('Using fallback ZIP creation with system zip command', {
       layerDir,
       zipFilePath,
     });
 
     try {
-      // Use system zip command if available
+      // Use system zip command with maximum compression
+      // -r: recursive, -9: maximum compression, -q: quiet
       await this.executeCommand('zip', [
         '-r',
+        '-9', // Maximum compression
+        '-q', // Quiet mode
         zipFilePath,
         '.',
       ], { cwd: layerDir });
 
       const stats = await fs.stat(zipFilePath);
-      this.logger.debug('Created ZIP archive with fallback method', {
+      this.logger.info('Created ZIP archive with fallback method', {
         zipFilePath,
         size: stats.size,
+        sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
       });
 
       return zipFilePath;
 
     } catch (error) {
-      throw new Error(`Failed to create ZIP archive with both primary and fallback methods: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to create ZIP archive with both Python and system zip methods: ` +
+        `${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -2929,6 +2938,9 @@ except Exception as e:
   /**
    * Executes a system command with timeout and error handling.
    *
+   * Enhanced with EPIPE error handling to prevent broken pipe errors
+   * when child process terminates unexpectedly.
+   *
    * @param command - Command to execute
    * @param args - Command arguments
    * @param options - Execution options including working directory
@@ -2939,57 +2951,124 @@ except Exception as e:
     this.logger.debug('Executing command', { command, args, options });
 
     return new Promise((resolve, reject) => {
-      const process = spawn(command, args, {
+      const childProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: options?.cwd,
       });
 
       let stdout = '';
       let stderr = '';
+      let processExited = false;
+      let timeoutHandle: NodeJS.Timeout | null = null;
 
-      process.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
+      // Handle EPIPE errors on stdout/stderr streams
+      const handleStreamError = (streamName: string) => (error: Error) => {
+        // EPIPE is expected when process exits early - don't treat as fatal
+        if ((error as any).code === 'EPIPE') {
+          this.logger.debug(`${streamName} stream closed (EPIPE) - process likely exited`, {
+            command,
+            processExited,
+          });
+          return; // Ignore EPIPE - wait for 'close' event
+        }
 
-      process.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
+        // Other stream errors are unexpected
+        this.logger.warn(`${streamName} stream error`, {
+          command,
+          error: error.message,
+          code: (error as any).code,
+        });
+      };
 
-      const timeout = setTimeout(() => {
-        process.kill('SIGTERM');
-        reject(new Error(`Command timeout after ${AWSLayerManager.DOCKER_TIMEOUT}ms: ${command} ${args.join(' ')}`));
+      // Attach error handlers to prevent unhandled EPIPE
+      if (childProcess.stdout) {
+        childProcess.stdout.on('error', handleStreamError('stdout'));
+        childProcess.stdout.on('data', (data) => {
+          if (!processExited) {
+            stdout += data.toString();
+          }
+        });
+      }
+
+      if (childProcess.stderr) {
+        childProcess.stderr.on('error', handleStreamError('stderr'));
+        childProcess.stderr.on('data', (data) => {
+          if (!processExited) {
+            stderr += data.toString();
+          }
+        });
+      }
+
+      // Set timeout for long-running commands
+      timeoutHandle = setTimeout(() => {
+        if (!processExited) {
+          processExited = true;
+          childProcess.kill('SIGTERM');
+
+          // Give process 2 seconds to terminate gracefully
+          setTimeout(() => {
+            if (!childProcess.killed) {
+              childProcess.kill('SIGKILL');
+            }
+          }, 2000);
+
+          reject(new Error(
+            `Command timeout after ${AWSLayerManager.DOCKER_TIMEOUT}ms: ${command} ${args.join(' ')}\n` +
+            `stdout: ${stdout.trim()}\nstderr: ${stderr.trim()}`
+          ));
+        }
       }, AWSLayerManager.DOCKER_TIMEOUT);
 
-      process.on('close', (code) => {
-        clearTimeout(timeout);
+      // Handle process completion
+      childProcess.on('close', (code, signal) => {
+        if (processExited) return; // Already handled by timeout or error
+        processExited = true;
+
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
 
         if (code === 0) {
           this.logger.debug('Command executed successfully', {
             command,
             args,
-            stdout: stdout.trim(),
+            stdoutLength: stdout.length,
+            stderrLength: stderr.length,
           });
           resolve();
         } else {
-          const errorMessage = stderr.trim() || stdout.trim() || `Command failed with exit code ${code}`;
+          const errorMessage = stderr.trim() || stdout.trim() ||
+            `Command failed with exit code ${code}${signal ? ` (signal: ${signal})` : ''}`;
+
           this.logger.error('Command execution failed', {
             command,
             args,
             exitCode: code,
-            stderr: stderr.trim(),
-            stdout: stdout.trim(),
+            signal,
+            stderr: stderr.trim().substring(0, 500), // Limit log size
+            stdout: stdout.trim().substring(0, 500),
           });
+
           reject(new Error(errorMessage));
         }
       });
 
-      process.on('error', (error) => {
-        clearTimeout(timeout);
+      // Handle process spawn errors
+      childProcess.on('error', (error) => {
+        if (processExited) return;
+        processExited = true;
+
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+
         this.logger.error('Command process error', {
           command,
           args,
           error: error.message,
+          code: (error as any).code,
         });
+
         reject(error);
       });
     });
