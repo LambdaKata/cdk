@@ -30,6 +30,9 @@ import { Annotations } from 'aws-cdk-lib';
 import { CfnFunction, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
+import { promises as fs } from 'fs';
+import * as path from 'path';
+
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
 import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
@@ -461,6 +464,50 @@ export function applyTransformation(
 }
 
 /**
+ * Checks if Node.js layer ZIP files exist for the specified architecture.
+ *
+ * This function implements the same search logic as AWSLayerManager.findLayerZipFile()
+ * but performs only synchronous file existence checks without attempting deployment.
+ * Used to determine if Node.js layer deployment should be attempted.
+ *
+ * @param architecture - Target architecture ('arm64' or 'x86_64')
+ * @param baseDirectory - Directory to search for ZIP files
+ * @returns Promise resolving to true if ZIP files exist, false otherwise
+ *
+ * @internal
+ */
+async function hasNodejsLayerZipFiles(architecture: 'arm64' | 'x86_64', baseDirectory: string): Promise<boolean> {
+  // Define search patterns based on architecture (matching AWSLayerManager logic)
+  const candidates = architecture === 'arm64'
+    ? [
+      'nodejs-layer-arm64-minimal.zip',
+      'nodejs-layer-arm64.zip',
+    ]
+    : [
+      'nodejs-layer-x86_64-minimal.zip',
+      'nodejs-layer-x86_64.zip',
+      'nodejs-layer-x86-minimal.zip',
+      'nodejs-layer-x86.zip',
+    ];
+
+  // Check if any candidate files exist
+  for (const candidate of candidates) {
+    const filePath = path.join(baseDirectory, candidate);
+    try {
+      const stats = await fs.stat(filePath);
+      if (stats.isFile()) {
+        return true;
+      }
+    } catch (error) {
+      // File doesn't exist, continue checking other candidates
+      continue;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Applies the Lambda Kata transformation with Node.js runtime layer support.
  *
  * This is an enhanced version of applyTransformation that includes automatic
@@ -486,61 +533,57 @@ async function applyTransformationWithNodeSupport(
 
   // For Node.js functions: Try to deploy Node.js runtime layer using pre-built ZIPs
   // This bypasses the Docker binary extraction that can fail with large binaries
+  // Only attempt deployment if ZIP files are actually available
   if (isNodejs) {
-    try {
-      const architecture = getLambdaArchitecture(lambda);
+    const architecture = getLambdaArchitecture(lambda);
+    const baseDirectory = process.cwd();
 
-      // Use the new deployment functionality instead of ensureNodeRuntimeLayer
-      const layerManager = new AWSLayerManager({
-        enableS3Support: true,
-        awsSdkConfig: { region },
-        // Use a no-op logger to avoid cluttering CDK synthesis output
-        logger: {
-          debug: () => {
-          },
-          info: () => {
-          },
-          warn: () => {
-          },
-          error: () => {
-          },
-        },
-      });
-
+    // Check if ZIP files exist before attempting deployment
+    if (await hasNodejsLayerZipFiles(architecture, baseDirectory)) {
       try {
-        // Try to deploy the Node.js layer using pre-built ZIP files
-        const deployResult = await layerManager.deployNodejsLayer({
-          region,
-          architecture,
-          // Look for ZIP files in the current working directory by default
-          baseDirectory: process.cwd(),
+        const layerManager = new AWSLayerManager({
+          enableS3Support: true,
+          awsSdkConfig: { region },
+          // Use a no-op logger to avoid cluttering CDK synthesis output
+          logger: {
+            debug: () => { },
+            info: () => { },
+            warn: () => { },
+            error: () => { },
+          },
         });
 
-        // Attach the deployed Node.js runtime layer
-        const nodeLayer = LayerVersion.fromLayerVersionArn(
-          lambda,
-          'NodeRuntimeLayer',
-          deployResult.layerVersionArn,
+        try {
+          // Deploy the Node.js layer using pre-built ZIP files
+          const deployResult = await layerManager.deployNodejsLayer({
+            region,
+            architecture,
+            baseDirectory,
+          });
+
+          // Attach the deployed Node.js runtime layer
+          const nodeLayer = LayerVersion.fromLayerVersionArn(
+            lambda,
+            'NodeRuntimeLayer',
+            deployResult.layerVersionArn,
+          );
+          lambda.addLayers(nodeLayer);
+
+        } finally {
+          // Always clean up the layer manager
+          layerManager.destroy();
+        }
+
+      } catch (error) {
+        // Only log actual deployment failures, not missing files
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Annotations.of(lambda).addWarning(
+          `Failed to deploy Node.js runtime layer: ${errorMessage}`
         );
-        lambda.addLayers(nodeLayer);
-
-      } finally {
-        // Always clean up the layer manager
-        layerManager.destroy();
       }
-
-    } catch (error) {
-      // Node.js layer deployment failures should not break the core kata transformation
-      // This allows the system to work even without pre-built Node.js layers
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // Use CDK Annotations instead of console.warn for better integration
-      Annotations.of(lambda).addWarning(
-        `Failed to attach Node.js runtime layer: ${errorMessage}. ` +
-        `The Lambda function will still be transformed to use Lambda Kata, but Node.js runtime ` +
-        `binaries may not be available. Consider providing pre-built layer ZIP files.`,
-      );
     }
+    // If ZIP files don't exist, silently continue without Node.js layer
+    // This is normal operation - Node.js layer is optional enhancement
   }
 
   // Apply the standard kata transformation
