@@ -631,11 +631,14 @@ export class AWSLayerManager implements LayerManager {
             // Create Lambda Layer directory structure
             const layerDir = await this.createLayerDirectoryStructure(tempDir, nodeBinaryPath);
 
+            // OPTIMIZATION: Pre-validate content size before ZIP creation
+            await this.preValidateLayerContent(layerDir);
+
             // Create ZIP archive
             const zipFilePath = await this.createLayerZipArchive(layerDir, options.layerName);
             resourceTracker.addZipFile(zipFilePath);
 
-            // Validate size limits
+            // Validate size limits (final check)
             await this.validateLayerSize(zipFilePath);
 
             // Publish layer to AWS Lambda
@@ -761,10 +764,40 @@ export class AWSLayerManager implements LayerManager {
                 // Clear any previous results on retry
                 matchingLayers.length = 0;
 
-                // Use AWS SDK v3 pagination to handle large numbers of layers
+                // OPTIMIZATION: Try direct layer lookup first (much faster)
+                try {
+                    const directResult = await this.lambdaClient.send(new ListLayerVersionsCommand({
+                        LayerName: layerName,
+                        MaxItems: 10, // Only need recent versions
+                    }));
+
+                    if (directResult.LayerVersions && directResult.LayerVersions.length > 0) {
+                        // Found the layer directly - much faster!
+                        const latestVersion = directResult.LayerVersions[0];
+                        matchingLayers.push({
+                            LayerName: layerName,
+                            LatestMatchingVersion: {
+                                LayerVersionArn: latestVersion.LayerVersionArn,
+                                Version: latestVersion.Version,
+                                CreatedDate: latestVersion.CreatedDate,
+                                CompatibleRuntimes: latestVersion.CompatibleRuntimes,
+                                CompatibleArchitectures: latestVersion.CompatibleArchitectures,
+                            }
+                        });
+                        return null; // Success
+                    }
+                } catch (error) {
+                    // Layer doesn't exist, fall back to pagination
+                    this.logger.debug('Direct layer lookup failed, using pagination', {
+                        layerName,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                }
+
+                // Fallback: Use pagination only if direct lookup failed
                 const paginator = paginateListLayers(
                     { client: this.lambdaClient },
-                    {}
+                    { MaxItems: 50 } // Limit pagination size
                 );
 
                 for await (const page of paginator) {
@@ -772,12 +805,15 @@ export class AWSLayerManager implements LayerManager {
                         for (const layer of page.Layers) {
                             if (layer.LayerName === layerName) {
                                 matchingLayers.push(layer);
+                                break; // Found it, no need to continue
                             }
                         }
                     }
+                    // Early exit if found
+                    if (matchingLayers.length > 0) break;
                 }
 
-                // Return a dummy value since executeWithRetry expects a return value
+                return null;
                 return true;
             });
 
@@ -1438,6 +1474,51 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
      *
      * Enhanced to check both zipped and unzipped sizes with comprehensive
      * error reporting and optimization suggestions.
+     *
+     * @param zipFilePath - Path to the ZIP file
+     * @throws NodeRuntimeLayerError if size limits are exceeded
+     */
+    private async preValidateLayerContent(layerDir: string): Promise<void> {
+        const timer = new OperationTimer(this.logger, 'layer content pre-validation', { layerDir });
+
+        try {
+            const totalSize = await this.calculateDirectorySize(layerDir);
+
+            // Conservative check: if uncompressed size > 200MB, likely to exceed ZIP limit
+            const conservativeLimit = 200 * 1024 * 1024; // 200MB
+
+            if (totalSize > conservativeLimit) {
+                timer.fail(new Error('Layer content too large'), { totalSize, conservativeLimit });
+                throw new NodeRuntimeLayerError(
+                    `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds conservative limit (${Math.round(conservativeLimit / 1024 / 1024)}MB). ` +
+                    'This will likely exceed AWS Lambda layer size limits after compression.',
+                    ErrorCodes.LAYER_SIZE_EXCEEDED
+                );
+            }
+
+            timer.complete({ totalSize, status: 'within_limits' });
+
+            this.logger.debug('Layer content pre-validation passed', {
+                totalSize,
+                totalSizeMB: Math.round(totalSize / 1024 / 1024),
+                conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
+            });
+
+        } catch (error) {
+            if (error instanceof NodeRuntimeLayerError) {
+                throw error;
+            }
+            timer.fail(error, { layerDir });
+            throw new NodeRuntimeLayerError(
+                `Failed to pre-validate layer content: ${error instanceof Error ? error.message : String(error)}`,
+                ErrorCodes.LAYER_CREATION_FAILED,
+                error instanceof Error ? error : new Error(String(error))
+            );
+        }
+    }
+
+    /**
+     * Validates layer size limits after ZIP creation.
      *
      * @param zipFilePath - Path to the ZIP file
      * @throws NodeRuntimeLayerError if size limits are exceeded

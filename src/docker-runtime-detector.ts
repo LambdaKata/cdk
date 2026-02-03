@@ -117,8 +117,8 @@ export class DockerRuntimeDetector implements RuntimeDetector {
     ]);
 
     constructor(options: DockerRuntimeDetectorOptions = {}) {
-        this.cacheTtl = options.cacheTtl ?? 3600000; // 1 hour default
-        this.dockerTimeout = options.dockerTimeout ?? 60000; // 60 seconds default
+        this.cacheTtl = options.cacheTtl ?? 24 * 3600000; // 24 hours default (was 1 hour)
+        this.dockerTimeout = options.dockerTimeout ?? 30000; // 30 seconds default (was 60)
         this.logger = options.logger ?? createDefaultLogger();
         this.enableFallback = options.enableFallback ?? true;
     }
@@ -350,13 +350,45 @@ export class DockerRuntimeDetector implements RuntimeDetector {
     }
 
     /**
+     * Checks if Docker image exists locally before pulling.
+     *
+     * @param dockerImage - The Docker image to check
+     * @returns Promise<boolean> - true if image exists locally
+     */
+    private async checkDockerImageExists(dockerImage: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            const checkProcess = spawn('docker', ['image', 'inspect', dockerImage], {
+                stdio: ['ignore', 'pipe', 'pipe'],
+            });
+
+            checkProcess.on('close', (code) => {
+                resolve(code === 0); // Image exists if exit code is 0
+            });
+
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                checkProcess.kill('SIGTERM');
+                resolve(false);
+            }, 5000);
+        });
+    }
+
+    /**
      * Pulls a Docker image using the docker pull command.
+     * Optimized to skip pull if image already exists locally.
      *
      * @param dockerImage - The Docker image to pull
      * @returns Promise that resolves when the image is pulled
      * @throws Error if docker pull fails
      */
     private async pullDockerImage(dockerImage: string): Promise<void> {
+        // OPTIMIZATION: Check if image exists locally first
+        const imageExists = await this.checkDockerImageExists(dockerImage);
+        if (imageExists) {
+            this.logger.debug('Docker image already exists locally, skipping pull', { dockerImage });
+            return;
+        }
+
         const timer = new OperationTimer(this.logger, 'Docker image pull', { dockerImage });
 
         return new Promise((resolve, reject) => {
