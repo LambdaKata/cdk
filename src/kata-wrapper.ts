@@ -511,7 +511,10 @@ async function hasNodejsLayerZipFiles(architecture: 'arm64' | 'x86_64', baseDire
  *
  * This is an enhanced version of applyTransformation that includes automatic
  * Node.js runtime layer management for Node.js Lambda functions using the
- * ensureNodeRuntimeLayer API.
+ * new deployment functionality that bypasses Docker binary extraction.
+ *
+ * This method deploys pre-built Node.js layer ZIP files directly to AWS Lambda,
+ * avoiding the 80MB binary size issue that occurs with Docker extraction.
  *
  * @param lambda - The Lambda function to transform
  * @param config - The transformation configuration
@@ -530,46 +533,73 @@ async function applyTransformationWithNodeSupport(
   const originalRuntime = getOriginalRuntime(lambda);
   const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
 
-  // For Node.js functions: Use ensureNodeRuntimeLayer for proper layer management
+  // For Node.js functions: Deploy Node.js runtime layer using pre-built ZIP files
+  // This bypasses the Docker binary extraction that fails with large binaries (>80MB)
   if (isNodejs) {
     const architecture = getLambdaArchitecture(lambda);
 
     try {
-      // Import ensureNodeRuntimeLayer dynamically to avoid circular dependencies
-      const { ensureNodeRuntimeLayer } = await import('./ensure-node-runtime-layer');
+      // Import AWSLayerManager for deployment functionality
+      const { AWSLayerManager } = await import('./aws-layer-manager');
 
-      // Use the main API function for Node.js layer management
-      const layerResult = await ensureNodeRuntimeLayer({
-        runtimeName: originalRuntime,
-        architecture,
-        region,
-        accountId,
-        // Use a no-op logger to avoid cluttering CDK synthesis output
+      // Create layer manager with S3 support for large layers
+      const layerManager = new AWSLayerManager({
+        enableS3Support: true,
+        awsSdkConfig: { region },
+        // Use minimal logging to avoid cluttering CDK synthesis output
         logger: {
-          debug: () => {
+          debug: () => { },
+          info: (msg: string) => {
+            // Only log important deployment events
+            if (msg.includes('deployed successfully') || msg.includes('Layer deployment')) {
+              console.log(`[Lambda Kata] ${msg}`);
+            }
           },
-          info: () => {
-          },
-          warn: () => {
-          },
-          error: () => {
-          },
+          warn: (msg: string) => console.warn(`[Lambda Kata] ${msg}`),
+          error: (msg: string) => console.error(`[Lambda Kata] ${msg}`),
         },
       });
 
-      // Attach the Node.js runtime layer
-      const nodeLayer = LayerVersion.fromLayerVersionArn(
-        lambda,
-        'NodeRuntimeLayer',
-        layerResult.layerArn,
-      );
-      lambda.addLayers(nodeLayer);
+      try {
+        // Deploy the Node.js layer using pre-built ZIP files
+        // Searches for files like: nodejs-layer-arm64.zip, nodejs-layer-x86_64.zip
+        const deployResult = await layerManager.deployNodejsLayer({
+          region,
+          architecture,
+          // Search for ZIP files in current working directory
+          baseDirectory: process.cwd(),
+        });
+
+        // Attach the deployed Node.js runtime layer to the Lambda function
+        const nodeLayer = LayerVersion.fromLayerVersionArn(
+          lambda,
+          'NodeRuntimeLayer',
+          deployResult.layerVersionArn,
+        );
+        lambda.addLayers(nodeLayer);
+
+        // Log success for visibility
+        console.log(
+          `[Lambda Kata] Successfully attached Node.js runtime layer: ${deployResult.layerVersionArn} ` +
+          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB, ${deployResult.architecture})`
+        );
+
+      } finally {
+        // Always clean up the layer manager resources
+        layerManager.destroy();
+      }
 
     } catch (error) {
-      // Log deployment failures as warnings, don't fail the transformation
+      // Node.js layer deployment failures should not break the core kata transformation
+      // This allows the system to work even without pre-built Node.js layers
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Use CDK Annotations for proper error reporting
       Annotations.of(lambda).addWarning(
-        `Failed to ensure Node.js runtime layer: ${errorMessage}`,
+        `Failed to attach Node.js runtime layer: ${errorMessage}. ` +
+        `The Lambda function will still be transformed to use Lambda Kata, but Node.js runtime ` +
+        `binaries may not be available. To fix this issue, provide pre-built layer ZIP files ` +
+        `(e.g., nodejs-layer-arm64.zip or nodejs-layer-x86_64.zip) in your project directory.`
       );
     }
   }

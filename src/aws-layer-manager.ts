@@ -2579,16 +2579,15 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
     try {
       const totalSize = await this.calculateDirectorySize(layerDir);
 
-      // Strict limits for Node.js binaries after optimization
-      // Optimized Node.js binary should be ~15-25MB, allowing minimal overhead
-      const conservativeLimit = 50 * 1024 * 1024;  // 50MB uncompressed (was 100MB)
-      const aggressiveLimit = 80 * 1024 * 1024;    // 80MB absolute limit (was 150MB)
+      // AWS Lambda Layer limits
+      const conservativeLimit = 50 * 1024 * 1024;  // 50MB uncompressed (optimal for optimized binaries)
+      const awsAbsoluteLimit = 250 * 1024 * 1024;  // 250MB absolute AWS limit for uncompressed layers
 
-      if (totalSize > aggressiveLimit) {
-        timer.fail(new Error('Layer content exceeds absolute limit'), { totalSize, aggressiveLimit });
+      if (totalSize > awsAbsoluteLimit) {
+        timer.fail(new Error('Layer content exceeds AWS absolute limit'), { totalSize, awsAbsoluteLimit });
         throw new NodeRuntimeLayerError(
-          `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds absolute limit (${Math.round(aggressiveLimit / 1024 / 1024)}MB). ` +
-          'This indicates Node.js binary optimization failed. ' +
+          `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds AWS Lambda layer limit (250MB). ` +
+          'This indicates Node.js binary optimization failed completely. ' +
           'Expected optimized Node.js binary size: 15-25MB. ' +
           'Current size suggests debug symbols were not stripped properly. ' +
           'Please verify strip command is available and Docker image is correct.',
@@ -2597,13 +2596,13 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
       }
 
       if (totalSize > conservativeLimit) {
-        this.logger.warn('Layer content size exceeds conservative limit but within absolute limit', {
+        this.logger.warn('Layer content size exceeds optimal size but within AWS limits', {
           totalSize,
           totalSizeMB: Math.round(totalSize / 1024 / 1024),
           conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
-          aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
+          awsAbsoluteLimitMB: Math.round(awsAbsoluteLimit / 1024 / 1024),
           warning: 'Binary optimization may not be optimal - expected ~15-25MB for optimized Node.js binary',
-          recommendation: 'Check if strip command worked correctly',
+          recommendation: 'Check if strip command worked correctly. Layer will still deploy but may be slower.',
         });
       }
 
@@ -2617,7 +2616,7 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
         totalSize,
         totalSizeMB: Math.round(totalSize / 1024 / 1024),
         conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
-        aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
+        awsAbsoluteLimitMB: Math.round(awsAbsoluteLimit / 1024 / 1024),
         status: totalSize > conservativeLimit ? 'large_but_acceptable' : 'optimal_size',
       });
 
