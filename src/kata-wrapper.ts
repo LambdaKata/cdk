@@ -784,21 +784,9 @@ function createNodejsRuntimeLayer(
   const stack = Stack.of(lambda);
   const region = stack.region;
 
-  // Use region-specific bucket for lower latency and to avoid cross-region issues
-  // Format: lambda-kata-website-layer-content-dev-{region}
-  // Fallback to global bucket if region is unresolved (CDK token)
-  let bucketName: string;
-  if (Token.isUnresolved(region)) {
-    // Region is a CDK token - use global bucket
-    bucketName = NODEJS_LAYER_S3_BUCKET;
-    console.warn(
-      `[Lambda Kata] Stack region is unresolved. Using global S3 bucket: ${bucketName}. ` +
-      `For better performance, specify region explicitly in Stack env.`,
-    );
-  } else {
-    // Use region-specific bucket
-    bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
-  }
+  // Use the canonical public bucket name. The layer keys are region-agnostic
+  // and the bucket reference itself must remain stable for CDK synthesis.
+  const bucketName = NODEJS_LAYER_S3_BUCKET;
 
   // @note: debug logs
   // console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);

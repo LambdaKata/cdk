@@ -168,6 +168,23 @@ const DEFAULT_CONFIG: Required<SnapStartActivatorConfig> = {
 };
 
 /**
+ * Annotates AWS SDK command objects with a stable `_type` discriminator.
+ *
+ * The unit and property tests for this module use `_type` to route mocked
+ * responses. The AWS SDK v3 command classes do not expose that field, so we
+ * add it here without changing command semantics.
+ */
+function annotateCommand<T extends object>(command: T, type: string): T {
+  Object.defineProperty(command, '_type', {
+    value: type,
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  });
+  return command;
+}
+
+/**
  * Sleep for specified milliseconds.
  * @internal Exported for testability — tests can jest.spyOn to avoid real delays.
  */
@@ -297,10 +314,10 @@ export async function activateSnapStart(
 
     // Step 1: Enable SnapStart on the function
     console.log('\n[1/5] Enabling SnapStart (ApplyOn: PublishedVersions)...');
-    await lambdaClient.send(new UpdateFunctionConfigurationCommand({
-      FunctionName: functionName,
-      SnapStart: { ApplyOn: 'PublishedVersions' },
-    }));
+      await lambdaClient.send(annotateCommand(new UpdateFunctionConfigurationCommand({
+        FunctionName: functionName,
+        SnapStart: { ApplyOn: 'PublishedVersions' },
+      }), 'UpdateFunctionConfiguration'));
     console.log('      SnapStart configuration sent');
 
     // Step 2: Wait for configuration update to complete
@@ -352,10 +369,10 @@ export async function activateSnapStart(
         // Without this, PublishVersion returns the same (Failed) version number
         // because Lambda deduplicates identical configurations.
         console.log('      Re-applying SnapStart config to force new version...');
-        await lambdaClient.send(new UpdateFunctionConfigurationCommand({
+        await lambdaClient.send(annotateCommand(new UpdateFunctionConfigurationCommand({
           FunctionName: functionName,
           SnapStart: { ApplyOn: 'PublishedVersions' },
-        }));
+        }), 'UpdateFunctionConfiguration'));
         await waitUntilFunctionUpdatedV2(
           { client: lambdaClient, maxWaitTime: 120 },
           { FunctionName: functionName },
@@ -364,10 +381,10 @@ export async function activateSnapStart(
         await _testable.sleep(cfg._prePublishDelayMs);
       }
 
-      const publishResponse = await lambdaClient.send(new PublishVersionCommand({
+      const publishResponse = await lambdaClient.send(annotateCommand(new PublishVersionCommand({
         FunctionName: functionName,
         Description: `SnapStart enabled - ${new Date().toISOString()} (attempt ${publishAttempt})`,
-      }));
+      }), 'PublishVersion'));
       version = publishResponse.Version!;
       console.log(`      Published version: ${version}`);
 
@@ -376,10 +393,10 @@ export async function activateSnapStart(
       state = 'Unknown';
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const versionConfig = await lambdaClient.send(new GetFunctionConfigurationCommand({
+        const versionConfig = await lambdaClient.send(annotateCommand(new GetFunctionConfigurationCommand({
           FunctionName: functionName,
           Qualifier: version,
-        }));
+        }), 'GetFunctionConfiguration'));
 
         const snapStartStatus = versionConfig.SnapStart ?? {};
         optimizationStatus = snapStartStatus.OptimizationStatus ?? 'Unknown';
@@ -424,12 +441,39 @@ export async function activateSnapStart(
 
     // After all retries, check final state
     if (state === 'Failed') {
+      // If an alias already exists, preserve it rather than trying to
+      // create or update a replacement while the snapshot is known bad.
+      try {
+        const existingAlias = await lambdaClient.send(annotateCommand(new GetAliasCommand({
+          FunctionName: functionName,
+          Name: cfg.aliasName,
+        }), 'GetAlias'));
+
+        if (existingAlias.AliasArn && existingAlias.FunctionVersion) {
+          console.log(`      Snapshot failed, preserving existing alias: ${existingAlias.AliasArn}`);
+          return {
+            version: existingAlias.FunctionVersion,
+            aliasName: cfg.aliasName,
+            aliasArn: existingAlias.AliasArn,
+            optimizationStatus: 'Preserved',
+          };
+        }
+      } catch (error) {
+        const isResourceNotFound = error instanceof ResourceNotFoundException ||
+          (error instanceof Error && error.name === 'ResourceNotFoundException');
+
+        if (!isResourceNotFound) {
+          throw error;
+        }
+      }
+
       console.log(`      All ${MAX_PUBLISH_RETRIES} snapshot attempts failed.`);
       console.log(`      Reason: ${lastFailReason}`);
       console.log('');
-      console.log('      [Lambda Kata] SnapStart optimization failed. Alias will be created pointing');
-      console.log('      to the latest version. Function remains operational without SnapStart.');
+      console.log('      [Lambda Kata] SnapStart optimization failed. No new alias will be created.');
+      console.log('      Function remains operational with the previous configuration if one exists.');
       console.log('      Review CloudWatch logs for initialization errors.');
+      throw new Error(`SnapStart snapshot creation failed: ${lastFailReason}`);
     }
 
     // Check if we timed out
@@ -444,18 +488,18 @@ export async function activateSnapStart(
 
     try {
       // Try to get existing alias
-      await lambdaClient.send(new GetAliasCommand({
+      await lambdaClient.send(annotateCommand(new GetAliasCommand({
         FunctionName: functionName,
         Name: cfg.aliasName,
-      }));
+      }), 'GetAlias'));
 
       // Alias exists, update it
-      const updateResponse = await lambdaClient.send(new UpdateAliasCommand({
+      const updateResponse = await lambdaClient.send(annotateCommand(new UpdateAliasCommand({
         FunctionName: functionName,
         Name: cfg.aliasName,
         FunctionVersion: version,
         Description: 'Lambda Kata SnapStart-enabled version',
-      }));
+      }), 'UpdateAlias'));
       aliasArn = updateResponse.AliasArn!;
       console.log(`      Updated existing alias: ${aliasArn}`);
     } catch (error) {
@@ -465,12 +509,12 @@ export async function activateSnapStart(
 
       if (isResourceNotFound) {
         // Alias doesn't exist, create it
-        const createResponse = await lambdaClient.send(new CreateAliasCommand({
+        const createResponse = await lambdaClient.send(annotateCommand(new CreateAliasCommand({
           FunctionName: functionName,
           Name: cfg.aliasName,
           FunctionVersion: version,
           Description: 'Lambda Kata SnapStart-enabled version',
-        }));
+        }), 'CreateAlias'));
         aliasArn = createResponse.AliasArn!;
         console.log(`      Created new alias: ${aliasArn}`);
       } else {

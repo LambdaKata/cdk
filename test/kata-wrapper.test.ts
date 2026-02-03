@@ -39,6 +39,8 @@ import {
 } from '../src/kata-wrapper';
 import { TransformationConfig } from '../src/types';
 import { SnapStartActivator } from '../src/snapstart-construct';
+// Import after mock is set up
+import { NativeLicensingService } from '@lambda-kata/licensing';
 
 // Mock the native licensing module
 jest.mock('@lambda-kata/licensing', () => ({
@@ -46,9 +48,6 @@ jest.mock('@lambda-kata/licensing', () => ({
     checkEntitlementSync: jest.fn(),
   })),
 }));
-
-// Import after mock is set up
-import { NativeLicensingService } from '@lambda-kata/licensing';
 
 // Get typed mock for NativeLicensingService
 const mockNativeLicensingService = NativeLicensingService as jest.Mock;
@@ -611,10 +610,10 @@ describe('kata-wrapper', () => {
         // Should have exactly 1 LayerVersion (KataConfigLayer), not NodejsRuntimeLayer
         const layers = template.findResources('AWS::Lambda::LayerVersion');
         const layerDescriptions = Object.values(layers).map(
-          (l: Record<string, unknown>) => (l.Properties as Record<string, unknown>)?.Description
+          (l: Record<string, unknown>) => (l.Properties as Record<string, unknown>)?.Description,
         );
         expect(layerDescriptions.some((d: unknown) =>
-          typeof d === 'string' && d.includes('Node.js')
+          typeof d === 'string' && d.includes('Node.js'),
         )).toBe(false);
       });
 
@@ -638,8 +637,8 @@ describe('kata-wrapper', () => {
         // Verify layer references S3 bucket
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
           Content: Match.objectLike({
-            S3Bucket: Match.stringLikeRegexp('lambda-kata-website-layer-content-dev'),
-            S3Key: 'node-js-layers/nodejs-20-layer-x86_64.zip',
+            S3Bucket: Match.stringLikeRegexp('lambda-kata-website-product-layer-content-dev'),
+            S3Key: 'nodejs_layers/nodejs-20-layer-x86_64.zip',
           }),
         });
       });
