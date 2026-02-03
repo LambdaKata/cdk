@@ -224,7 +224,7 @@ describe('Node.js Binary Optimization', () => {
             const originalSize = 80 * 1024 * 1024; // 80MB original
             const optimizedSize = 25 * 1024 * 1024; // 25MB optimized
 
-            // Mock Docker operations
+            // Mock Docker operations for AWS Lambda image extraction
             jest.spyOn(manager as any, 'executeDockerCommand').mockResolvedValue(undefined);
 
             // Mock file operations
@@ -266,6 +266,11 @@ describe('Node.js Binary Optimization', () => {
 
             expect(result.arn).toBe(mockLambdaResponse.LayerVersionArn);
             expect((manager as any).executeCommand).toHaveBeenCalledWith('strip', ['--strip-debug', expect.any(String)]);
+
+            // Verify Docker operations were called for AWS Lambda image extraction
+            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['pull', expect.stringContaining('public.ecr.aws/lambda/nodejs')]);
+            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['create', '--name', expect.any(String), expect.stringContaining('public.ecr.aws/lambda/nodejs')]);
+            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['cp', expect.stringContaining(':/var/lang/bin/node'), expect.any(String)]);
         });
     });
 });

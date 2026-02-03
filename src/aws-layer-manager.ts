@@ -1164,14 +1164,15 @@ export class AWSLayerManager implements LayerManager {
     }
 
     /**
-     * Extracts Node.js binary from AWS Lambda Docker container with resource tracking.
+     * Extracts Node.js binary from AWS Lambda Docker image with resource tracking.
      *
-     * Enhanced version that tracks Docker containers for cleanup on failure.
-     * Uses Docker to run the AWS Lambda runtime image and copy the Node.js
-     * binary to the local filesystem for packaging in the layer.
+     * Uses ONLY AWS Lambda Docker images to extract the Node.js binary from the
+     * official Lambda runtime environment. This ensures compatibility with the
+     * Lambda execution environment while extracting only the minimal binary needed.
      *
-     * OPTIMIZATION: Extracts only the core Node.js binary and applies size optimizations
-     * to ensure the layer stays within AWS Lambda's 50MB ZIP limit.
+     * CRITICAL: Uses ONLY AWS Lambda Docker images as required by user specifications.
+     * Docker image format: public.ecr.aws/lambda/nodejs:{version}-{arch}
+     * Extracts ONLY: /var/lang/bin/node
      *
      * @param nodeVersion - The Node.js version (e.g., "20.10.0")
      * @param architecture - The target architecture
@@ -1186,77 +1187,103 @@ export class AWSLayerManager implements LayerManager {
         tempDir: string,
         resourceTracker: LayerCreationResourceTracker
     ): Promise<string> {
-        this.logger.debug('Extracting optimized Node.js binary from Docker with tracking', {
+        this.logger.debug('Extracting Node.js binary from AWS Lambda Docker image', {
             nodeVersion,
             architecture,
             tempDir,
         });
 
-        // Build Docker image name
+        // Map Node.js version to Lambda runtime version
         const majorVersion = nodeVersion.split('.')[0];
-        const dockerImage = `public.ecr.aws/lambda/nodejs:${majorVersion}-${architecture}`;
+        const lambdaRuntime = `nodejs${majorVersion}.x`;
 
-        // Create container and copy binary
+        // Map AWS Lambda architecture to Docker architecture
+        const dockerArch = architecture === 'x86_64' ? 'amd64' : 'arm64';
+
+        // Build AWS Lambda Docker image name
+        const dockerImage = `public.ecr.aws/lambda/nodejs:${lambdaRuntime}-${dockerArch}`;
         const containerName = `lambda-kata-extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const binaryPath = path.join(tempDir, 'node');
 
+        // Track container for cleanup
+        resourceTracker.addDockerContainer(containerName);
+
         try {
-            // Pull the Docker image first
-            await this.executeDockerCommand(['pull', dockerImage]);
-
-            // Create container (don't start it, just create)
-            await this.executeDockerCommand(['create', '--name', containerName, dockerImage]);
-
-            // Track the container for cleanup
-            resourceTracker.addDockerContainer(containerName);
-
-            // Copy Node.js binary from container to local filesystem
-            await this.executeDockerCommand(['cp', `${containerName}:/var/lang/bin/node`, binaryPath]);
-
-            // Verify the binary was extracted and is executable
-            const originalStats = await fs.stat(binaryPath);
-            if (!originalStats.isFile()) {
-                throw new Error('Extracted Node.js binary is not a file');
-            }
-
-            this.logger.debug('Node.js binary extracted, applying optimizations', {
-                originalSize: originalStats.size,
-                originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+            this.logger.info('Extracting Node.js binary from AWS Lambda Docker image', {
+                nodeVersion,
+                lambdaRuntime,
+                dockerImage,
+                containerName,
+                architecture: dockerArch,
+                extractionPath: '/var/lang/bin/node',
             });
 
-            // OPTIMIZATION: Strip debug symbols to reduce size
+            // Pull the AWS Lambda Docker image
+            this.logger.debug('Pulling AWS Lambda Docker image', { dockerImage });
+            await this.executeDockerCommand(['pull', dockerImage]);
+
+            // Create container (don't run it, just create for file extraction)
+            this.logger.debug('Creating Docker container for binary extraction', { containerName });
+            await this.executeDockerCommand(['create', '--name', containerName, dockerImage]);
+
+            // Extract ONLY the Node.js binary from /var/lang/bin/node
+            this.logger.debug('Extracting Node.js binary from container', {
+                containerName,
+                sourcePath: '/var/lang/bin/node',
+                targetPath: binaryPath,
+            });
+            await this.executeDockerCommand(['cp', `${containerName}:/var/lang/bin/node`, binaryPath]);
+
+            // Verify the binary was extracted correctly
+            const binaryStats = await fs.stat(binaryPath);
+            if (!binaryStats.isFile()) {
+                throw new Error('Failed to extract Node.js binary from Docker container');
+            }
+
+            this.logger.info('Node.js binary extracted successfully from AWS Lambda Docker image', {
+                originalSize: binaryStats.size,
+                originalSizeMB: (binaryStats.size / (1024 * 1024)).toFixed(2),
+                binaryPath,
+                extractionMethod: 'aws_lambda_docker_image',
+                dockerImage,
+                sourcePath: '/var/lang/bin/node',
+            });
+
+            // Apply optimization to reduce size further
             const optimizedBinaryPath = await this.optimizeNodeBinary(binaryPath, tempDir);
 
             // Verify optimized binary
             const optimizedStats = await fs.stat(optimizedBinaryPath);
-            const sizeReduction = originalStats.size - optimizedStats.size;
-            const reductionPercent = ((sizeReduction / originalStats.size) * 100).toFixed(1);
+            const sizeReduction = binaryStats.size - optimizedStats.size;
+            const reductionPercent = ((sizeReduction / binaryStats.size) * 100).toFixed(1);
 
             // Make sure the binary is executable
             await fs.chmod(optimizedBinaryPath, 0o755);
 
             this.logger.info('Node.js binary optimization completed', {
-                originalSize: originalStats.size,
+                originalSize: binaryStats.size,
                 optimizedSize: optimizedStats.size,
                 sizeReduction,
                 reductionPercent: reductionPercent + '%',
-                originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+                originalSizeMB: (binaryStats.size / (1024 * 1024)).toFixed(2),
                 optimizedSizeMB: (optimizedStats.size / (1024 * 1024)).toFixed(2),
+                extractionMethod: 'aws_lambda_docker_image',
                 dockerImage,
-                containerName,
             });
 
             return optimizedBinaryPath;
 
         } catch (error) {
             throw new NodeRuntimeLayerError(
-                `Failed to extract Node.js binary from Docker image ${dockerImage}: ${error instanceof Error ? error.message : String(error)}`,
+                `Failed to extract Node.js binary from AWS Lambda Docker image ${dockerImage}: ${error instanceof Error ? error.message : String(error)}`,
                 ErrorCodes.LAYER_CREATION_FAILED,
                 error instanceof Error ? error : new Error(String(error))
             );
         }
-        // Note: Container cleanup is handled by the resource tracker in the finally block
+        // Note: Cleanup is handled by the resource tracker in the finally block
     }
+
+
 
     /**
      * Optimizes Node.js binary to reduce size while preserving functionality.
@@ -1420,8 +1447,8 @@ export class AWSLayerManager implements LayerManager {
     /**
      * Creates the proper Lambda Layer directory structure.
      *
-     * Lambda Layers must follow a specific directory structure:
-     * - /opt/nodejs/bin/ for Node.js binaries
+     * Lambda Layers for Node.js binary should use minimal structure:
+     * - bin/node (not /opt/nodejs/bin/node)
      *
      * @param tempDir - Base temporary directory
      * @param nodeBinaryPath - Path to the Node.js binary
@@ -1429,29 +1456,28 @@ export class AWSLayerManager implements LayerManager {
      * @throws Error if directory creation fails
      */
     private async createLayerDirectoryStructure(tempDir: string, nodeBinaryPath: string): Promise<string> {
-        this.logger.debug('Creating Lambda Layer directory structure', {
+        this.logger.debug('Creating minimal Lambda Layer directory structure', {
             tempDir,
             nodeBinaryPath,
         });
 
-        // Create the layer directory structure: /opt/nodejs/bin/
+        // Create minimal layer directory structure: bin/node (not /opt/nodejs/bin/)
         const layerDir = path.join(tempDir, 'layer');
-        const optDir = path.join(layerDir, 'opt');
-        const nodejsDir = path.join(optDir, 'nodejs');
-        const binDir = path.join(nodejsDir, 'bin');
+        const binDir = path.join(layerDir, 'bin');
 
         await fs.mkdir(binDir, { recursive: true });
 
-        // Copy Node.js binary to the correct location
+        // Copy Node.js binary to the minimal location
         const targetBinaryPath = path.join(binDir, 'node');
         await fs.copyFile(nodeBinaryPath, targetBinaryPath);
 
         // Ensure the binary is executable
         await fs.chmod(targetBinaryPath, 0o755);
 
-        this.logger.debug('Created Lambda Layer directory structure', {
+        this.logger.debug('Created minimal Lambda Layer directory structure', {
             layerDir,
             targetBinaryPath,
+            structure: 'bin/node (minimal)',
         });
 
         return layerDir;
