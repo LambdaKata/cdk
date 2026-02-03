@@ -533,44 +533,33 @@ async function applyTransformationWithNodeSupport(
   const originalRuntime = getOriginalRuntime(lambda);
   const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
 
-  // For Node.js functions: Deploy Node.js runtime layer using pre-built ZIP files
-  // This bypasses the Docker binary extraction that fails with large binaries (>80MB)
+  // For Node.js functions: Try to attach Node.js runtime layer
+  // Strategy: Try pre-built ZIP deployment first, fallback to Docker extraction if needed
   if (isNodejs) {
     const architecture = getLambdaArchitecture(lambda);
 
     try {
-      // Import AWSLayerManager for deployment functionality
+      // STRATEGY 1: Try to deploy from pre-built ZIP files (fast, avoids Docker issues)
       const { AWSLayerManager } = await import('./aws-layer-manager');
 
-      // Create layer manager with S3 support for large layers
       const layerManager = new AWSLayerManager({
         enableS3Support: true,
         awsSdkConfig: { region },
-        // Use minimal logging to avoid cluttering CDK synthesis output
         logger: {
           debug: () => { },
-          info: (msg: string) => {
-            // Only log important deployment events
-            if (msg.includes('deployed successfully') || msg.includes('Layer deployment')) {
-              console.log(`[Lambda Kata] ${msg}`);
-            }
-          },
-          warn: (msg: string) => console.warn(`[Lambda Kata] ${msg}`),
-          error: (msg: string) => console.error(`[Lambda Kata] ${msg}`),
+          info: () => { },
+          warn: () => { },
+          error: () => { },
         },
       });
 
       try {
-        // Deploy the Node.js layer using pre-built ZIP files
-        // Searches for files like: nodejs-layer-arm64.zip, nodejs-layer-x86_64.zip
         const deployResult = await layerManager.deployNodejsLayer({
           region,
           architecture,
-          // Search for ZIP files in current working directory
           baseDirectory: process.cwd(),
         });
 
-        // Attach the deployed Node.js runtime layer to the Lambda function
         const nodeLayer = LayerVersion.fromLayerVersionArn(
           lambda,
           'NodeRuntimeLayer',
@@ -578,29 +567,72 @@ async function applyTransformationWithNodeSupport(
         );
         lambda.addLayers(nodeLayer);
 
-        // Log success for visibility
         console.log(
-          `[Lambda Kata] Successfully attached Node.js runtime layer: ${deployResult.layerVersionArn} ` +
-          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB, ${deployResult.architecture})`
+          `[Lambda Kata] Node.js layer attached: ${deployResult.layerVersionArn} ` +
+          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB)`
         );
 
+        return; // Success - exit early
+
       } finally {
-        // Always clean up the layer manager resources
         layerManager.destroy();
       }
 
-    } catch (error) {
-      // Node.js layer deployment failures should not break the core kata transformation
-      // This allows the system to work even without pre-built Node.js layers
-      const errorMessage = error instanceof Error ? error.message : String(error);
+    } catch (zipError) {
+      // ZIP deployment failed - try fallback to Docker extraction
+      const zipErrorMsg = zipError instanceof Error ? zipError.message : String(zipError);
 
-      // Use CDK Annotations for proper error reporting
-      Annotations.of(lambda).addWarning(
-        `Failed to attach Node.js runtime layer: ${errorMessage}. ` +
-        `The Lambda function will still be transformed to use Lambda Kata, but Node.js runtime ` +
-        `binaries may not be available. To fix this issue, provide pre-built layer ZIP files ` +
-        `(e.g., nodejs-layer-arm64.zip or nodejs-layer-x86_64.zip) in your project directory.`
-      );
+      // Only try Docker fallback if ZIP files were not found
+      if (zipErrorMsg.includes('No layer ZIP found')) {
+        console.log('[Lambda Kata] Pre-built ZIP not found, trying Docker extraction...');
+
+        try {
+          // STRATEGY 2: Fallback to Docker extraction (original method)
+          const { ensureNodeRuntimeLayer } = await import('./ensure-node-runtime-layer');
+
+          const layerResult = await ensureNodeRuntimeLayer({
+            runtimeName: originalRuntime,
+            architecture,
+            region,
+            accountId,
+            logger: {
+              debug: () => { },
+              info: () => { },
+              warn: () => { },
+              error: () => { },
+            },
+          });
+
+          const nodeLayer = LayerVersion.fromLayerVersionArn(
+            lambda,
+            'NodeRuntimeLayer',
+            layerResult.layerArn,
+          );
+          lambda.addLayers(nodeLayer);
+
+          console.log(`[Lambda Kata] Node.js layer created from Docker: ${layerResult.layerArn}`);
+          return; // Success
+
+        } catch (dockerError) {
+          // Both strategies failed - log comprehensive error
+          const dockerErrorMsg = dockerError instanceof Error ? dockerError.message : String(dockerError);
+
+          Annotations.of(lambda).addWarning(
+            `Failed to attach Node.js runtime layer. Tried:\n` +
+            `1. Pre-built ZIP deployment: ${zipErrorMsg}\n` +
+            `2. Docker extraction: ${dockerErrorMsg}\n\n` +
+            `The Lambda will be transformed to Lambda Kata runtime, but Node.js binaries may not be available.\n\n` +
+            `To fix: Either provide pre-built layer ZIP files (nodejs-layer-${architecture}.zip) ` +
+            `or ensure Docker is available for binary extraction.`
+          );
+        }
+      } else {
+        // ZIP deployment failed for other reasons (not missing files)
+        Annotations.of(lambda).addWarning(
+          `Failed to deploy Node.js layer from ZIP: ${zipErrorMsg}. ` +
+          `The Lambda will be transformed but Node.js binaries may not be available.`
+        );
+      }
     }
   }
 
