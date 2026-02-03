@@ -37,7 +37,6 @@ import { KataProps, LicensingResponse, TransformationConfig } from './types';
 import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { createKataConfigLayer } from './config-layer';
-import { AWSLayerManager } from './aws-layer-manager';
 
 /**
  * Default handler path for the Lambda Kata runtime.
@@ -512,7 +511,7 @@ async function hasNodejsLayerZipFiles(architecture: 'arm64' | 'x86_64', baseDire
  *
  * This is an enhanced version of applyTransformation that includes automatic
  * Node.js runtime layer management for Node.js Lambda functions using the
- * new deployment functionality that bypasses Docker binary extraction.
+ * ensureNodeRuntimeLayer API.
  *
  * @param lambda - The Lambda function to transform
  * @param config - The transformation configuration
@@ -531,59 +530,48 @@ async function applyTransformationWithNodeSupport(
   const originalRuntime = getOriginalRuntime(lambda);
   const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
 
-  // For Node.js functions: Try to deploy Node.js runtime layer using pre-built ZIPs
-  // This bypasses the Docker binary extraction that can fail with large binaries
-  // Only attempt deployment if ZIP files are actually available
+  // For Node.js functions: Use ensureNodeRuntimeLayer for proper layer management
   if (isNodejs) {
     const architecture = getLambdaArchitecture(lambda);
-    const baseDirectory = process.cwd();
 
-    // Check if ZIP files exist before attempting deployment
-    if (await hasNodejsLayerZipFiles(architecture, baseDirectory)) {
-      try {
-        const layerManager = new AWSLayerManager({
-          enableS3Support: true,
-          awsSdkConfig: { region },
-          // Use a no-op logger to avoid cluttering CDK synthesis output
-          logger: {
-            debug: () => { },
-            info: () => { },
-            warn: () => { },
-            error: () => { },
+    try {
+      // Import ensureNodeRuntimeLayer dynamically to avoid circular dependencies
+      const { ensureNodeRuntimeLayer } = await import('./ensure-node-runtime-layer');
+
+      // Use the main API function for Node.js layer management
+      const layerResult = await ensureNodeRuntimeLayer({
+        runtimeName: originalRuntime,
+        architecture,
+        region,
+        accountId,
+        // Use a no-op logger to avoid cluttering CDK synthesis output
+        logger: {
+          debug: () => {
           },
-        });
+          info: () => {
+          },
+          warn: () => {
+          },
+          error: () => {
+          },
+        },
+      });
 
-        try {
-          // Deploy the Node.js layer using pre-built ZIP files
-          const deployResult = await layerManager.deployNodejsLayer({
-            region,
-            architecture,
-            baseDirectory,
-          });
+      // Attach the Node.js runtime layer
+      const nodeLayer = LayerVersion.fromLayerVersionArn(
+        lambda,
+        'NodeRuntimeLayer',
+        layerResult.layerArn,
+      );
+      lambda.addLayers(nodeLayer);
 
-          // Attach the deployed Node.js runtime layer
-          const nodeLayer = LayerVersion.fromLayerVersionArn(
-            lambda,
-            'NodeRuntimeLayer',
-            deployResult.layerVersionArn,
-          );
-          lambda.addLayers(nodeLayer);
-
-        } finally {
-          // Always clean up the layer manager
-          layerManager.destroy();
-        }
-
-      } catch (error) {
-        // Only log actual deployment failures, not missing files
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        Annotations.of(lambda).addWarning(
-          `Failed to deploy Node.js runtime layer: ${errorMessage}`
-        );
-      }
+    } catch (error) {
+      // Log deployment failures as warnings, don't fail the transformation
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Annotations.of(lambda).addWarning(
+        `Failed to ensure Node.js runtime layer: ${errorMessage}`,
+      );
     }
-    // If ZIP files don't exist, silently continue without Node.js layer
-    // This is normal operation - Node.js layer is optional enhancement
   }
 
   // Apply the standard kata transformation

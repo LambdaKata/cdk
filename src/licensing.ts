@@ -20,7 +20,6 @@
  */
 
 import { LicensingResponse } from './types';
-import * as PROCESS from 'node:process';
 
 /**
  * Default licensing service endpoint for Lambda Kata.

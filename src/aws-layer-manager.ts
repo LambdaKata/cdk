@@ -37,13 +37,13 @@ import {
   PublishLayerVersionCommand,
 } from '@aws-sdk/client-lambda';
 import {
+  BucketLocationConstraint,
   CreateBucketCommand,
   DeleteBucketCommand,
   DeleteObjectCommand,
   PutObjectCommand,
   S3Client,
   S3ClientConfig,
-  BucketLocationConstraint,
 } from '@aws-sdk/client-s3';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
@@ -59,10 +59,10 @@ import {
   LayerRequirements,
   LayerSearchOptions,
   Logger,
-  NodeRuntimeLayerError,
+  MultiArchitectureDeploymentResult,
   NodejsLayerDeploymentOptions,
   NodejsLayerDeploymentResult,
-  MultiArchitectureDeploymentResult,
+  NodeRuntimeLayerError,
 } from './nodejs-layer-manager';
 import { createDefaultLogger, OperationTimer } from './logger';
 
@@ -1841,7 +1841,7 @@ export class AWSLayerManager implements LayerManager {
         // Use shell redirection for gzip output
         await this.executeCommand('sh', [
           '-c',
-          `gzip -9 -c "${optimizedBinaryPath}" > "${compressedPath}"`
+          `gzip -9 -c "${optimizedBinaryPath}" > "${compressedPath}"`,
         ]);
 
         const compressedStats = await fs.stat(compressedPath);
@@ -1979,7 +1979,7 @@ export class AWSLayerManager implements LayerManager {
         throw new Error(
           `Optimized binary size (${(currentStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds AWS Lambda layer limit (80MB). ` +
           `Original: ${(originalStats.size / (1024 * 1024)).toFixed(2)}MB, Reduction: ${reductionPercent}%. ` +
-          `Consider using a different Node.js version or architecture.`
+          `Consider using a different Node.js version or architecture.`,
         );
       }
 
@@ -2009,14 +2009,14 @@ export class AWSLayerManager implements LayerManager {
       // Both optimization and fallback failed
       throw new Error(
         `Binary optimization failed and original binary (${(originalStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds 80MB limit. ` +
-        `Error: ${error instanceof Error ? error.message : String(error)}`
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
   /**
    * Attempts strip-based optimization with progressive aggressiveness.
-   * 
+   *
    * @param originalBinaryPath - Path to original binary
    * @param tempDir - Working directory
    * @returns Path to stripped binary or original if stripping fails
@@ -2074,7 +2074,7 @@ export class AWSLayerManager implements LayerManager {
 
   /**
    * Attempts UPX compression optimization.
-   * 
+   *
    * @param binaryPath - Path to binary to compress
    * @param tempDir - Working directory
    * @returns Path to compressed binary or null if UPX unavailable/fails
@@ -2120,7 +2120,7 @@ export class AWSLayerManager implements LayerManager {
 
   /**
    * Attempts to use system Node.js binary as replacement.
-   * 
+   *
    * @param tempDir - Working directory
    * @returns Path to system Node.js copy or null if unavailable/unsuitable
    */
@@ -2251,13 +2251,13 @@ export class AWSLayerManager implements LayerManager {
       // Decompress using shell redirection
       await this.executeCommand('sh', [
         '-c',
-        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`,
       ]);
 
       // Alternative: use shell redirection
       await this.executeCommand('sh', [
         '-c',
-        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`,
       ]);
 
       // Ensure the binary is executable

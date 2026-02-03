@@ -24,7 +24,7 @@
  */
 
 import { Construct } from 'constructs';
-import { LayerVersion, Code, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Code, LayerVersion } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -178,7 +178,7 @@ export function createKataConfigLayer(
   // Each call creates a unique temp directory to support different handler paths (Requirement 3.5)
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kata-config-'));
   const kataDir = path.join(tempDir, CONFIG_DIR_NAME);
-  fs.mkdirSync(kataDir, {recursive: true});
+  fs.mkdirSync(kataDir, { recursive: true });
 
   // Build config object (Requirement 1.2)
   const config: Record<string, unknown> = {
