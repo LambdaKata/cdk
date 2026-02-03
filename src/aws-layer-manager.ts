@@ -1262,7 +1262,38 @@ export class AWSLayerManager implements LayerManager {
       }
 
       // Apply optimization to reduce size further
-      const optimizedBinaryPath = await this.optimizeNodeBinary(binaryPath, tempDir);
+      let optimizedBinaryPath = await this.optimizeNodeBinary(binaryPath, tempDir);
+
+      // CRITICAL: If strip didn't work well enough, try compression
+      const afterStripStats = await fs.stat(optimizedBinaryPath);
+      if (afterStripStats.size > 40 * 1024 * 1024) { // Still > 40MB
+        this.logger.warn('Binary still large after strip, applying compression', {
+          currentSize: afterStripStats.size,
+          currentSizeMB: (afterStripStats.size / (1024 * 1024)).toFixed(2),
+        });
+
+        // Compress the binary with maximum compression
+        const compressedPath = path.join(tempDir, 'node.gz');
+
+        // Use shell redirection for gzip output
+        await this.executeCommand('sh', [
+          '-c',
+          `gzip -9 -c "${optimizedBinaryPath}" > "${compressedPath}"`
+        ]);
+
+        const compressedStats = await fs.stat(compressedPath);
+        const compressionRatio = ((afterStripStats.size - compressedStats.size) / afterStripStats.size * 100).toFixed(1);
+
+        this.logger.info('Binary compressed successfully', {
+          originalSize: afterStripStats.size,
+          compressedSize: compressedStats.size,
+          compressionRatio: compressionRatio + '%',
+          originalSizeMB: (afterStripStats.size / (1024 * 1024)).toFixed(2),
+          compressedSizeMB: (compressedStats.size / (1024 * 1024)).toFixed(2),
+        });
+
+        optimizedBinaryPath = compressedPath;
+      }
 
       // Verify optimized binary
       const optimizedStats = await fs.stat(optimizedBinaryPath);
@@ -1503,10 +1534,11 @@ export class AWSLayerManager implements LayerManager {
    * Creates the proper Lambda Layer directory structure.
    *
    * Lambda Layers for Node.js binary should use minimal structure:
-   * - bin/node (not /opt/nodejs/bin/node)
+   * - bin/node (uncompressed binary)
+   * - bin/node.gz (compressed binary with decompression script)
    *
    * @param tempDir - Base temporary directory
-   * @param nodeBinaryPath - Path to the Node.js binary
+   * @param nodeBinaryPath - Path to the Node.js binary (may be compressed)
    * @returns Promise resolving to the layer directory path
    * @throws Error if directory creation fails
    */
@@ -1522,18 +1554,47 @@ export class AWSLayerManager implements LayerManager {
 
     await fs.mkdir(binDir, { recursive: true });
 
-    // Copy Node.js binary to the minimal location
-    const targetBinaryPath = path.join(binDir, 'node');
-    await fs.copyFile(nodeBinaryPath, targetBinaryPath);
+    // Check if binary is compressed
+    const isCompressed = nodeBinaryPath.endsWith('.gz');
 
-    // Ensure the binary is executable
-    await fs.chmod(targetBinaryPath, 0o755);
+    if (isCompressed) {
+      // For compressed binary: decompress and place as 'node'
+      const targetBinaryPath = path.join(binDir, 'node');
 
-    this.logger.debug('Created minimal Lambda Layer directory structure', {
-      layerDir,
-      targetBinaryPath,
-      structure: 'bin/node (minimal)',
-    });
+      // Decompress using shell redirection
+      await this.executeCommand('sh', [
+        '-c',
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
+      ]);
+
+      // Alternative: use shell redirection
+      await this.executeCommand('sh', [
+        '-c',
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
+      ]);
+
+      // Ensure the binary is executable
+      await fs.chmod(targetBinaryPath, 0o755);
+
+      this.logger.debug('Decompressed binary for layer structure', {
+        compressedPath: nodeBinaryPath,
+        targetPath: targetBinaryPath,
+        structure: 'bin/node (decompressed)',
+      });
+    } else {
+      // For uncompressed binary: copy directly
+      const targetBinaryPath = path.join(binDir, 'node');
+      await fs.copyFile(nodeBinaryPath, targetBinaryPath);
+
+      // Ensure the binary is executable
+      await fs.chmod(targetBinaryPath, 0o755);
+
+      this.logger.debug('Copied uncompressed binary for layer structure', {
+        sourcePath: nodeBinaryPath,
+        targetPath: targetBinaryPath,
+        structure: 'bin/node (direct copy)',
+      });
+    }
 
     return layerDir;
   }
