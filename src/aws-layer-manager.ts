@@ -1170,6 +1170,9 @@ export class AWSLayerManager implements LayerManager {
      * Uses Docker to run the AWS Lambda runtime image and copy the Node.js
      * binary to the local filesystem for packaging in the layer.
      *
+     * OPTIMIZATION: Extracts only the core Node.js binary and applies size optimizations
+     * to ensure the layer stays within AWS Lambda's 50MB ZIP limit.
+     *
      * @param nodeVersion - The Node.js version (e.g., "20.10.0")
      * @param architecture - The target architecture
      * @param tempDir - Temporary directory for extraction
@@ -1183,7 +1186,7 @@ export class AWSLayerManager implements LayerManager {
         tempDir: string,
         resourceTracker: LayerCreationResourceTracker
     ): Promise<string> {
-        this.logger.debug('Extracting Node.js binary from Docker with tracking', {
+        this.logger.debug('Extracting optimized Node.js binary from Docker with tracking', {
             nodeVersion,
             architecture,
             tempDir,
@@ -1211,22 +1214,39 @@ export class AWSLayerManager implements LayerManager {
             await this.executeDockerCommand(['cp', `${containerName}:/var/lang/bin/node`, binaryPath]);
 
             // Verify the binary was extracted and is executable
-            const stats = await fs.stat(binaryPath);
-            if (!stats.isFile()) {
+            const originalStats = await fs.stat(binaryPath);
+            if (!originalStats.isFile()) {
                 throw new Error('Extracted Node.js binary is not a file');
             }
 
-            // Make sure the binary is executable
-            await fs.chmod(binaryPath, 0o755);
+            this.logger.debug('Node.js binary extracted, applying optimizations', {
+                originalSize: originalStats.size,
+                originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+            });
 
-            this.logger.debug('Successfully extracted Node.js binary', {
-                binaryPath,
-                size: stats.size,
+            // OPTIMIZATION: Strip debug symbols to reduce size
+            const optimizedBinaryPath = await this.optimizeNodeBinary(binaryPath, tempDir);
+
+            // Verify optimized binary
+            const optimizedStats = await fs.stat(optimizedBinaryPath);
+            const sizeReduction = originalStats.size - optimizedStats.size;
+            const reductionPercent = ((sizeReduction / originalStats.size) * 100).toFixed(1);
+
+            // Make sure the binary is executable
+            await fs.chmod(optimizedBinaryPath, 0o755);
+
+            this.logger.info('Node.js binary optimization completed', {
+                originalSize: originalStats.size,
+                optimizedSize: optimizedStats.size,
+                sizeReduction,
+                reductionPercent: reductionPercent + '%',
+                originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+                optimizedSizeMB: (optimizedStats.size / (1024 * 1024)).toFixed(2),
                 dockerImage,
                 containerName,
             });
 
-            return binaryPath;
+            return optimizedBinaryPath;
 
         } catch (error) {
             throw new NodeRuntimeLayerError(
@@ -1236,6 +1256,165 @@ export class AWSLayerManager implements LayerManager {
             );
         }
         // Note: Container cleanup is handled by the resource tracker in the finally block
+    }
+
+    /**
+     * Optimizes Node.js binary to reduce size while preserving functionality.
+     *
+     * Applies size optimization techniques:
+     * 1. Strip debug symbols using 'strip' command (reduces size by 30-50%)
+     * 2. Verify binary functionality after optimization
+     * 3. Fallback to original binary if optimization fails
+     *
+     * @param originalBinaryPath - Path to the original Node.js binary
+     * @param tempDir - Temporary directory for optimization work
+     * @returns Promise resolving to path of optimized binary
+     * @throws Error if optimization fails and fallback is not viable
+     */
+    private async optimizeNodeBinary(originalBinaryPath: string, tempDir: string): Promise<string> {
+        const timer = new OperationTimer(this.logger, 'Node.js binary optimization', {
+            originalBinaryPath,
+        });
+
+        const optimizedBinaryPath = path.join(tempDir, 'node-optimized');
+
+        try {
+            // Copy original binary for optimization
+            await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
+
+            // Get original size for comparison
+            const originalStats = await fs.stat(originalBinaryPath);
+
+            this.logger.debug('Starting binary optimization', {
+                originalSize: originalStats.size,
+                originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+            });
+
+            // Try to strip debug symbols (most effective size reduction)
+            try {
+                await this.executeCommand('strip', ['--strip-debug', optimizedBinaryPath]);
+
+                const strippedStats = await fs.stat(optimizedBinaryPath);
+                const reduction = originalStats.size - strippedStats.size;
+
+                this.logger.debug('Debug symbols stripped successfully', {
+                    originalSize: originalStats.size,
+                    strippedSize: strippedStats.size,
+                    reduction,
+                    reductionPercent: ((reduction / originalStats.size) * 100).toFixed(1) + '%',
+                });
+
+                // Verify the binary still works after stripping
+                await this.verifyNodeBinary(optimizedBinaryPath);
+
+                timer.complete({
+                    originalSize: originalStats.size,
+                    optimizedSize: strippedStats.size,
+                    reduction,
+                    optimizationMethod: 'strip_debug_symbols',
+                });
+
+                return optimizedBinaryPath;
+
+            } catch (stripError) {
+                this.logger.warn('Failed to strip debug symbols, trying alternative optimization', {
+                    error: stripError instanceof Error ? stripError.message : String(stripError),
+                });
+
+                // Fallback: Try stripping all symbols (more aggressive)
+                try {
+                    // Restore original binary
+                    await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
+                    await this.executeCommand('strip', ['--strip-all', optimizedBinaryPath]);
+
+                    const strippedStats = await fs.stat(optimizedBinaryPath);
+                    const reduction = originalStats.size - strippedStats.size;
+
+                    // Verify the binary still works
+                    await this.verifyNodeBinary(optimizedBinaryPath);
+
+                    this.logger.info('Alternative optimization successful', {
+                        originalSize: originalStats.size,
+                        optimizedSize: strippedStats.size,
+                        reduction,
+                        reductionPercent: ((reduction / originalStats.size) * 100).toFixed(1) + '%',
+                        method: 'strip_all_symbols',
+                    });
+
+                    timer.complete({
+                        originalSize: originalStats.size,
+                        optimizedSize: strippedStats.size,
+                        reduction,
+                        optimizationMethod: 'strip_all_symbols',
+                    });
+
+                    return optimizedBinaryPath;
+
+                } catch (stripAllError) {
+                    this.logger.warn('All optimization attempts failed, using original binary', {
+                        stripError: stripError instanceof Error ? stripError.message : String(stripError),
+                        stripAllError: stripAllError instanceof Error ? stripAllError.message : String(stripAllError),
+                    });
+
+                    // Use original binary as fallback
+                    timer.complete({
+                        originalSize: originalStats.size,
+                        optimizedSize: originalStats.size,
+                        reduction: 0,
+                        optimizationMethod: 'none_fallback',
+                    });
+
+                    return originalBinaryPath;
+                }
+            }
+
+        } catch (error) {
+            timer.fail(error, { originalBinaryPath });
+
+            // If optimization completely fails, use original binary
+            this.logger.warn('Binary optimization failed completely, using original binary', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            return originalBinaryPath;
+        }
+    }
+
+    /**
+     * Verifies that a Node.js binary is functional after optimization.
+     *
+     * Runs basic Node.js commands to ensure the binary works correctly.
+     * This prevents shipping broken binaries after optimization.
+     *
+     * @param binaryPath - Path to the Node.js binary to verify
+     * @throws Error if verification fails
+     */
+    private async verifyNodeBinary(binaryPath: string): Promise<void> {
+        this.logger.debug('Verifying Node.js binary functionality', { binaryPath });
+
+        try {
+            // Test 1: Check version (basic functionality)
+            const versionResult = await this.executeCommandWithOutput(binaryPath, ['--version']);
+
+            if (!versionResult.stdout.trim().startsWith('v')) {
+                throw new Error(`Invalid version output: ${versionResult.stdout}`);
+            }
+
+            // Test 2: Execute simple JavaScript (runtime functionality)
+            const jsResult = await this.executeCommandWithOutput(binaryPath, ['-e', 'console.log("test")']);
+
+            if (jsResult.stdout.trim() !== 'test') {
+                throw new Error(`JavaScript execution failed: ${jsResult.stdout}`);
+            }
+
+            this.logger.debug('Node.js binary verification successful', {
+                version: versionResult.stdout.trim(),
+                jsExecution: 'passed',
+            });
+
+        } catch (error) {
+            throw new Error(`Node.js binary verification failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     /**
@@ -1484,24 +1663,44 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
         try {
             const totalSize = await this.calculateDirectorySize(layerDir);
 
-            // Conservative check: if uncompressed size > 200MB, likely to exceed ZIP limit
-            const conservativeLimit = 200 * 1024 * 1024; // 200MB
+            // More aggressive conservative limit for Node.js binaries
+            // Optimized Node.js binary should be ~15-25MB, allowing for compression overhead
+            const conservativeLimit = 100 * 1024 * 1024; // 100MB uncompressed (was 200MB)
+            const aggressiveLimit = 150 * 1024 * 1024;   // 150MB absolute limit
 
-            if (totalSize > conservativeLimit) {
-                timer.fail(new Error('Layer content too large'), { totalSize, conservativeLimit });
+            if (totalSize > aggressiveLimit) {
+                timer.fail(new Error('Layer content exceeds absolute limit'), { totalSize, aggressiveLimit });
                 throw new NodeRuntimeLayerError(
-                    `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds conservative limit (${Math.round(conservativeLimit / 1024 / 1024)}MB). ` +
-                    'This will likely exceed AWS Lambda layer size limits after compression.',
+                    `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds absolute limit (${Math.round(aggressiveLimit / 1024 / 1024)}MB). ` +
+                    'This indicates a problem with Node.js binary extraction or optimization. ' +
+                    'Expected optimized Node.js binary size: 15-25MB. ' +
+                    'Please check Docker image and binary optimization process.',
                     ErrorCodes.LAYER_SIZE_EXCEEDED
                 );
             }
 
-            timer.complete({ totalSize, status: 'within_limits' });
+            if (totalSize > conservativeLimit) {
+                this.logger.warn('Layer content size exceeds conservative limit but within absolute limit', {
+                    totalSize,
+                    totalSizeMB: Math.round(totalSize / 1024 / 1024),
+                    conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
+                    aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
+                    warning: 'May exceed AWS Lambda ZIP size limit after compression',
+                });
+            }
 
-            this.logger.debug('Layer content pre-validation passed', {
+            timer.complete({
+                totalSize,
+                status: totalSize > conservativeLimit ? 'warning_large_size' : 'within_limits',
+                sizeMB: Math.round(totalSize / 1024 / 1024),
+            });
+
+            this.logger.debug('Layer content pre-validation completed', {
                 totalSize,
                 totalSizeMB: Math.round(totalSize / 1024 / 1024),
                 conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
+                aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
+                status: totalSize > conservativeLimit ? 'large_but_acceptable' : 'optimal_size',
             });
 
         } catch (error) {
