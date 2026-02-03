@@ -1196,7 +1196,7 @@ export class AWSLayerManager implements LayerManager {
         // Map Node.js version to Lambda runtime version
         const majorVersion = nodeVersion.split('.')[0];
         // const lambdaRuntime = `nodejs${majorVersion}.x`;
-        const lambdaRuntime = `nodejs${majorVersion}`;
+        const lambdaRuntime = `${majorVersion}`;
 
         // Map AWS Lambda architecture to Docker architecture
         // const dockerArch = architecture === 'x86_64' ? 'amd64' : 'arm64';
