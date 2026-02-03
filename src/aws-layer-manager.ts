@@ -377,7 +377,7 @@ export class AWSLayerManager implements LayerManager {
    * These are AWS service limits that cannot be exceeded.
    */
   private static readonly MAX_LAYER_SIZE_UNZIPPED = 250 * 1024 * 1024; // 250MB
-  private static readonly MAX_LAYER_SIZE_ZIPPED = 50 * 1024 * 1024;    // 50MB
+  private static readonly MAX_LAYER_SIZE_ZIPPED = 250 * 1024 * 1024;    // 50MB
 
   /**
    * Docker operation timeout in milliseconds.
