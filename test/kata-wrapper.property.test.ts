@@ -2698,7 +2698,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
-                    fc.string({ minLength: 10, maxLength: 100 }).filter(s => !s.includes('\n')),
+                    fc.string({ minLength: 10, maxLength: 100 }).map(s => s.replace(/\n/g, ' ')),
                     async (config, accountId, customMessage) => {
                         const { app, stack } = createTestStack(accountId);
                         const lambda = createTestLambda(stack, 'TestFunction', config);

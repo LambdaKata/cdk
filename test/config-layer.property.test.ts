@@ -43,7 +43,10 @@ const validHandlerPath = (): fc.Arbitrary<string> =>
  * Ensures the two handler paths are distinct
  */
 const differentHandlerPaths = (): fc.Arbitrary<[string, string]> =>
-    fc.tuple(validHandlerPath(), validHandlerPath()).filter(([a, b]) => a !== b);
+    fc.tuple(
+        validHandlerPath(),
+        validHandlerPath().map(path => path + '-different')
+    );
 
 // Feature: config-layer-handler-path, Property 5: Unique Config Content for Different Handlers
 describe('Feature: config-layer-handler-path, Property 5: Unique Config Content for Different Handlers', () => {

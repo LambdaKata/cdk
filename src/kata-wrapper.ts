@@ -34,12 +34,24 @@ import { KataProps, LicensingResponse, TransformationConfig } from './types';
 import { LicensingService, createLicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { createKataConfigLayer } from './config-layer';
+import { ensureNodeRuntimeLayer } from './ensure-node-runtime-layer';
+import { EnsureNodeRuntimeLayerOptions } from './nodejs-layer-manager';
 
 /**
  * Default handler path for the Lambda Kata runtime.
  * This handler is provided by the Lambda Kata Layer.
  */
 const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
+
+/**
+ * Supported Node.js runtimes that require Node.js runtime layers.
+ * These runtimes will trigger automatic Node.js layer management.
+ */
+const NODEJS_RUNTIMES = new Set([
+  'nodejs18.x',
+  'nodejs20.x',
+  'nodejs22.x',
+]);
 
 /**
  * Warning message for unlicensed accounts.
@@ -219,8 +231,8 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
 
   // Handle the licensing response
   if (licensingResponse.entitled && licensingResponse.layerArn) {
-    // Apply transformation for entitled accounts
-    applyTransformation(lambda, {
+    // Apply transformation for entitled accounts with Node.js layer support
+    await applyTransformationWithNodeSupport(lambda, {
       originalHandler: getOriginalHandler(lambda),
       targetRuntime: Runtime.PYTHON_3_12,
       targetHandler: LAMBDA_KATA_HANDLER,
@@ -228,7 +240,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
       bundlePath: props?.bundlePath,
       middlewarePath: props?.middlewarePath,
       handlerResolver: props?.handlerResolver,
-    });
+    }, accountId, lambda.stack.region);
 
     return {
       transformed: true,
@@ -333,6 +345,56 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
 }
 
 /**
+ * Gets the original runtime from a Lambda function before transformation.
+ *
+ * @param lambda - The Lambda function
+ * @returns The original runtime name (e.g., "nodejs20.x")
+ *
+ * @internal
+ */
+export function getOriginalRuntime(lambda: NodejsFunction | LambdaFunction): string {
+  // Access the underlying CloudFormation resource to get the runtime
+  const cfnFunction = lambda.node.defaultChild as CfnFunction;
+  return cfnFunction.runtime ?? 'nodejs18.x';
+}
+
+/**
+ * Detects if a Lambda function uses a Node.js runtime.
+ *
+ * @param lambda - The Lambda function to check
+ * @returns true if the function uses a supported Node.js runtime
+ *
+ * @internal
+ */
+export function isNodejsRuntime(lambda: NodejsFunction | LambdaFunction): boolean {
+  const runtime = getOriginalRuntime(lambda);
+  return NODEJS_RUNTIMES.has(runtime);
+}
+
+/**
+ * Gets the architecture of a Lambda function.
+ *
+ * @param lambda - The Lambda function
+ * @returns The architecture ("x86_64" or "arm64")
+ *
+ * @internal
+ */
+export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 'x86_64' | 'arm64' {
+  // Access the underlying CloudFormation resource to get the architecture
+  const cfnFunction = lambda.node.defaultChild as CfnFunction;
+  const architectures = cfnFunction.architectures;
+
+  // Default to x86_64 if not specified (AWS Lambda default)
+  if (!architectures || architectures.length === 0) {
+    return 'x86_64';
+  }
+
+  // Return the first architecture, converting AWS format to our format
+  const arch = architectures[0];
+  return arch === 'arm64' ? 'arm64' : 'x86_64';
+}
+
+/**
  * Applies the Lambda Kata transformation to a Lambda function.
  *
  * This function modifies the Lambda construct in-place to:
@@ -397,6 +459,71 @@ export function applyTransformation(
   // - JS_HANDLER_PATH: Stored in config layer
   // - JS_BUNDLE_PATH: Stored in config layer (bundle_path)
   // - USE_CTYPES_BRIDGE: Removed - ctypes bridge is always used
+}
+
+/**
+ * Applies the Lambda Kata transformation with Node.js runtime layer support.
+ *
+ * This is an enhanced version of applyTransformation that includes automatic
+ * Node.js runtime layer management for Node.js Lambda functions.
+ *
+ * @param lambda - The Lambda function to transform
+ * @param config - The transformation configuration
+ * @param accountId - The AWS account ID for Node.js layer management
+ * @param region - The AWS region for Node.js layer management
+ *
+ * @internal
+ */
+async function applyTransformationWithNodeSupport(
+  lambda: NodejsFunction | LambdaFunction,
+  config: TransformationConfig,
+  accountId: string,
+  region: string,
+): Promise<void> {
+  // Store original runtime before transformation for Node.js layer detection
+  const originalRuntime = getOriginalRuntime(lambda);
+  const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
+
+  // For Node.js functions: Ensure Node.js runtime layer exists and attach it FIRST
+  // This must happen before the core transformation to ensure proper layer ordering
+  if (isNodejs) {
+    try {
+      const architecture = getLambdaArchitecture(lambda);
+
+      const nodeLayerOptions: EnsureNodeRuntimeLayerOptions = {
+        runtimeName: originalRuntime,
+        architecture,
+        region,
+        accountId,
+        // Use a no-op logger to avoid cluttering CDK synthesis output
+        logger: {
+          debug: () => { },
+          info: () => { },
+          warn: () => { },
+          error: () => { },
+        },
+      };
+
+      const nodeLayerResult = await ensureNodeRuntimeLayer(nodeLayerOptions);
+
+      // Attach the Node.js runtime layer
+      const nodeLayer = LayerVersion.fromLayerVersionArn(
+        lambda,
+        'NodeRuntimeLayer',
+        nodeLayerResult.layerArn,
+      );
+      lambda.addLayers(nodeLayer);
+
+    } catch (error) {
+      // Node.js layer failures should not break the core kata transformation
+      // Log the error but continue with the transformation
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Warning: Failed to attach Node.js runtime layer: ${errorMessage}`);
+    }
+  }
+
+  // Apply the standard kata transformation
+  applyTransformation(lambda, config);
 }
 
 /**

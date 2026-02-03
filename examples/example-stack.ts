@@ -84,7 +84,7 @@ import * as path from 'path';
 
 // Import the kata wrapper from the @lambda-kata/cdk package
 // In a real project, you would install this via: npm install @lambda-kata/cdk
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '../src';
 
 /**
  * Example CDK Stack demonstrating Lambda Kata integration.
@@ -399,7 +399,7 @@ export class InlineHandlerResolverStack extends Stack {
 
         kata(simpleFunction, {
             // Inline handler resolver - no separate file needed!
-            handlerResolver: (bundle, ctx) => {
+            handlerResolver: (bundle: unknown, ctx: { originalHandler: string }) => {
                 const handlerName = ctx.originalHandler.split('.').pop() as string;
                 return (bundle as Record<string, Function>)[handlerName];
             },
@@ -418,7 +418,7 @@ export class InlineHandlerResolverStack extends Stack {
         });
 
         kata(loggingFunction, {
-            handlerResolver: (bundle, ctx) => {
+            handlerResolver: (bundle: unknown, ctx: { originalHandler: string }) => {
                 const handlerName = ctx.originalHandler.split('.').pop() as string;
                 const originalHandler = (bundle as Record<string, Function>)[handlerName];
 
@@ -454,7 +454,7 @@ export class InlineHandlerResolverStack extends Stack {
         });
 
         kata(envBasedFunction, {
-            handlerResolver: (bundle, ctx) => {
+            handlerResolver: (bundle: unknown, ctx: { originalHandler: string }) => {
                 const b = bundle as Record<string, Function>;
                 const version = process.env.HANDLER_VERSION || 'v1';
 

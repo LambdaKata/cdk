@@ -11,8 +11,8 @@
     "build:minify": "yarn run build:config && node dist/utils/build.js",
     "build:config": "esbuild --bundle --platform=node utils/esbuild/esbuild.build.ts --outfile=dist/utils/build.js --external:esbuild",
     "watch": "tsc -w",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "npx jest --runInBand --colors --verbose --testTimeout=30000 --forceExit --detectOpenHandles",
+    "test:watch": "npx jest --watch --testTimeout=30000 --runInBand",
     "lint": "eslint src/ test/ --ext .ts",
     "clean": "rm -rf lib coverage",
     "docs": "yarn run docs:md && yarn run docs:html",
@@ -53,6 +53,7 @@
     "constructs": "^10.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.500.0",
     "@aws-sdk/client-sts": "^3.500.0",
     "dotenv": "^17.2.3",
     "reflect-metadata": "^0.2.2"

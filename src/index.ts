@@ -78,3 +78,44 @@ export {
     CONFIG_FILE_NAME,
     HANDLER_CONFIG_KEY,
 } from './config-layer';
+
+// Node.js Layer Management exports
+export {
+    EnsureNodeRuntimeLayerOptions,
+    EnsureNodeRuntimeLayerResult,
+    NodeVersionInfo,
+    LayerInfo,
+    LayerSearchOptions,
+    LayerRequirements,
+    LayerCreationOptions,
+    Logger,
+    RuntimeDetector,
+    LayerManager,
+    ErrorCodes,
+    NodeRuntimeLayerError,
+    VersionCacheEntry,
+    LayerMetadata,
+} from './nodejs-layer-manager';
+
+// Docker Runtime Detector exports
+export {
+    DockerRuntimeDetector,
+    DockerRuntimeDetectorOptions,
+} from './docker-runtime-detector';
+
+// AWS Layer Manager exports
+export {
+    AWSLayerManager,
+    AWSLayerManagerOptions,
+} from './aws-layer-manager';
+
+// Logger exports
+export {
+    NoOpLogger,
+    ConsoleLogger,
+    createDefaultLogger,
+    OperationTimer,
+} from './logger';
+
+// Main API function export
+export { ensureNodeRuntimeLayer } from './ensure-node-runtime-layer';
