@@ -192,7 +192,7 @@ describe('Node.js Binary Optimization', () => {
         });
 
         it('should warn for large but acceptable size', async () => {
-            const largeSize = 120 * 1024 * 1024; // 120MB - exceeds conservative but within absolute limit
+            const largeSize = 60 * 1024 * 1024; // 60MB - exceeds conservative but within absolute limit
 
             jest.spyOn(manager as any, 'calculateDirectorySize').mockResolvedValue(largeSize);
             const warnSpy = jest.spyOn(logger, 'warn');
@@ -205,7 +205,7 @@ describe('Node.js Binary Optimization', () => {
         });
 
         it('should throw error for excessive size', async () => {
-            const excessiveSize = 160 * 1024 * 1024; // 160MB - exceeds absolute limit
+            const excessiveSize = 90 * 1024 * 1024; // 90MB - exceeds absolute limit
 
             jest.spyOn(manager as any, 'calculateDirectorySize').mockResolvedValue(excessiveSize);
 
