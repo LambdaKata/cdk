@@ -18,7 +18,7 @@
     "docs": "yarn run docs:md && yarn run docs:html",
     "docs:md": "typedoc --options ./docs/docs.config/typedoc.md.json",
     "docs:html": "typedoc --options ./docs/docs.config/typedoc.html.json",
-    "npm:publish": "npm publish --access public"
+    "npm:publish": "yarn run build && npm publish --access public"
   },
   "files": [
     "out/dist/**/*",
@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.500.0",
+    "@aws-sdk/client-s3": "^3.500.0",
     "@aws-sdk/client-sts": "^3.500.0",
     "dotenv": "^17.2.3",
     "reflect-metadata": "^0.2.2"

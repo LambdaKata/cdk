@@ -36,10 +36,20 @@ import {
   paginateListLayers,
   PublishLayerVersionCommand,
 } from '@aws-sdk/client-lambda';
+import {
+  CreateBucketCommand,
+  DeleteBucketCommand,
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+  S3ClientConfig,
+  BucketLocationConstraint,
+} from '@aws-sdk/client-s3';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { randomBytes } from 'crypto';
 
 import {
   ErrorCodes,
@@ -50,6 +60,9 @@ import {
   LayerSearchOptions,
   Logger,
   NodeRuntimeLayerError,
+  NodejsLayerDeploymentOptions,
+  NodejsLayerDeploymentResult,
+  MultiArchitectureDeploymentResult,
 } from './nodejs-layer-manager';
 import { createDefaultLogger, OperationTimer } from './logger';
 
@@ -134,6 +147,12 @@ export interface AWSLayerManagerOptions {
   awsSdkConfig?: LambdaClientConfig;
 
   /**
+   * AWS SDK configuration for S3 client.
+   * If not provided, uses the same configuration as Lambda client.
+   */
+  s3SdkConfig?: S3ClientConfig;
+
+  /**
    * Logger for debugging and monitoring.
    * If not provided, uses createDefaultLogger().
    */
@@ -178,6 +197,13 @@ export interface AWSLayerManagerOptions {
    * Default: 2
    */
   circuitBreakerSuccessThreshold?: number;
+
+  /**
+   * Enable S3 support for large layer uploads.
+   * If true, creates S3Client for handling layers >50MB.
+   * Default: true
+   */
+  enableS3Support?: boolean;
 }
 
 /**
@@ -333,6 +359,7 @@ interface LayerCreationOperation {
  */
 export class AWSLayerManager implements LayerManager {
   private readonly lambdaClient: LambdaClient;
+  private readonly s3Client: S3Client | null;
   private readonly logger: Logger;
   private readonly maxLayerAge: number;
   private readonly maxRetries: number;
@@ -359,6 +386,11 @@ export class AWSLayerManager implements LayerManager {
 
   constructor(options: AWSLayerManagerOptions = {}) {
     this.lambdaClient = new LambdaClient(options.awsSdkConfig ?? {});
+
+    // Initialize S3 client if S3 support is enabled (default: true)
+    const enableS3 = options.enableS3Support !== false;
+    this.s3Client = enableS3 ? new S3Client(options.s3SdkConfig ?? {}) : null;
+
     this.logger = options.logger ?? createDefaultLogger();
     this.maxLayerAge = options.maxLayerAge ?? 604800000; // 7 days default
     this.maxRetries = options.maxRetries ?? 3;
@@ -377,6 +409,7 @@ export class AWSLayerManager implements LayerManager {
       maxLayerAge: this.maxLayerAge,
       maxRetries: this.maxRetries,
       retryBaseDelay: this.retryBaseDelay,
+      s3SupportEnabled: enableS3,
       circuitBreakerFailureThreshold: options.circuitBreakerFailureThreshold ?? 5,
       circuitBreakerTimeout: options.circuitBreakerTimeout ?? 60000,
       circuitBreakerSuccessThreshold: options.circuitBreakerSuccessThreshold ?? 2,
@@ -661,6 +694,527 @@ export class AWSLayerManager implements LayerManager {
     } finally {
       // Comprehensive resource cleanup with detailed logging
       await this.performComprehensiveCleanup(resourceTracker);
+    }
+  }
+
+  /**
+   * Deploys a pre-built Node.js Lambda Layer from ZIP file.
+   *
+   * This method bypasses Docker binary extraction and deploys existing
+   * layer ZIP files directly to AWS Lambda. Handles large layers via S3
+   * temporary bucket upload with automatic cleanup.
+   *
+   * Process:
+   * 1. Validate input parameters and architecture
+   * 2. Search for existing layer ZIP files with fallback naming patterns
+   * 3. Read and validate layer ZIP file size
+   * 4. Deploy via direct upload (<50MB) or S3 upload (≥50MB)
+   * 5. Clean up temporary S3 resources if used
+   * 6. Return deployment result with layer ARN and metadata
+   *
+   * @param options - Deployment configuration
+   * @returns Promise resolving to deployment result
+   * @throws NodeRuntimeLayerError if deployment fails
+   */
+  async deployNodejsLayer(options: NodejsLayerDeploymentOptions): Promise<NodejsLayerDeploymentResult> {
+    const timer = new OperationTimer(this.logger, 'Node.js layer deployment', {
+      region: options.region,
+      architecture: options.architecture ?? 'arm64',
+      profile: options.profile,
+    });
+
+    try {
+      // Validate architecture
+      const architecture = options.architecture ?? 'arm64';
+      if (!['arm64', 'x86_64'].includes(architecture)) {
+        throw new NodeRuntimeLayerError(
+          `Invalid architecture '${architecture}'. Must be 'arm64' or 'x86_64'`,
+          ErrorCodes.INVALID_ARCHITECTURE,
+        );
+      }
+
+      // Determine layer name and search for ZIP file
+      const layerName = options.layerName ?? this.generateLayerName(architecture);
+      const baseDirectory = options.baseDirectory ?? process.cwd();
+
+      const zipFilePath = await this.findLayerZipFile(architecture, baseDirectory);
+      if (!zipFilePath) {
+        throw new NodeRuntimeLayerError(
+          `No layer ZIP found for ${architecture} in ${baseDirectory}`,
+          ErrorCodes.LAYER_CREATION_FAILED,
+        );
+      }
+
+      // Read and validate layer content
+      const layerContent = await fs.readFile(zipFilePath);
+      const layerSizeMB = layerContent.length / (1024 * 1024);
+
+      this.logger.info('Found layer ZIP file for deployment', {
+        zipFilePath,
+        layerName,
+        architecture,
+        size: layerContent.length,
+        sizeMB: layerSizeMB.toFixed(2),
+      });
+
+      // Validate size limits - only reject if exceeds absolute AWS limits
+      const AWS_LAMBDA_MAX_LAYER_SIZE = 250 * 1024 * 1024; // 250MB unzipped limit
+      if (layerContent.length > AWS_LAMBDA_MAX_LAYER_SIZE) {
+        throw new NodeRuntimeLayerError(
+          `Layer ZIP size (${layerSizeMB.toFixed(2)}MB) exceeds AWS absolute limit (250MB)`,
+          ErrorCodes.LAYER_SIZE_EXCEEDED,
+        );
+      }
+
+      // Deploy layer based on size
+      let deploymentResult: NodejsLayerDeploymentResult;
+
+      if (layerSizeMB > 50) {
+        // Use S3 for large layers
+        if (!this.s3Client) {
+          throw new NodeRuntimeLayerError(
+            'S3 support is disabled but required for large layer deployment',
+            ErrorCodes.LAYER_CREATION_FAILED,
+          );
+        }
+        deploymentResult = await this.deployLargeLayerViaS3(
+          layerName,
+          layerContent,
+          architecture,
+          options.region,
+          options.description,
+          zipFilePath,
+        );
+      } else {
+        // Direct upload for smaller layers
+        deploymentResult = await this.deployLayerDirect(
+          layerName,
+          layerContent,
+          architecture,
+          options.description,
+          zipFilePath,
+        );
+      }
+
+      timer.complete({
+        layerVersionArn: deploymentResult.layerVersionArn,
+        layerName: deploymentResult.layerName,
+        architecture: deploymentResult.architecture,
+        layerSize: deploymentResult.layerSize,
+        uploadMethod: deploymentResult.uploadedViaS3 ? 's3' : 'direct',
+      });
+
+      return deploymentResult;
+
+    } catch (error) {
+      timer.fail(error, {
+        region: options.region,
+        architecture: options.architecture ?? 'arm64',
+      });
+
+      if (error instanceof NodeRuntimeLayerError) {
+        throw error;
+      }
+
+      throw new NodeRuntimeLayerError(
+        `Failed to deploy Node.js layer: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCodes.LAYER_CREATION_FAILED,
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  /**
+   * Deploys Node.js layers for all supported architectures.
+   *
+   * Attempts to deploy layers for both arm64 and x86_64 architectures,
+   * continuing on individual failures to maximize successful deployments.
+   * This matches the behavior of the Python deployment script.
+   *
+   * @param options - Base deployment configuration (architecture will be overridden)
+   * @returns Promise resolving to multi-architecture deployment results
+   */
+  async deployAllArchitectures(options: Omit<NodejsLayerDeploymentOptions, 'architecture'>): Promise<MultiArchitectureDeploymentResult> {
+    const timer = new OperationTimer(this.logger, 'multi-architecture layer deployment', {
+      region: options.region,
+      profile: options.profile,
+    });
+
+    const results: Record<'arm64' | 'x86_64', NodejsLayerDeploymentResult | null> = {
+      arm64: null,
+      x86_64: null,
+    };
+
+    const successful: Array<{ architecture: 'arm64' | 'x86_64'; layerVersionArn: string }> = [];
+    const failed: Array<{ architecture: 'arm64' | 'x86_64'; error: string }> = [];
+
+    // Deploy for each architecture
+    for (const architecture of ['arm64', 'x86_64'] as const) {
+      this.logger.info(`Deploying ${architecture} layer...`, { architecture });
+
+      try {
+        const result = await this.deployNodejsLayer({
+          ...options,
+          architecture,
+        });
+
+        results[architecture] = result;
+        successful.push({
+          architecture,
+          layerVersionArn: result.layerVersionArn,
+        });
+
+        this.logger.info(`✓ ${architecture} layer deployed successfully`, {
+          architecture,
+          layerVersionArn: result.layerVersionArn,
+        });
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        results[architecture] = null;
+        failed.push({
+          architecture,
+          error: errorMessage,
+        });
+
+        this.logger.error(`✗ ${architecture} layer deployment failed`, {
+          architecture,
+          error: errorMessage,
+        });
+      }
+    }
+
+    const deploymentResult: MultiArchitectureDeploymentResult = {
+      results,
+      success: successful.length > 0,
+      successful,
+      failed,
+    };
+
+    // Log summary
+    this.logger.info('Multi-architecture deployment completed', {
+      totalSuccessful: successful.length,
+      totalFailed: failed.length,
+      successful: successful.map(s => `${s.architecture}: ${s.layerVersionArn}`),
+      failed: failed.map(f => `${f.architecture}: ${f.error}`),
+    });
+
+    timer.complete({
+      totalSuccessful: successful.length,
+      totalFailed: failed.length,
+      overallSuccess: deploymentResult.success,
+    });
+
+    return deploymentResult;
+  }
+
+  /**
+   * Generates a standard layer name for the given architecture.
+   *
+   * @param architecture - Target architecture
+   * @returns Standard layer name following the pattern: nodejs-18-{architecture}
+   */
+  private generateLayerName(architecture: 'arm64' | 'x86_64'): string {
+    return `nodejs-18-${architecture}`;
+  }
+
+  /**
+   * Searches for layer ZIP files with fallback naming patterns.
+   *
+   * Implements the same search logic as the Python script with multiple
+   * naming conventions for maximum compatibility.
+   *
+   * @param architecture - Target architecture
+   * @param baseDirectory - Directory to search in
+   * @returns Promise resolving to ZIP file path or null if not found
+   */
+  private async findLayerZipFile(architecture: 'arm64' | 'x86_64', baseDirectory: string): Promise<string | null> {
+    // Define search patterns based on architecture (matching Python script)
+    const candidates = architecture === 'arm64'
+      ? [
+        'nodejs-layer-arm64-minimal.zip',
+        'nodejs-layer-arm64.zip',
+      ]
+      : [
+        'nodejs-layer-x86_64-minimal.zip',
+        'nodejs-layer-x86_64.zip',
+        'nodejs-layer-x86-minimal.zip',
+        'nodejs-layer-x86.zip',
+      ];
+
+    this.logger.debug('Searching for layer ZIP files', {
+      architecture,
+      baseDirectory,
+      candidates,
+    });
+
+    // Search for existing files
+    for (const candidate of candidates) {
+      const filePath = path.join(baseDirectory, candidate);
+
+      try {
+        const stats = await fs.stat(filePath);
+        if (stats.isFile()) {
+          this.logger.debug('Found layer ZIP file', {
+            filePath,
+            size: stats.size,
+            sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
+          });
+          return filePath;
+        }
+      } catch (error) {
+        // File doesn't exist, continue searching
+        continue;
+      }
+    }
+
+    this.logger.warn('No layer ZIP files found', {
+      architecture,
+      baseDirectory,
+      searchedFiles: candidates,
+    });
+
+    return null;
+  }
+
+  /**
+   * Deploys a large layer (>50MB) via S3 temporary bucket.
+   *
+   * Creates a temporary S3 bucket, uploads the layer, publishes from S3,
+   * and cleans up the bucket. Implements the same logic as the Python script.
+   *
+   * @param layerName - Name of the layer
+   * @param layerContent - ZIP file content
+   * @param architecture - Target architecture
+   * @param region - AWS region
+   * @param description - Optional layer description
+   * @param zipFilePath - Original ZIP file path for metadata
+   * @returns Promise resolving to deployment result
+   */
+  private async deployLargeLayerViaS3(
+    layerName: string,
+    layerContent: Buffer,
+    architecture: 'arm64' | 'x86_64',
+    region: string,
+    description?: string,
+    zipFilePath?: string,
+  ): Promise<NodejsLayerDeploymentResult> {
+    if (!this.s3Client) {
+      throw new NodeRuntimeLayerError(
+        'S3 client not available for large layer deployment',
+        ErrorCodes.LAYER_CREATION_FAILED,
+      );
+    }
+
+    // Generate unique bucket name
+    const bucketName = `lambda-layer-temp-${randomBytes(4).toString('hex')}`;
+    const keyName = `nodejs-layer-${architecture}.zip`;
+
+    this.logger.info('Deploying large layer via S3', {
+      layerName,
+      bucketName,
+      keyName,
+      layerSize: layerContent.length,
+      layerSizeMB: (layerContent.length / (1024 * 1024)).toFixed(2),
+    });
+
+    try {
+      // Create S3 bucket
+      await this.createS3Bucket(bucketName, region);
+      this.logger.debug('Created temporary S3 bucket', { bucketName });
+
+      // Upload layer to S3
+      await this.uploadLayerToS3(bucketName, keyName, layerContent);
+      this.logger.debug('Uploaded layer to S3', { bucketName, keyName });
+
+      // Publish layer from S3
+      const layerDescription = description ||
+        `Node.js 18.x runtime for ${architecture} Lambda functions`;
+
+      const publishCommand = new PublishLayerVersionCommand({
+        LayerName: layerName,
+        Description: layerDescription,
+        Content: {
+          S3Bucket: bucketName,
+          S3Key: keyName,
+        },
+        CompatibleRuntimes: ['python3.12'], // Lambda Kata uses Python runtime
+        CompatibleArchitectures: [architecture],
+        LicenseInfo: 'MIT',
+      });
+
+      const response = await this.executeWithRetry(() => this.lambdaClient.send(publishCommand));
+
+      if (!response.LayerVersionArn || !response.LayerArn || !response.Version) {
+        throw new Error('Invalid response from PublishLayerVersion: missing required fields');
+      }
+
+      const result: NodejsLayerDeploymentResult = {
+        layerVersionArn: response.LayerVersionArn,
+        layerArn: response.LayerArn,
+        layerName,
+        version: response.Version,
+        architecture,
+        layerSize: layerContent.length,
+        zipFilePath: zipFilePath || 'unknown',
+        uploadedViaS3: true,
+      };
+
+      this.logger.info('Large layer deployed successfully via S3', {
+        layerVersionArn: result.layerVersionArn,
+        version: result.version,
+        architecture: result.architecture,
+      });
+
+      return result;
+
+    } finally {
+      // Always clean up S3 resources
+      await this.cleanupS3Resources(bucketName, keyName);
+    }
+  }
+
+  /**
+   * Deploys a layer directly to Lambda (for layers <50MB).
+   *
+   * @param layerName - Name of the layer
+   * @param layerContent - ZIP file content
+   * @param architecture - Target architecture
+   * @param description - Optional layer description
+   * @param zipFilePath - Original ZIP file path for metadata
+   * @returns Promise resolving to deployment result
+   */
+  private async deployLayerDirect(
+    layerName: string,
+    layerContent: Buffer,
+    architecture: 'arm64' | 'x86_64',
+    description?: string,
+    zipFilePath?: string,
+  ): Promise<NodejsLayerDeploymentResult> {
+    this.logger.info('Deploying layer directly to Lambda', {
+      layerName,
+      layerSize: layerContent.length,
+      layerSizeMB: (layerContent.length / (1024 * 1024)).toFixed(2),
+      architecture,
+    });
+
+    const layerDescription = description ||
+      `Node.js 18.x runtime for ${architecture} Lambda functions`;
+
+    const publishCommand = new PublishLayerVersionCommand({
+      LayerName: layerName,
+      Description: layerDescription,
+      Content: {
+        ZipFile: layerContent,
+      },
+      CompatibleRuntimes: ['python3.12'], // Lambda Kata uses Python runtime
+      CompatibleArchitectures: [architecture],
+      LicenseInfo: 'MIT',
+    });
+
+    const response = await this.executeWithRetry(() => this.lambdaClient.send(publishCommand));
+
+    if (!response.LayerVersionArn || !response.LayerArn || !response.Version) {
+      throw new Error('Invalid response from PublishLayerVersion: missing required fields');
+    }
+
+    const result: NodejsLayerDeploymentResult = {
+      layerVersionArn: response.LayerVersionArn,
+      layerArn: response.LayerArn,
+      layerName,
+      version: response.Version,
+      architecture,
+      layerSize: layerContent.length,
+      zipFilePath: zipFilePath || 'unknown',
+      uploadedViaS3: false,
+    };
+
+    this.logger.info('Layer deployed successfully via direct upload', {
+      layerVersionArn: result.layerVersionArn,
+      version: result.version,
+      architecture: result.architecture,
+    });
+
+    return result;
+  }
+
+  /**
+   * Creates an S3 bucket for temporary layer storage.
+   *
+   * @param bucketName - Name of the bucket to create
+   * @param region - AWS region
+   */
+  private async createS3Bucket(bucketName: string, region: string): Promise<void> {
+    if (!this.s3Client) {
+      throw new Error('S3 client not available');
+    }
+
+    const createBucketCommand = region === 'us-east-1'
+      ? new CreateBucketCommand({ Bucket: bucketName })
+      : new CreateBucketCommand({
+        Bucket: bucketName,
+        CreateBucketConfiguration: {
+          LocationConstraint: region as BucketLocationConstraint,
+        },
+      });
+
+    await this.executeWithRetry(() => this.s3Client!.send(createBucketCommand));
+  }
+
+  /**
+   * Uploads layer content to S3.
+   *
+   * @param bucketName - S3 bucket name
+   * @param keyName - S3 object key
+   * @param layerContent - Layer ZIP content
+   */
+  private async uploadLayerToS3(bucketName: string, keyName: string, layerContent: Buffer): Promise<void> {
+    if (!this.s3Client) {
+      throw new Error('S3 client not available');
+    }
+
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: keyName,
+      Body: layerContent,
+    });
+
+    await this.executeWithRetry(() => this.s3Client!.send(putObjectCommand));
+  }
+
+  /**
+   * Cleans up S3 resources (bucket and objects).
+   *
+   * @param bucketName - S3 bucket name
+   * @param keyName - S3 object key
+   */
+  private async cleanupS3Resources(bucketName: string, keyName: string): Promise<void> {
+    if (!this.s3Client) {
+      return; // Nothing to clean up
+    }
+
+    try {
+      // Delete object first
+      const deleteObjectCommand = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: keyName,
+      });
+      await this.s3Client.send(deleteObjectCommand);
+      this.logger.debug('Deleted S3 object', { bucketName, keyName });
+
+      // Delete bucket
+      const deleteBucketCommand = new DeleteBucketCommand({
+        Bucket: bucketName,
+      });
+      await this.s3Client.send(deleteBucketCommand);
+      this.logger.debug('Deleted S3 bucket', { bucketName });
+
+    } catch (error) {
+      this.logger.warn('Failed to cleanup S3 resources', {
+        bucketName,
+        keyName,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -1139,9 +1693,16 @@ export class AWSLayerManager implements LayerManager {
     this.layerCreationLocks.clear();
 
     this.lambdaClient.destroy();
+
+    // Clean up S3 client if available
+    if (this.s3Client) {
+      this.s3Client.destroy();
+    }
+
     this.logger.debug('AWSLayerManager destroyed', {
       circuitBreakerState: this.circuitBreaker.getState(),
       clearedLocks: true,
+      s3ClientDestroyed: this.s3Client !== null,
     });
   }
 
