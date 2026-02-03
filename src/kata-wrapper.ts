@@ -27,15 +27,14 @@
 
 import { Construct } from 'constructs';
 import { Annotations } from 'aws-cdk-lib';
-import { Function as LambdaFunction, Runtime, CfnFunction, LayerVersion } from 'aws-cdk-lib/aws-lambda';
+import { CfnFunction, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
-import { LicensingService, createLicensingService } from './licensing';
+import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { createKataConfigLayer } from './config-layer';
-import { ensureNodeRuntimeLayer } from './ensure-node-runtime-layer';
-import { EnsureNodeRuntimeLayerOptions } from './nodejs-layer-manager';
+import { AWSLayerManager } from './aws-layer-manager';
 
 /**
  * Default handler path for the Lambda Kata runtime.
@@ -465,7 +464,8 @@ export function applyTransformation(
  * Applies the Lambda Kata transformation with Node.js runtime layer support.
  *
  * This is an enhanced version of applyTransformation that includes automatic
- * Node.js runtime layer management for Node.js Lambda functions.
+ * Node.js runtime layer management for Node.js Lambda functions using the
+ * new deployment functionality that bypasses Docker binary extraction.
  *
  * @param lambda - The Lambda function to transform
  * @param config - The transformation configuration
@@ -484,41 +484,62 @@ async function applyTransformationWithNodeSupport(
   const originalRuntime = getOriginalRuntime(lambda);
   const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
 
-  // For Node.js functions: Ensure Node.js runtime layer exists and attach it FIRST
-  // This must happen before the core transformation to ensure proper layer ordering
+  // For Node.js functions: Try to deploy Node.js runtime layer using pre-built ZIPs
+  // This bypasses the Docker binary extraction that can fail with large binaries
   if (isNodejs) {
     try {
       const architecture = getLambdaArchitecture(lambda);
 
-      const nodeLayerOptions: EnsureNodeRuntimeLayerOptions = {
-        runtimeName: originalRuntime,
-        architecture,
-        region,
-        accountId,
+      // Use the new deployment functionality instead of ensureNodeRuntimeLayer
+      const layerManager = new AWSLayerManager({
+        enableS3Support: true,
+        awsSdkConfig: { region },
         // Use a no-op logger to avoid cluttering CDK synthesis output
         logger: {
-          debug: () => { },
-          info: () => { },
-          warn: () => { },
-          error: () => { },
+          debug: () => {
+          },
+          info: () => {
+          },
+          warn: () => {
+          },
+          error: () => {
+          },
         },
-      };
+      });
 
-      const nodeLayerResult = await ensureNodeRuntimeLayer(nodeLayerOptions);
+      try {
+        // Try to deploy the Node.js layer using pre-built ZIP files
+        const deployResult = await layerManager.deployNodejsLayer({
+          region,
+          architecture,
+          // Look for ZIP files in the current working directory by default
+          baseDirectory: process.cwd(),
+        });
 
-      // Attach the Node.js runtime layer
-      const nodeLayer = LayerVersion.fromLayerVersionArn(
-        lambda,
-        'NodeRuntimeLayer',
-        nodeLayerResult.layerArn,
-      );
-      lambda.addLayers(nodeLayer);
+        // Attach the deployed Node.js runtime layer
+        const nodeLayer = LayerVersion.fromLayerVersionArn(
+          lambda,
+          'NodeRuntimeLayer',
+          deployResult.layerVersionArn,
+        );
+        lambda.addLayers(nodeLayer);
+
+      } finally {
+        // Always clean up the layer manager
+        layerManager.destroy();
+      }
 
     } catch (error) {
-      // Node.js layer failures should not break the core kata transformation
-      // Log the error but continue with the transformation
+      // Node.js layer deployment failures should not break the core kata transformation
+      // This allows the system to work even without pre-built Node.js layers
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Warning: Failed to attach Node.js runtime layer: ${errorMessage}`);
+
+      // Use CDK Annotations instead of console.warn for better integration
+      Annotations.of(lambda).addWarning(
+        `Failed to attach Node.js runtime layer: ${errorMessage}. ` +
+        `The Lambda function will still be transformed to use Lambda Kata, but Node.js runtime ` +
+        `binaries may not be available. Consider providing pre-built layer ZIP files.`,
+      );
     }
   }
 
