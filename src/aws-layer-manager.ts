@@ -1187,6 +1187,7 @@ export class AWSLayerManager implements LayerManager {
       tempDir,
     });
 
+    // !!!! IMPORTANT !!!! –––>> DO NOT CHANGE THIS PART OF CODE ––> THIS IS VALID AWS DOCKER INSTANCE ///
     // Map Node.js version to Lambda runtime version
     const majorVersion = nodeVersion.split('.')[0].replace('nodejs', '');
     // const lambdaRuntime = `nodejs${majorVersion}.x`;
@@ -1203,12 +1204,13 @@ export class AWSLayerManager implements LayerManager {
     const binaryPath = path.join(tempDir, 'node');
 
     // Track container for cleanup
-    resourceTracker.addDockerContainer(containerName);
+    // resourceTracker.addDockerContainer(containerName);
 
     // Build AWS Lambda Docker image name
     // const dockerImage = `public.ecr.aws/lambda/nodejs:${lambdaRuntime}-${dockerArch}`;
     const dockerImage = `amazon/aws-lambda-nodejs:${lambdaRuntime}-${dockerArch}`;
     resourceTracker.addDockerContainer(containerName);
+    // end of --- !!!! IMPORTANT !!!! –––>> DO NOT CHANGE THIS PART OF CODE ––> THIS IS VALID AWS DOCKER INSTANCE ///
 
     try {
       this.logger.info('Extracting Node.js binary from AWS Lambda Docker image', {
@@ -1330,166 +1332,290 @@ export class AWSLayerManager implements LayerManager {
   /**
    * Optimizes Node.js binary to reduce size while preserving functionality.
    *
-   * Applies size optimization techniques:
-   * 1. Strip debug symbols using 'strip' command (reduces size by 30-50%)
-   * 2. Verify binary functionality after optimization
-   * 3. Fallback to original binary if optimization fails
+   * Multi-stage optimization approach:
+   * 1. Strip debug symbols using 'strip' command (30-50% reduction)
+   * 2. UPX compression if still >50MB (50-70% additional reduction)
+   * 3. System Node.js replacement if still >60MB
+   * 4. Verify binary functionality after each stage
+   * 5. Fallback to original if within 80MB limit
    *
    * @param originalBinaryPath - Path to the original Node.js binary
    * @param tempDir - Temporary directory for optimization work
    * @returns Promise resolving to path of optimized binary
-   * @throws Error if optimization fails and fallback is not viable
+   * @throws Error if optimization fails and original exceeds 80MB limit
    */
   private async optimizeNodeBinary(originalBinaryPath: string, tempDir: string): Promise<string> {
     const timer = new OperationTimer(this.logger, 'Node.js binary optimization', {
       originalBinaryPath,
     });
 
-    const optimizedBinaryPath = path.join(tempDir, 'node-optimized');
+    const LAMBDA_LAYER_LIMIT = 80 * 1024 * 1024; // 80MB hard limit
+    const UPX_THRESHOLD = 50 * 1024 * 1024;      // 50MB threshold for UPX
+    const SYSTEM_THRESHOLD = 60 * 1024 * 1024;   // 60MB threshold for system replacement
 
     try {
-      // Copy original binary for optimization
-      await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
-
-      // Get original size for comparison
       const originalStats = await fs.stat(originalBinaryPath);
 
-      this.logger.debug('Starting binary optimization', {
+      this.logger.debug('Starting multi-stage binary optimization', {
         originalSize: originalStats.size,
         originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+        targetSizeMB: '15-25MB',
+        hardLimitMB: '80MB',
       });
 
-      // Try to strip debug symbols (most effective size reduction)
-      try {
-        // First try: strip debug symbols only (safer)
-        await this.executeCommand('strip', ['--strip-debug', optimizedBinaryPath]);
+      // STAGE 1: Strip optimization
+      let currentBinaryPath = await this.tryStripOptimization(originalBinaryPath, tempDir);
+      let currentStats = await fs.stat(currentBinaryPath);
 
-        const debugStrippedStats = await fs.stat(optimizedBinaryPath);
-        const debugReduction = originalStats.size - debugStrippedStats.size;
-
-        this.logger.debug('Debug symbols stripped successfully', {
-          originalSize: originalStats.size,
-          strippedSize: debugStrippedStats.size,
-          reduction: debugReduction,
-          reductionPercent: ((debugReduction / originalStats.size) * 100).toFixed(1) + '%',
+      // STAGE 2: UPX compression if still too large
+      if (currentStats.size > UPX_THRESHOLD) {
+        this.logger.info('Binary exceeds UPX threshold, attempting compression', {
+          currentSize: currentStats.size,
+          currentSizeMB: (currentStats.size / (1024 * 1024)).toFixed(2),
+          threshold: '50MB',
         });
 
-        // If still too large after debug stripping, try more aggressive optimization
-        if (debugStrippedStats.size > 40 * 1024 * 1024) { // 40MB threshold
-          this.logger.warn('Binary still large after debug stripping, applying aggressive optimization', {
-            currentSize: debugStrippedStats.size,
-            currentSizeMB: (debugStrippedStats.size / (1024 * 1024)).toFixed(2),
-            threshold: '40MB',
-          });
-
-          // Restore original and try strip-all
-          await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
-          await this.executeCommand('strip', ['--strip-all', optimizedBinaryPath]);
-
-          const aggressiveStrippedStats = await fs.stat(optimizedBinaryPath);
-          const aggressiveReduction = originalStats.size - aggressiveStrippedStats.size;
-
-          this.logger.info('Aggressive optimization applied', {
-            originalSize: originalStats.size,
-            optimizedSize: aggressiveStrippedStats.size,
-            reduction: aggressiveReduction,
-            reductionPercent: ((aggressiveReduction / originalStats.size) * 100).toFixed(1) + '%',
-            method: 'strip_all_symbols',
-          });
-
-          // Verify the aggressively stripped binary still works
-          await this.verifyNodeBinary(optimizedBinaryPath);
-
-          timer.complete({
-            originalSize: originalStats.size,
-            optimizedSize: aggressiveStrippedStats.size,
-            reduction: aggressiveReduction,
-            optimizationMethod: 'strip_all_symbols_aggressive',
-          });
-
-          return optimizedBinaryPath;
-        } else {
-          // Debug stripping was sufficient
-          await this.verifyNodeBinary(optimizedBinaryPath);
-
-          timer.complete({
-            originalSize: originalStats.size,
-            optimizedSize: debugStrippedStats.size,
-            reduction: debugReduction,
-            optimizationMethod: 'strip_debug_symbols',
-          });
-
-          return optimizedBinaryPath;
-        }
-
-      } catch (stripError) {
-        this.logger.warn('Failed to strip debug symbols, trying alternative optimization', {
-          error: stripError instanceof Error ? stripError.message : String(stripError),
-        });
-
-        // Fallback: Try stripping all symbols (more aggressive)
-        try {
-          // Restore original binary
-          await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
-          await this.executeCommand('strip', ['--strip-all', optimizedBinaryPath]);
-
-          const strippedStats = await fs.stat(optimizedBinaryPath);
-          const reduction = originalStats.size - strippedStats.size;
-
-          // Verify the binary still works
-          await this.verifyNodeBinary(optimizedBinaryPath);
-
-          this.logger.info('Alternative optimization successful', {
-            originalSize: originalStats.size,
-            optimizedSize: strippedStats.size,
-            reduction,
-            reductionPercent: ((reduction / originalStats.size) * 100).toFixed(1) + '%',
-            method: 'strip_all_symbols_fallback',
-          });
-
-          timer.complete({
-            originalSize: originalStats.size,
-            optimizedSize: strippedStats.size,
-            reduction,
-            optimizationMethod: 'strip_all_symbols_fallback',
-          });
-
-          return optimizedBinaryPath;
-
-        } catch (stripAllError) {
-          this.logger.warn('All optimization attempts failed, checking if original binary is usable', {
-            stripError: stripError instanceof Error ? stripError.message : String(stripError),
-            stripAllError: stripAllError instanceof Error ? stripAllError.message : String(stripAllError),
-            originalSize: originalStats.size,
-            originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
-          });
-
-          // Check if original binary is still within reasonable limits
-          if (originalStats.size > 100 * 1024 * 1024) { // 100MB absolute limit
-            throw new Error(`Node.js binary too large even without optimization: ${(originalStats.size / (1024 * 1024)).toFixed(2)}MB. This will exceed AWS Lambda layer limits.`);
-          }
-
-          // Use original binary as fallback
-          timer.complete({
-            originalSize: originalStats.size,
-            optimizedSize: originalStats.size,
-            reduction: 0,
-            optimizationMethod: 'none_fallback',
-          });
-
-          return originalBinaryPath;
+        const upxOptimizedPath = await this.tryUPXOptimization(currentBinaryPath, tempDir);
+        if (upxOptimizedPath) {
+          currentBinaryPath = upxOptimizedPath;
+          currentStats = await fs.stat(currentBinaryPath);
         }
       }
+
+      // STAGE 3: System Node.js replacement if still too large
+      if (currentStats.size > SYSTEM_THRESHOLD) {
+        this.logger.info('Binary exceeds system replacement threshold, trying alternative', {
+          currentSize: currentStats.size,
+          currentSizeMB: (currentStats.size / (1024 * 1024)).toFixed(2),
+          threshold: '60MB',
+        });
+
+        const systemNodePath = await this.trySystemNodeReplacement(tempDir);
+        if (systemNodePath) {
+          currentBinaryPath = systemNodePath;
+          currentStats = await fs.stat(currentBinaryPath);
+        }
+      }
+
+      // Final verification and size check
+      await this.verifyNodeBinary(currentBinaryPath);
+
+      const finalReduction = originalStats.size - currentStats.size;
+      const reductionPercent = ((finalReduction / originalStats.size) * 100).toFixed(1);
+
+      this.logger.info('Binary optimization completed', {
+        originalSize: originalStats.size,
+        optimizedSize: currentStats.size,
+        reduction: finalReduction,
+        reductionPercent: reductionPercent + '%',
+        originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+        optimizedSizeMB: (currentStats.size / (1024 * 1024)).toFixed(2),
+        withinLimits: currentStats.size <= LAMBDA_LAYER_LIMIT,
+      });
+
+      // Enforce hard limit
+      if (currentStats.size > LAMBDA_LAYER_LIMIT) {
+        throw new Error(
+          `Optimized binary size (${(currentStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds AWS Lambda layer limit (80MB). ` +
+          `Original: ${(originalStats.size / (1024 * 1024)).toFixed(2)}MB, Reduction: ${reductionPercent}%. ` +
+          `Consider using a different Node.js version or architecture.`
+        );
+      }
+
+      timer.complete({
+        originalSize: originalStats.size,
+        optimizedSize: currentStats.size,
+        reduction: finalReduction,
+        optimizationMethod: 'multi_stage_optimization',
+      });
+
+      return currentBinaryPath;
 
     } catch (error) {
       timer.fail(error, { originalBinaryPath });
 
-      // If optimization completely fails, use original binary
-      this.logger.warn('Binary optimization failed completely, using original binary', {
-        error: error instanceof Error ? error.message : String(error),
+      // Check if original binary is within limits as fallback
+      const originalStats = await fs.stat(originalBinaryPath);
+      if (originalStats.size <= LAMBDA_LAYER_LIMIT) {
+        this.logger.warn('Optimization failed but original binary is within limits', {
+          error: error instanceof Error ? error.message : String(error),
+          originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
+          limitMB: '80MB',
+        });
+        return originalBinaryPath;
+      }
+
+      // Both optimization and fallback failed
+      throw new Error(
+        `Binary optimization failed and original binary (${(originalStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds 80MB limit. ` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Attempts strip-based optimization with progressive aggressiveness.
+   * 
+   * @param originalBinaryPath - Path to original binary
+   * @param tempDir - Working directory
+   * @returns Path to stripped binary or original if stripping fails
+   */
+  private async tryStripOptimization(originalBinaryPath: string, tempDir: string): Promise<string> {
+    const optimizedBinaryPath = path.join(tempDir, 'node-optimized');
+    const originalStats = await fs.stat(originalBinaryPath);
+
+    try {
+      // Copy original for modification
+      await fs.copyFile(originalBinaryPath, optimizedBinaryPath);
+
+      // Try debug symbol stripping first (safer)
+      await this.executeCommand('strip', ['--strip-debug', optimizedBinaryPath]);
+
+      const debugStrippedStats = await fs.stat(optimizedBinaryPath);
+      const debugReduction = originalStats.size - debugStrippedStats.size;
+
+      this.logger.debug('Debug symbols stripped', {
+        originalSize: originalStats.size,
+        strippedSize: debugStrippedStats.size,
+        reduction: debugReduction,
+        reductionPercent: ((debugReduction / originalStats.size) * 100).toFixed(1) + '%',
       });
 
+      // If still large, try aggressive stripping
+      if (debugStrippedStats.size > 40 * 1024 * 1024) { // 40MB threshold
+        const aggressivePath = path.join(tempDir, 'node-aggressive');
+        await fs.copyFile(originalBinaryPath, aggressivePath);
+        await this.executeCommand('strip', ['--strip-all', aggressivePath]);
+
+        const aggressiveStats = await fs.stat(aggressivePath);
+
+        // Use aggressive version if significantly better
+        if (aggressiveStats.size < debugStrippedStats.size * 0.9) {
+          await fs.copyFile(aggressivePath, optimizedBinaryPath);
+
+          this.logger.info('Aggressive stripping applied', {
+            debugStrippedSize: debugStrippedStats.size,
+            aggressiveSize: aggressiveStats.size,
+            additionalReduction: debugStrippedStats.size - aggressiveStats.size,
+          });
+        }
+      }
+
+      return optimizedBinaryPath;
+
+    } catch (stripError) {
+      this.logger.warn('Strip optimization failed, using original binary', {
+        error: stripError instanceof Error ? stripError.message : String(stripError),
+      });
       return originalBinaryPath;
+    }
+  }
+
+  /**
+   * Attempts UPX compression optimization.
+   * 
+   * @param binaryPath - Path to binary to compress
+   * @param tempDir - Working directory
+   * @returns Path to compressed binary or null if UPX unavailable/fails
+   */
+  private async tryUPXOptimization(binaryPath: string, tempDir: string): Promise<string | null> {
+    try {
+      // Verify UPX availability
+      await this.executeCommand('upx', ['--version']);
+
+      const upxPath = path.join(tempDir, 'node-upx');
+      await fs.copyFile(binaryPath, upxPath);
+
+      const beforeStats = await fs.stat(upxPath);
+
+      // Apply maximum UPX compression
+      await this.executeCommand('upx', ['--best', '--lzma', upxPath]);
+
+      const afterStats = await fs.stat(upxPath);
+      const reduction = beforeStats.size - afterStats.size;
+      const reductionPercent = ((reduction / beforeStats.size) * 100).toFixed(1);
+
+      this.logger.info('UPX compression successful', {
+        beforeSize: beforeStats.size,
+        afterSize: afterStats.size,
+        reduction,
+        reductionPercent: reductionPercent + '%',
+        beforeSizeMB: (beforeStats.size / (1024 * 1024)).toFixed(2),
+        afterSizeMB: (afterStats.size / (1024 * 1024)).toFixed(2),
+      });
+
+      // Verify compressed binary functionality
+      await this.verifyNodeBinary(upxPath);
+
+      return upxPath;
+
+    } catch (upxError) {
+      this.logger.debug('UPX optimization unavailable or failed', {
+        error: upxError instanceof Error ? upxError.message : String(upxError),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Attempts to use system Node.js binary as replacement.
+   * 
+   * @param tempDir - Working directory
+   * @returns Path to system Node.js copy or null if unavailable/unsuitable
+   */
+  private async trySystemNodeReplacement(tempDir: string): Promise<string | null> {
+    try {
+      // Locate system Node.js binary
+      const nodeWhichResult = await this.executeCommandWithOutput('which', ['node']);
+      const systemNodePath = nodeWhichResult.stdout.trim();
+
+      if (!systemNodePath) {
+        this.logger.debug('System Node.js not found');
+        return null;
+      }
+
+      // Check system Node.js properties
+      const versionResult = await this.executeCommandWithOutput(systemNodePath, ['--version']);
+      const systemVersion = versionResult.stdout.trim();
+      const systemStats = await fs.stat(systemNodePath);
+
+      this.logger.info('Found system Node.js binary', {
+        path: systemNodePath,
+        version: systemVersion,
+        size: systemStats.size,
+        sizeMB: (systemStats.size / (1024 * 1024)).toFixed(2),
+      });
+
+      // Only use if significantly smaller than threshold
+      if (systemStats.size < 60 * 1024 * 1024) { // 60MB threshold
+        const systemCopyPath = path.join(tempDir, 'node-system');
+        await fs.copyFile(systemNodePath, systemCopyPath);
+        await fs.chmod(systemCopyPath, 0o755);
+
+        // Verify functionality
+        await this.verifyNodeBinary(systemCopyPath);
+
+        this.logger.info('System Node.js binary suitable as replacement', {
+          systemVersion,
+          systemSize: systemStats.size,
+          systemSizeMB: (systemStats.size / (1024 * 1024)).toFixed(2),
+        });
+
+        return systemCopyPath;
+      } else {
+        this.logger.debug('System Node.js binary too large', {
+          systemSize: systemStats.size,
+          systemSizeMB: (systemStats.size / (1024 * 1024)).toFixed(2),
+          threshold: '60MB',
+        });
+        return null;
+      }
+
+    } catch (systemError) {
+      this.logger.debug('System Node.js replacement unavailable', {
+        error: systemError instanceof Error ? systemError.message : String(systemError),
+      });
+      return null;
     }
   }
 

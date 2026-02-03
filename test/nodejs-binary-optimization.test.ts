@@ -55,88 +55,174 @@ describe('Node.js Binary Optimization', () => {
         manager.destroy();
     });
 
-    describe('Binary Size Optimization', () => {
-        it('should optimize Node.js binary to reduce size', async () => {
-            // Mock successful binary optimization
+    describe('Multi-Stage Binary Optimization', () => {
+        it('should optimize Node.js binary using strip-only when sufficient', async () => {
+            // Mock successful strip optimization that meets size requirements
             const originalSize = 80 * 1024 * 1024; // 80MB original
-            const optimizedSize = 25 * 1024 * 1024; // 25MB optimized (68% reduction)
+            const strippedSize = 25 * 1024 * 1024; // 25MB after stripping (sufficient)
 
             jest.spyOn(fs, 'stat')
-                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any) // Original binary
-                .mockResolvedValueOnce({ size: optimizedSize, isFile: () => true } as any); // Optimized binary
+                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any) // Original binary (initial check)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any) // After strip (current stats)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any); // Final verification
 
             jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
             jest.spyOn(fs, 'chmod').mockResolvedValue(undefined);
 
-            // Mock strip command success
-            jest.spyOn(manager as any, 'executeCommand').mockResolvedValue(undefined);
+            // Mock strip optimization method
+            jest.spyOn(manager as any, 'tryStripOptimization').mockResolvedValue('/tmp/test/node-optimized');
             jest.spyOn(manager as any, 'verifyNodeBinary').mockResolvedValue(undefined);
 
             const tempDir = '/tmp/test';
             const originalBinaryPath = '/tmp/test/node';
 
             const result = await (manager as any).optimizeNodeBinary(originalBinaryPath, tempDir);
+
+            expect(result).toBe('/tmp/test/node-optimized');
+            expect((manager as any).tryStripOptimization).toHaveBeenCalledWith(originalBinaryPath, tempDir);
+        });
+
+        it('should apply UPX compression when strip is insufficient', async () => {
+            const originalSize = 80 * 1024 * 1024; // 80MB original
+            const strippedSize = 60 * 1024 * 1024; // 60MB after strip (still large)
+            const upxSize = 20 * 1024 * 1024; // 20MB after UPX
+
+            jest.spyOn(fs, 'stat')
+                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any) // Original (initial check)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any) // After strip (current stats)
+                .mockResolvedValueOnce({ size: upxSize, isFile: () => true } as any) // After UPX (current stats)
+                .mockResolvedValueOnce({ size: upxSize, isFile: () => true } as any); // Final verification
+
+            jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+
+            // Mock optimization methods
+            jest.spyOn(manager as any, 'tryStripOptimization').mockResolvedValue('/tmp/test/node-optimized');
+            jest.spyOn(manager as any, 'tryUPXOptimization').mockResolvedValue('/tmp/test/node-upx');
+            jest.spyOn(manager as any, 'verifyNodeBinary').mockResolvedValue(undefined);
+
+            const result = await (manager as any).optimizeNodeBinary('/tmp/test/node', '/tmp/test');
+
+            expect(result).toBe('/tmp/test/node-upx');
+            expect((manager as any).tryUPXOptimization).toHaveBeenCalledWith('/tmp/test/node-optimized', '/tmp/test');
+        });
+
+        it('should enforce 80MB hard limit and throw error when exceeded', async () => {
+            const originalSize = 90 * 1024 * 1024; // 90MB original
+            const strippedSize = 85 * 1024 * 1024; // 85MB after strip (still too large)
+
+            jest.spyOn(fs, 'stat')
+                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any) // Original (initial check)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any) // After strip (current stats)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any) // UPX threshold check (85MB > 50MB)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any) // System threshold check (85MB > 60MB)
+                .mockResolvedValueOnce({ size: strippedSize, isFile: () => true } as any); // Final verification
+
+            jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+
+            // Mock optimization methods - all fail to reduce size sufficiently
+            jest.spyOn(manager as any, 'tryStripOptimization').mockResolvedValue('/tmp/test/node-optimized');
+            jest.spyOn(manager as any, 'tryUPXOptimization').mockResolvedValue(null); // UPX fails
+            jest.spyOn(manager as any, 'trySystemNodeReplacement').mockResolvedValue(null); // System Node.js fails
+            jest.spyOn(manager as any, 'verifyNodeBinary').mockResolvedValue(undefined);
+
+            await expect((manager as any).optimizeNodeBinary('/tmp/test/node', '/tmp/test'))
+                .rejects
+                .toThrow('Optimized binary size (85.00MB) exceeds AWS Lambda layer limit (80MB)');
+        });
+
+        it('should fallback to original binary if within limits when optimization fails', async () => {
+            const originalSize = 75 * 1024 * 1024; // 75MB original (within limits)
+
+            jest.spyOn(fs, 'stat')
+                .mockRejectedValueOnce(new Error('Initial stat failed')) // Initial check fails
+                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any); // Fallback check
+
+            const result = await (manager as any).optimizeNodeBinary('/tmp/test/node', '/tmp/test');
+
+            expect(result).toBe('/tmp/test/node'); // Should return original path
+        });
+    });
+
+    describe('Individual Optimization Methods', () => {
+        it('should perform progressive strip optimization', async () => {
+            const originalSize = 80 * 1024 * 1024;
+            const debugStrippedSize = 50 * 1024 * 1024;
+            const aggressiveStrippedSize = 35 * 1024 * 1024;
+
+            jest.spyOn(fs, 'stat')
+                .mockResolvedValueOnce({ size: originalSize, isFile: () => true } as any) // Original
+                .mockResolvedValueOnce({ size: debugStrippedSize, isFile: () => true } as any) // Debug stripped
+                .mockResolvedValueOnce({ size: aggressiveStrippedSize, isFile: () => true } as any); // Aggressive stripped
+
+            jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+            jest.spyOn(manager as any, 'executeCommand').mockResolvedValue(undefined);
+
+            const result = await (manager as any).tryStripOptimization('/tmp/test/node', '/tmp/test');
 
             expect(result).toBe('/tmp/test/node-optimized');
             expect((manager as any).executeCommand).toHaveBeenCalledWith('strip', ['--strip-debug', '/tmp/test/node-optimized']);
+            expect((manager as any).executeCommand).toHaveBeenCalledWith('strip', ['--strip-all', '/tmp/test/node-aggressive']);
         });
 
-        it('should fallback to strip-all if strip-debug fails', async () => {
-            const originalSize = 80 * 1024 * 1024; // 80MB
-            const optimizedSize = 22 * 1024 * 1024; // 22MB (more aggressive stripping)
+        it('should handle UPX optimization with verification', async () => {
+            const beforeSize = 60 * 1024 * 1024;
+            const afterSize = 20 * 1024 * 1024;
 
             jest.spyOn(fs, 'stat')
-                .mockResolvedValue({ size: originalSize, isFile: () => true } as any)
-                .mockResolvedValueOnce({ size: optimizedSize, isFile: () => true } as any);
+                .mockResolvedValueOnce({ size: beforeSize, isFile: () => true } as any) // Before UPX
+                .mockResolvedValueOnce({ size: afterSize, isFile: () => true } as any); // After UPX
 
             jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+            jest.spyOn(manager as any, 'executeCommand').mockResolvedValue(undefined);
+            jest.spyOn(manager as any, 'verifyNodeBinary').mockResolvedValue(undefined);
 
-            // Mock strip-debug failure, strip-all success
+            const result = await (manager as any).tryUPXOptimization('/tmp/test/node', '/tmp/test');
+
+            expect(result).toBe('/tmp/test/node-upx');
+            expect((manager as any).executeCommand).toHaveBeenCalledWith('upx', ['--version']);
+            expect((manager as any).executeCommand).toHaveBeenCalledWith('upx', ['--best', '--lzma', '/tmp/test/node-upx']);
+        });
+
+        it('should return null when UPX is unavailable', async () => {
             jest.spyOn(manager as any, 'executeCommand')
-                .mockRejectedValueOnce(new Error('strip --strip-debug failed'))
-                .mockResolvedValueOnce(undefined); // strip --strip-all succeeds
+                .mockRejectedValue(new Error('UPX not found'));
+
+            const result = await (manager as any).tryUPXOptimization('/tmp/test/node', '/tmp/test');
+
+            expect(result).toBeNull();
+        });
+
+        it('should validate system Node.js size threshold', async () => {
+            const systemSize = 30 * 1024 * 1024; // 30MB system Node.js (under 60MB threshold)
+
+            jest.spyOn(fs, 'stat').mockResolvedValue({ size: systemSize, isFile: () => true } as any);
+            jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+            jest.spyOn(fs, 'chmod').mockResolvedValue(undefined);
+
+            jest.spyOn(manager as any, 'executeCommandWithOutput')
+                .mockResolvedValueOnce({ stdout: '/usr/bin/node\n', stderr: '' }) // which node
+                .mockResolvedValueOnce({ stdout: 'v20.10.0\n', stderr: '' }); // node --version
 
             jest.spyOn(manager as any, 'verifyNodeBinary').mockResolvedValue(undefined);
 
-            const tempDir = '/tmp/test';
-            const originalBinaryPath = '/tmp/test/node';
+            const result = await (manager as any).trySystemNodeReplacement('/tmp/test');
 
-            const result = await (manager as any).optimizeNodeBinary(originalBinaryPath, tempDir);
-
-            expect(result).toBe('/tmp/test/node-optimized');
-            expect((manager as any).executeCommand).toHaveBeenCalledWith('strip', ['--strip-all', '/tmp/test/node-optimized']);
+            expect(result).toBe('/tmp/test/node-system');
+            expect(fs.chmod).toHaveBeenCalledWith('/tmp/test/node-system', 0o755);
         });
 
-        it('should fallback to original binary if all optimization fails', async () => {
-            const originalSize = 80 * 1024 * 1024; // 80MB
+        it('should reject system Node.js if too large', async () => {
+            const systemSize = 70 * 1024 * 1024; // 70MB system Node.js (too large)
 
-            jest.spyOn(fs, 'stat').mockResolvedValue({ size: originalSize, isFile: () => true } as any);
-            jest.spyOn(fs, 'copyFile').mockResolvedValue(undefined);
+            jest.spyOn(fs, 'stat').mockResolvedValue({ size: systemSize, isFile: () => true } as any);
 
-            // Mock all strip commands failing
-            jest.spyOn(manager as any, 'executeCommand')
-                .mockRejectedValueOnce(new Error('strip --strip-debug failed'))
-                .mockRejectedValueOnce(new Error('strip --strip-all failed'));
+            jest.spyOn(manager as any, 'executeCommandWithOutput')
+                .mockResolvedValueOnce({ stdout: '/usr/bin/node\n', stderr: '' }) // which node
+                .mockResolvedValueOnce({ stdout: 'v20.10.0\n', stderr: '' }); // node --version
 
-            const tempDir = '/tmp/test';
-            const originalBinaryPath = '/tmp/test/node';
+            const result = await (manager as any).trySystemNodeReplacement('/tmp/test');
 
-            const result = await (manager as any).optimizeNodeBinary(originalBinaryPath, tempDir);
-
-            expect(result).toBe(originalBinaryPath); // Should return original path
-        });
-
-        it('should handle optimization failure gracefully', async () => {
-            const originalSize = 80 * 1024 * 1024; // 80MB
-
-            jest.spyOn(fs, 'stat').mockRejectedValue(new Error('File not found'));
-
-            const tempDir = '/tmp/test';
-            const originalBinaryPath = '/tmp/test/node';
-
-            const result = await (manager as any).optimizeNodeBinary(originalBinaryPath, tempDir);
-
-            expect(result).toBe(originalBinaryPath); // Should fallback to original
+            expect(result).toBeNull();
         });
     });
 
@@ -268,8 +354,8 @@ describe('Node.js Binary Optimization', () => {
             expect((manager as any).executeCommand).toHaveBeenCalledWith('strip', ['--strip-debug', expect.any(String)]);
 
             // Verify Docker operations were called for AWS Lambda image extraction
-            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['pull', expect.stringContaining('public.ecr.aws/lambda/nodejs')]);
-            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['create', '--name', expect.any(String), expect.stringContaining('public.ecr.aws/lambda/nodejs')]);
+            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['pull', expect.stringContaining('amazon/aws-lambda-nodejs')]);
+            expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['create', '--name', expect.any(String), expect.stringContaining('amazon/aws-lambda-nodejs')]);
             expect((manager as any).executeDockerCommand).toHaveBeenCalledWith(['cp', expect.stringContaining(':/var/lang/bin/node'), expect.any(String)]);
         });
     });
