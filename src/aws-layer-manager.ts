@@ -1199,7 +1199,8 @@ export class AWSLayerManager implements LayerManager {
         const lambdaRuntime = `nodejs${majorVersion}`;
 
         // Map AWS Lambda architecture to Docker architecture
-        const dockerArch = architecture === 'x86_64' ? 'amd64' : 'arm64';
+        // const dockerArch = architecture === 'x86_64' ? 'amd64' : 'arm64';
+      const dockerArch = architecture === 'x86_64' ? 'x86_64' : 'arm64';
 
         // Build AWS Lambda Docker image name
         // const dockerImage = `public.ecr.aws/lambda/nodejs:${lambdaRuntime}-${dockerArch}`;
