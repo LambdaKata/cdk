@@ -67,10 +67,13 @@ export interface LicensingService {
    * WARNING: This method blocks the Node.js event loop.
    * Use only when async operations are not possible (e.g., CDK synthesis).
    *
+   * This method is optional for backward compatibility with existing
+   * implementations that only provide async validation.
+   *
    * @param accountId - 12-digit AWS account ID
    * @returns Licensing response (synchronous)
    */
-  checkEntitlementSync(accountId: string): LicensingResponse;
+  checkEntitlementSync?(accountId: string): LicensingResponse;
 }
 
 /**
@@ -198,6 +201,93 @@ export class NativeLicensingService implements LicensingService {
     } catch (error) {
       // Fail closed on any unexpected error
       this.logError('Unexpected error during validation', {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: this.sanitizeErrorMessage(error),
+      });
+
+      this.performanceOptimizer.trackRequestEnd(false);
+      return {
+        entitled: false,
+        message: 'System error',
+      };
+    }
+  }
+
+  /**
+   * Check entitlement for an AWS account SYNCHRONOUSLY
+   *
+   * WARNING: This method blocks the Node.js event loop.
+   * Use only when async operations are not possible (e.g., CDK synthesis).
+   *
+   * This method validates the account ID format and delegates to the
+   * native addon for secure validation. If the addon is unavailable,
+   * it returns a fail-closed response.
+   *
+   * @param accountId - 12-digit AWS account ID string
+   * @returns Licensing response (synchronous)
+   *
+   * @throws Never throws - all errors result in fail-closed response
+   *
+   * @example
+   * ```typescript
+   * const service = new NativeLicensingService();
+   * const result = service.checkEntitlementSync('123456789012');
+   * ```
+   */
+  checkEntitlementSync(accountId: string): LicensingResponse {
+    // Track request start for performance monitoring
+    this.performanceOptimizer.trackRequestStart();
+
+    try {
+      // Validate input parameters in JavaScript layer first
+      if (!this.isValidAccountId(accountId)) {
+        this.logError('Invalid account ID format provided (sync)', {
+          accountIdLength: typeof accountId === 'string' ? accountId.length : 'not-string',
+          accountIdType: typeof accountId,
+        });
+        this.performanceOptimizer.trackRequestEnd(false);
+        return {
+          entitled: false,
+          message: 'Invalid account ID format',
+        };
+      }
+
+      // Load addon if not already attempted
+      if (!this.addonLoadAttempted) {
+        this.loadAddon();
+      }
+
+      // If addon unavailable, return fail-closed response
+      if (!this.addon) {
+        this.logError('Native validator unavailable (sync)', {
+          addonLoadAttempted: this.addonLoadAttempted,
+        });
+        this.performanceOptimizer.trackRequestEnd(false);
+        return {
+          entitled: false,
+          message: 'Native validator unavailable',
+        };
+      }
+
+      // Delegate to native addon SYNCHRONOUSLY
+      const result = this.addon.checkEntitlementSync(accountId);
+
+      // Log successful validation (without sensitive data)
+      this.logInfo('Sync validation completed', {
+        entitled: result.entitled,
+        hasLayerArn: !!result.layerArn,
+        hasMessage: !!result.message,
+        hasExpiresAt: !!result.expiresAt,
+      });
+
+      // Track successful request
+      this.performanceOptimizer.trackRequestEnd(true);
+
+      return result;
+
+    } catch (error) {
+      // Fail closed on any unexpected error
+      this.logError('Unexpected error during sync validation', {
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         errorMessage: this.sanitizeErrorMessage(error),
       });
