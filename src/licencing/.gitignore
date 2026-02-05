@@ -1,0 +1,53 @@
+# Build outputs
+build/
+out/
+dist/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Native addon build artifacts
+*.node
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# node-gyp
+.node-gyp/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Test artifacts
+.nyc_output/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker build artifacts
+Dockerfile.*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Lambda Layer packages
+*.zip
+
+# Log files
+*.log

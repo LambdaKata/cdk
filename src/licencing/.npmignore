@@ -1,0 +1,50 @@
+# Source files - not needed in production npm package
+native/
+src/
+test/
+binding.gyp
+
+# Build scripts - only install/postinstall needed at runtime
+scripts/build-*.sh
+scripts/test-*.sh
+scripts/package-*.sh
+
+# Build artifacts - only prebuilt/ should be included
+build/
+*.node
+!prebuilt/**/*.node
+
+# Development files
+.eslintrc.js
+jest.config.js
+tsconfig.json
+Makefile
+
+# Documentation
+docs/
+coverage/
+*.md
+!README.md
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Git files
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

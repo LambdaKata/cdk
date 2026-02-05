@@ -1,0 +1,99 @@
+{
+    "name": "@lambda-kata/licensing",
+    "version": "0.1.0",
+    "description": "Tamper-resistant native licensing validator for Lambda Kata SST Integration",
+    "main": "out/dist/index.js",
+    "types": "out/tsc/index.d.ts",
+    "license": "Apache-2.0",
+    "author": "Lambda Kata Team",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lambda-kata/sst-integration.git",
+        "directory": "packages/native-licensing-validator"
+    },
+    "keywords": [
+        "lambda-kata",
+        "licensing",
+        "native",
+        "node-api",
+        "security",
+        "aws-lambda"
+    ],
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "os": [
+        "linux"
+    ],
+    "cpu": [
+        "x64",
+        "arm64"
+    ],
+    "scripts": {
+        "build": "yarn build:clean && yarn build:native && yarn build:ts && yarn build:types",
+        "build:clean": "rm -rf out/ build/ prebuilt/",
+        "build:native": "node-gyp rebuild || echo 'Native build failed - addon will be unavailable'",
+        "build:native:docker": "./scripts/build-docker.sh",
+        "build:ts": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=out/dist/index.js --sourcemap=inline --external:*.node",
+        "build:types": "tsc --emitDeclarationOnly --outDir out/tsc",
+        "build:all": "./scripts/build-all.sh",
+        "build:prebuilt": "./scripts/build-prebuilt.sh",
+        "test": "npx jest --runInBand --colors --verbose --testTimeout=15000 --forceExit --detectOpenHandles --no-cache",
+        "test:watch": "npx jest --watch --testTimeout=15000 --runInBand --no-cache",
+        "test:coverage": "npx jest --coverage --runInBand --colors --verbose --testTimeout=15000 --forceExit --detectOpenHandles --no-cache",
+        "test:safe": "npx jest --runInBand --colors --verbose --testTimeout=10000 --forceExit --detectOpenHandles --no-cache --testPathIgnorePatterns='.*\\.property\\.test\\.ts'",
+        "test:unit": "npx jest --runInBand --colors --verbose --testTimeout=10000 --forceExit --detectOpenHandles --no-cache --testPathPattern='.*\\.test\\.ts' --testPathIgnorePatterns='.*\\.property\\.test\\.ts'",
+        "test:property": "npx jest --runInBand --colors --verbose --testTimeout=20000 --forceExit --detectOpenHandles --no-cache --testPathPattern='.*\\.property\\.test\\.ts'",
+        "test:deployment": "./scripts/test-deployment.sh",
+        "lint": "eslint src/ test/ --ext .ts",
+        "lint:fix": "eslint src/ test/ --ext .ts --fix",
+        "docs": "typedoc src/index.ts --out docs/",
+        "prepack": "yarn build:prebuilt || echo 'WARNING: Prebuilt binaries not available, package may not work correctly'",
+        "install": "node scripts/install.js",
+        "postinstall": "node scripts/postinstall.js || echo 'Postinstall script failed, using fallback mode'"
+    },
+    "files": [
+        "out/",
+        "prebuilt/",
+        "scripts/install.js",
+        "scripts/postinstall.js",
+        "README.md",
+        "LICENSE"
+    ],
+    "dependencies": {
+        "node-addon-api": "^7.0.0"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.0",
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "esbuild": "^0.19.0",
+        "eslint": "^8.0.0",
+        "fast-check": "^3.15.0",
+        "jest": "^29.5.0",
+        "node-gyp": "^10.0.0",
+        "ts-jest": "^29.1.0",
+        "typedoc": "^0.25.0",
+        "typescript": "^5.0.0"
+    },
+    "peerDependencies": {
+        "aws-cdk-lib": "^2.0.0",
+        "constructs": "^10.0.0"
+    },
+    "peerDependenciesMeta": {
+        "aws-cdk-lib": {
+            "optional": true
+        },
+        "constructs": {
+            "optional": true
+        }
+    },
+    "gypfile": true,
+    "binary": {
+        "napi_versions": [
+            8,
+            9
+        ]
+    }
+}
