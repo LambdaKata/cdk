@@ -26,7 +26,7 @@
  */
 
 import { Construct } from 'constructs';
-import { Annotations } from 'aws-cdk-lib';
+import { Annotations, Stack, Token } from 'aws-cdk-lib';
 import { CfnFunction, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
@@ -36,7 +36,11 @@ import * as path from 'path';
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
 import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
+import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver';
 import { createKataConfigLayer } from './config-layer';
+
+// Import native licensing service for synchronous validation
+import { NativeLicensingService, LicensingService as NativeLicensingServiceInterface } from './licensing/src/index';
 
 /**
  * Default handler path for the Lambda Kata runtime.
@@ -52,6 +56,7 @@ const NODEJS_RUNTIMES = new Set([
   'nodejs18.x',
   'nodejs20.x',
   'nodejs22.x',
+  'nodejs24.x',
 ]);
 
 /**
@@ -74,6 +79,13 @@ export interface KataWrapperOptions extends KataProps {
    * @internal
    */
   licensingService?: LicensingService;
+
+  /**
+   * Optional: Custom synchronous licensing service for testing.
+   * Must implement checkEntitlementSync(accountId: string): LicensingResponse
+   * @internal
+   */
+  syncLicensingService?: NativeLicensingServiceInterface;
 
   /**
    * Custom bundle path.
@@ -110,6 +122,16 @@ export interface KataWrapperOptions extends KataProps {
    * ```
    */
   handlerResolver?: (bundle: unknown, context: { originalHandler: string }) => Function;
+
+  /**
+   * Skip Node.js runtime layer deployment.
+   * When true, only the core transformation is applied without deploying
+   * the Node.js runtime layer. Useful for faster synthesis when the layer
+   * is already deployed or not needed.
+   *
+   * Default: false
+   */
+  skipNodejsLayer?: boolean;
 }
 
 /**
@@ -146,11 +168,14 @@ interface _TransformationState {
 /**
  * Transforms a Node.js Lambda function to run via the Lambda Kata runtime.
  *
- * This function performs the following steps:
+ * This function performs the following steps SYNCHRONOUSLY:
  * 1. Resolves the target AWS account ID
  * 2. Calls the licensing service to validate entitlement
  * 3. If entitled, applies transformations (runtime, handler, layer, env vars)
  * 4. If not entitled, handles according to unlicensedBehavior option
+ *
+ * IMPORTANT: This function is SYNCHRONOUS to work correctly with CDK synthesis.
+ * All licensing checks and transformations are applied immediately before returning.
  *
  * @param lambda - The Node.js Lambda function to transform (NodejsFunction or Function)
  * @param props - Optional configuration for the transformation
@@ -189,15 +214,14 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
   // Get the scope for annotations and account resolution
   const scope = lambda.node.scope as Construct;
 
-  // Create a promise to handle the async licensing check
-  // CDK synthesis is synchronous, so we need to handle this carefully
-  const kataPromise = performKataTransformation(lambda, scope, props);
+  // Perform SYNCHRONOUS transformation
+  const result = performKataTransformationSync(lambda, scope, props);
 
-  // Store the promise on the construct for later resolution
-  // This allows tests and integration code to await the result
-  (lambda as unknown as { _kataPromise?: Promise<KataResult> })._kataPromise = kataPromise;
+  // Store the result for inspection (wrapped in resolved Promise for backward compatibility)
+  (lambda as unknown as { _kataPromise?: Promise<KataResult> })._kataPromise = Promise.resolve(result);
+  (lambda as unknown as { _kataResult?: KataResult })._kataResult = result;
 
-  // Return the lambda immediately - transformations will be applied synchronously
+  // Return the lambda - transformations have already been applied synchronously
   // if we can resolve the account ID synchronously, or we'll need to handle
   // the async case appropriately
   return lambda;
@@ -245,6 +269,108 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
       middlewarePath: props?.middlewarePath,
       handlerResolver: props?.handlerResolver,
     }, accountId, region);
+
+    return {
+      transformed: true,
+      licensingResponse,
+      accountId,
+    };
+  } else {
+    // Handle unlicensed accounts
+    handleUnlicensed(lambda, props, licensingResponse);
+
+    return {
+      transformed: false,
+      licensingResponse,
+      accountId,
+    };
+  }
+}
+
+/**
+ * Performs the kata transformation SYNCHRONOUSLY.
+ *
+ * This is the primary transformation function used by kata().
+ * It uses the native C licensing module for synchronous validation.
+ * The native module contains all licensing logic including endpoint,
+ * security, and validation - no HTTP fallback is used.
+ *
+ * @param lambda - The Lambda function to transform
+ * @param scope - The CDK construct scope
+ * @param props - Optional configuration
+ * @returns The transformation result (synchronous)
+ *
+ * @internal
+ */
+function performKataTransformationSync<T extends NodejsFunction | LambdaFunction>(
+  lambda: T,
+  scope: Construct,
+  props?: KataWrapperOptions,
+): KataResult {
+  // Resolve the account ID SYNCHRONOUSLY
+  let accountId: string;
+  try {
+    accountId = resolveAccountIdSync(scope);
+  } catch (error) {
+    // If we can't resolve the account ID, treat as unlicensed
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const licensingResponse: LicensingResponse = {
+      entitled: false,
+      message: `Unable to determine AWS account ID: ${errorMessage}`,
+    };
+
+    handleUnlicensed(lambda, props, licensingResponse);
+
+    return {
+      transformed: false,
+      licensingResponse,
+      accountId: 'unknown',
+    };
+  }
+
+  // Resolve region SYNCHRONOUSLY
+  const deploymentRegion = resolveRegionSync(scope);
+
+  // Check entitlement SYNCHRONOUSLY using native C-module
+  let licensingResponse: LicensingResponse;
+
+  if (props?.syncLicensingService?.checkEntitlementSync) {
+    // Use provided sync licensing service (for testing)
+    licensingResponse = props.syncLicensingService.checkEntitlementSync(accountId);
+  } else {
+    // Use native licensing module - this is the ONLY production path
+    // The native C-module contains all licensing logic (endpoint, security, validation)
+    try {
+      const nativeService = new NativeLicensingService();
+      licensingResponse = nativeService.checkEntitlementSync(accountId);
+    } catch (nativeError) {
+      // Native module not available - fail closed (no HTTP fallback)
+      const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+      console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+
+      licensingResponse = {
+        entitled: false,
+        message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+      };
+    }
+  }
+
+  // Handle the licensing response
+  if (licensingResponse.entitled && licensingResponse.layerArn) {
+    // Apply transformation for entitled accounts
+    // Note: Node.js layer deployment is skipped in sync mode (can be done separately)
+    applyTransformation(lambda, {
+      originalHandler: getOriginalHandler(lambda),
+      targetRuntime: Runtime.PYTHON_3_12,
+      targetHandler: LAMBDA_KATA_HANDLER,
+      layerArn: licensingResponse.layerArn,
+      bundlePath: props?.bundlePath,
+      middlewarePath: props?.middlewarePath,
+      handlerResolver: props?.handlerResolver,
+    });
+
+    // Log success
+    console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
 
     return {
       transformed: true,
@@ -404,6 +530,7 @@ export function getOriginalRuntime(lambda: NodejsFunction | LambdaFunction): str
  */
 export function isNodejsRuntime(lambda: NodejsFunction | LambdaFunction): boolean {
   const runtime = getOriginalRuntime(lambda);
+  console.log('runtime: ', runtime, JSON.stringify(runtime));
   return NODEJS_RUNTIMES.has(runtime);
 }
 

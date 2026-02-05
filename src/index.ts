@@ -57,6 +57,16 @@ export {
   AccountResolverOptions,
 } from './account-resolver';
 
+// Synchronous account resolver exports
+export {
+  resolveAccountIdSync,
+  resolveAccountIdSyncWithSource,
+  resolveRegionSync,
+  SyncAccountResolutionError,
+  SyncAccountResolutionResult,
+  SyncAccountResolverOptions,
+} from './sync-account-resolver';
+
 // kata wrapper exports
 export {
   kata,
