@@ -657,9 +657,7 @@ function createNodejsRuntimeLayer(
     );
   }
 
-  // Construct the S3 key: nodejs-{version}-{architecture}.zip
-  // const s3Key = `${runtimePrefix}-${architecture}.zip`;
-  // lambda-kata-layer-x86.zip
+  // Construct the S3 key: node-js-layers/nodejs-{version}-layer-{architecture}.zip
   const s3Key = `${NODEJS_LAYER_S3_FOLDER_KEY}/${runtimePrefix}-${architecture}.zip`;
 
   // Get the deployment region from the stack
@@ -667,7 +665,7 @@ function createNodejsRuntimeLayer(
   const region = stack.region;
 
   // Use region-specific bucket for lower latency and to avoid cross-region issues
-  // Format: lambda-kata-nodejs-layers-{region}
+  // Format: lambda-kata-website-layer-content-dev-{region}
   // Fallback to global bucket if region is unresolved (CDK token)
   let bucketName: string;
   if (Token.isUnresolved(region)) {
@@ -681,6 +679,8 @@ function createNodejsRuntimeLayer(
     // Use region-specific bucket
     bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
   }
+
+  console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
 
   // Reference the S3 bucket (no AWS API calls - just creates a reference)
   const bucket = s3.Bucket.fromBucketName(lambda, 'NodejsLayerBucket', bucketName);
