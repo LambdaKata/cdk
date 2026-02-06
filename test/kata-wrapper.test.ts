@@ -234,6 +234,55 @@ describe('kata-wrapper', () => {
     });
 
     /**
+     * **Validates: SnapStart enablement**
+     * THE kata_Wrapper SHALL enable SnapStart with ApplyOn: PublishedVersions
+     * for near-zero cold start times on transformed Lambda functions.
+     */
+    describe('SnapStart enablement', () => {
+      it('should enable SnapStart with ApplyOn: PublishedVersions', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const cfnFunction = lambda.node.defaultChild as CfnFunction;
+        expect(cfnFunction.snapStart).toEqual({
+          applyOn: 'PublishedVersions',
+        });
+      });
+
+      it('should set SnapStart in CloudFormation template', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          SnapStart: {
+            ApplyOn: 'PublishedVersions',
+          },
+        });
+      });
+    });
+
+    /**
      * **Validates: Requirements 3.4, 4.1, 4.2**
      * - 3.4: THE kata_Wrapper SHALL NOT set the `JS_HANDLER_PATH` environment variable
      * - 4.1: THE kata_Wrapper SHALL NOT add the `JS_HANDLER_PATH` environment variable to transformed Lambdas

@@ -60,7 +60,7 @@
  *
  * ## Benefits
  *
- * - **SnapStart Optimization**: Near-zero cold start times
+ * - **SnapStart Optimization**: Near-zero cold start times (automatically enabled)
  * - **No Code Changes**: Your JavaScript code works as-is
  * - **Minimal Overhead**: <1ms execution overhead
  * - **AWS Marketplace Integration**: Licensing validated at deploy time
@@ -141,12 +141,14 @@ export class ExampleLambdaKataStack extends Stack {
         //   - Runtime: nodejs18.x
         //   - Handler: index.handler
         //   - Layers: (none)
+        //   - SnapStart: (not configured)
         //   - Environment: { LOG_LEVEL: 'INFO', MY_CONFIG_VALUE: 'example' }
         //
         // AFTER kata() (if licensed):
         //   - Runtime: python3.12
         //   - Handler: lambdakata.optimized_handler.lambda_handler
         //   - Layers: [arn:aws:lambda:REGION:ACCOUNT:layer:lambda-kata:VERSION, config-layer]
+        //   - SnapStart: { ApplyOn: 'PublishedVersions' }  // Automatically enabled!
         //   - Environment: {
         //       LOG_LEVEL: 'INFO',           // Original preserved
         //       MY_CONFIG_VALUE: 'example',  // Original preserved

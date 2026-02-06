@@ -645,7 +645,15 @@ export function applyTransformation(
   // 3. Set handler to Lambda Kata handler (Requirement 2.3)
   cfnFunction.handler = config.targetHandler;
 
-  // 4. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
+  // 4. Enable SnapStart for near-zero cold start times
+  // SnapStart is supported on Python 3.12+ and creates a snapshot of the
+  // initialized execution environment when publishing a function version.
+  // This dramatically reduces cold start latency for Lambda Kata functions.
+  cfnFunction.snapStart = {
+    applyOn: 'PublishedVersions',
+  };
+
+  // 5. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
   // This replaces the JS_HANDLER_PATH environment variable approach
   // Also includes bundlePath and middlewarePath when provided
   const configLayer = createKataConfigLayer(lambda, 'KataConfigLayer', {
@@ -656,7 +664,7 @@ export function applyTransformation(
   });
   lambda.addLayers(configLayer);
 
-  // 5. Attach the Lambda Kata Layer (Requirement 2.4)
+  // 6. Attach the Lambda Kata Layer (Requirement 2.4)
   const layer = LayerVersion.fromLayerVersionArn(
     lambda,
     'LambdaKataLayer',
