@@ -280,6 +280,70 @@ describe('kata-wrapper', () => {
           },
         });
       });
+
+      it('should create a Lambda Version for SnapStart activation', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify AWS::Lambda::Version resource is created
+        template.hasResourceProperties('AWS::Lambda::Version', {
+          Description: 'Lambda Kata optimized version with SnapStart',
+        });
+      });
+
+      it('should create a kata alias pointing to the version', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify AWS::Lambda::Alias resource is created with name 'kata'
+        template.hasResourceProperties('AWS::Lambda::Alias', {
+          Name: 'kata',
+          Description: 'Lambda Kata alias pointing to SnapStart-enabled version',
+        });
+      });
+
+      it('should have alias depend on version', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+
+        // Verify alias references the version
+        template.hasResourceProperties('AWS::Lambda::Alias', {
+          FunctionVersion: Match.objectLike({
+            'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('KataVersion'), 'Version']),
+          }),
+        });
+      });
     });
 
     /**

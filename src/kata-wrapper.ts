@@ -27,7 +27,7 @@
 
 import { Construct } from 'constructs';
 import { Annotations, Stack, Token } from 'aws-cdk-lib';
-import { CfnFunction, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Alias, CfnFunction, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 import { promises as fs } from 'fs';
@@ -653,7 +653,21 @@ export function applyTransformation(
     applyOn: 'PublishedVersions',
   };
 
-  // 5. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
+  // 5. Create a published version and 'kata' alias for SnapStart activation
+  // SnapStart only works with published versions, not $LATEST.
+  // The alias provides a stable endpoint for invocations.
+  const version = new Version(lambda, 'KataVersion', {
+    lambda: lambda,
+    description: 'Lambda Kata optimized version with SnapStart',
+  });
+
+  new Alias(lambda, 'KataAlias', {
+    aliasName: 'kata',
+    version: version,
+    description: 'Lambda Kata alias pointer', // Lambda Kata alias pointing to SnapStart-enabled version
+  });
+
+  // 6. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
   // This replaces the JS_HANDLER_PATH environment variable approach
   // Also includes bundlePath and middlewarePath when provided
   const configLayer = createKataConfigLayer(lambda, 'KataConfigLayer', {
@@ -664,7 +678,7 @@ export function applyTransformation(
   });
   lambda.addLayers(configLayer);
 
-  // 6. Attach the Lambda Kata Layer (Requirement 2.4)
+  // 7. Attach the Lambda Kata Layer (Requirement 2.4)
   const layer = LayerVersion.fromLayerVersionArn(
     lambda,
     'LambdaKataLayer',
