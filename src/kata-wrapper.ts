@@ -40,7 +40,7 @@ import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver
 import { createKataConfigLayer } from './config-layer';
 
 // Import native licensing service for synchronous validation
-import { NativeLicensingService, LicensingService as NativeLicensingServiceInterface } from '@lambda-kata/licensing';
+import { LicensingService as NativeLicensingServiceInterface, NativeLicensingService } from '@lambda-kata/licensing';
 
 /**
  * Default handler path for the Lambda Kata runtime.
@@ -254,7 +254,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   const licensingService = props?.licensingService ?? createLicensingService(props?.licensingEndpoint);
 
   // Check entitlement
-  const licensingResponse = licensingService.checkEntitlementSync(accountId);
+  const licensingResponse = await licensingService.checkEntitlement(accountId);
 
   // Handle the licensing response
   if (licensingResponse.entitled && licensingResponse.layerArn) {
@@ -397,9 +397,11 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
  * @param props - Optional configuration
  * @returns Promise resolving to the transformation result
  *
+ * @deprecated async mode is deprecated and will be removed in a future release.
+ *
  * @internal
  */
-async function performKataTransformation<T extends NodejsFunction | LambdaFunction>(
+async function __performKataTransformation<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   scope: Construct,
   props?: KataWrapperOptions,
