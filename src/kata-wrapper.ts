@@ -27,8 +27,9 @@
 
 import { Construct } from 'constructs';
 import { Annotations, Stack, Token } from 'aws-cdk-lib';
-import { Alias, CfnFunction, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
+import { Alias, Architecture, CfnFunction, Code, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { promises as fs } from 'fs';
 import * as path from 'path';
@@ -47,6 +48,26 @@ import { LicensingService as NativeLicensingServiceInterface, NativeLicensingSer
  * This handler is provided by the Lambda Kata Layer.
  */
 const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
+
+/**
+ * S3 bucket containing pre-built Node.js runtime layers.
+ * This bucket is publicly accessible and contains ZIP files for each
+ * Node.js runtime version and architecture combination.
+ */
+// const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-nodejs-layers';
+const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-layer-content-dev';
+const NODEJS_LAYER_S3_FOLDER_KEY = 'node-js-layers';
+
+/**
+ * Mapping of Node.js runtime to S3 key prefix.
+ * Format: nodejs-{version}-{architecture}.zip
+ */
+const NODEJS_RUNTIME_TO_S3_KEY: Record<string, string> = {
+  'nodejs18.x': 'nodejs-18-layer',
+  'nodejs20.x': 'nodejs-20-layer',
+  'nodejs22.x': 'nodejs-22-layer',
+  'nodejs24.x': 'nodejs-24-layer',
+};
 
 /**
  * Supported Node.js runtimes that require Node.js runtime layers.
@@ -270,6 +291,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
       // Case 1: Entitled with layer ARN - apply transformation
       await applyTransformationWithNodeSupport(lambda, {
         originalHandler: getOriginalHandler(lambda),
+        originalRuntime: getOriginalRuntime(lambda),
         targetRuntime: Runtime.PYTHON_3_12,
         targetHandler: LAMBDA_KATA_HANDLER,
         layerArn: effectiveLayerArn,
@@ -390,6 +412,7 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
       // Case 1: Entitled with layer ARN - apply transformation
       applyTransformation(lambda, {
         originalHandler: getOriginalHandler(lambda),
+        originalRuntime: getOriginalRuntime(lambda),
         targetRuntime: Runtime.PYTHON_3_12,
         targetHandler: LAMBDA_KATA_HANDLER,
         layerArn: effectiveLayerArn,
@@ -604,6 +627,86 @@ export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 
 }
 
 /**
+ * Creates a Node.js runtime layer from the Lambda Kata S3 bucket.
+ *
+ * This function creates a LayerVersion construct that references a pre-built
+ * Node.js runtime ZIP file stored in the Lambda Kata public S3 bucket.
+ * The layer is created in the user's AWS account during CloudFormation deployment.
+ *
+ * This is a SYNCHRONOUS operation during CDK synthesis - the actual layer
+ * creation happens during CloudFormation deploy, not during synthesis.
+ *
+ * @param lambda - The Lambda function to attach the layer to (used as scope)
+ * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
+ * @param architecture - The target architecture ("x86_64" or "arm64")
+ * @returns The created LayerVersion construct
+ *
+ * @internal
+ */
+function createNodejsRuntimeLayer(
+  lambda: NodejsFunction | LambdaFunction,
+  originalRuntime: string,
+  architecture: 'x86_64' | 'arm64',
+): LayerVersion {
+  // Get the S3 key prefix for this runtime
+  const runtimePrefix = NODEJS_RUNTIME_TO_S3_KEY[originalRuntime];
+  if (!runtimePrefix) {
+    throw new Error(
+      `Unsupported Node.js runtime: ${originalRuntime}. ` +
+      `Supported runtimes: ${Object.keys(NODEJS_RUNTIME_TO_S3_KEY).join(', ')}`
+    );
+  }
+
+  // Construct the S3 key: nodejs-{version}-{architecture}.zip
+  // const s3Key = `${runtimePrefix}-${architecture}.zip`;
+  // lambda-kata-layer-x86.zip
+  const s3Key = `${NODEJS_LAYER_S3_FOLDER_KEY}/${runtimePrefix}-${architecture}.zip`;
+
+  // Get the deployment region from the stack
+  const stack = Stack.of(lambda);
+  const region = stack.region;
+
+  // Use region-specific bucket for lower latency and to avoid cross-region issues
+  // Format: lambda-kata-nodejs-layers-{region}
+  // Fallback to global bucket if region is unresolved (CDK token)
+  let bucketName: string;
+  if (Token.isUnresolved(region)) {
+    // Region is a CDK token - use global bucket
+    bucketName = NODEJS_LAYER_S3_BUCKET;
+    console.warn(
+      `[Lambda Kata] Stack region is unresolved. Using global S3 bucket: ${bucketName}. ` +
+      `For better performance, specify region explicitly in Stack env.`
+    );
+  } else {
+    // Use region-specific bucket
+    bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
+  }
+
+  // Reference the S3 bucket (no AWS API calls - just creates a reference)
+  const bucket = s3.Bucket.fromBucketName(lambda, 'NodejsLayerBucket', bucketName);
+
+  // Determine compatible architecture for the layer
+  const compatibleArchitecture = architecture === 'arm64'
+    ? Architecture.ARM_64
+    : Architecture.X86_64;
+
+  // Create the layer from S3
+  // This is SYNCHRONOUS - CDK just generates CloudFormation template
+  // The actual layer creation happens during CloudFormation deploy
+  // Note: We don't specify compatibleRuntimes to avoid CDK validation issues
+  // since the Lambda's runtime is changed via escape hatch (cfnFunction.runtime)
+  // and CDK L2 construct still thinks it's Node.js
+  const layer = new LayerVersion(lambda, 'NodejsRuntimeLayer', {
+    code: Code.fromBucket(bucket, s3Key),
+    compatibleArchitectures: [compatibleArchitecture],
+    description: `Node.js ${originalRuntime} runtime for Lambda Kata (${architecture})`,
+    layerVersionName: `lambda-kata-${originalRuntime.replace('.', '-')}-${architecture}`,
+  });
+
+  return layer;
+}
+
+/**
  * Applies the Lambda Kata transformation to a Lambda function.
  *
  * This function modifies the Lambda construct in-place to:
@@ -685,6 +788,19 @@ export function applyTransformation(
     config.layerArn,
   );
   lambda.addLayers(layer);
+
+  // 8. Create and attach Node.js runtime layer if original runtime was Node.js
+  // This layer contains the Node.js binaries needed by the Lambda Kata runtime
+  // to execute the original Node.js handler code.
+  if (config.originalRuntime && NODEJS_RUNTIMES.has(config.originalRuntime)) {
+    const architecture = getLambdaArchitecture(lambda);
+    const nodejsLayer = createNodejsRuntimeLayer(lambda, config.originalRuntime, architecture);
+    lambda.addLayers(nodejsLayer);
+
+    console.log(
+      `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
+    );
+  }
 
   // Note: No environment variables are added by kata()
   // - JS_HANDLER_PATH: Stored in config layer

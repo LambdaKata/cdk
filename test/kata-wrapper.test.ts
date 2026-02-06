@@ -318,7 +318,7 @@ describe('kata-wrapper', () => {
         // Verify AWS::Lambda::Alias resource is created with name 'kata'
         template.hasResourceProperties('AWS::Lambda::Alias', {
           Name: 'kata',
-          Description: 'Lambda Kata alias pointing to SnapStart-enabled version',
+          Description: 'Lambda Kata alias pointer',
         });
       });
 
@@ -342,6 +342,134 @@ describe('kata-wrapper', () => {
           FunctionVersion: Match.objectLike({
             'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('KataVersion'), 'Version']),
           }),
+        });
+      });
+    });
+
+    /**
+     * **Validates: Node.js Runtime Layer Creation**
+     * THE kata_Wrapper SHALL create a Node.js runtime layer from S3 when
+     * the original Lambda uses a Node.js runtime.
+     */
+    describe('Node.js Runtime Layer', () => {
+      it('should create Node.js runtime layer when originalRuntime is nodejs20.x', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify Node.js runtime layer is created
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Description: Match.stringLikeRegexp('Node.js nodejs20.x runtime for Lambda Kata'),
+        });
+      });
+
+      it('should create Node.js runtime layer for nodejs18.x', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs18.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Description: Match.stringLikeRegexp('Node.js nodejs18.x runtime for Lambda Kata'),
+        });
+      });
+
+      it('should NOT create Node.js runtime layer when originalRuntime is not provided', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          // originalRuntime not provided
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Should have exactly 1 LayerVersion (KataConfigLayer), not NodejsRuntimeLayer
+        const layers = template.findResources('AWS::Lambda::LayerVersion');
+        const layerDescriptions = Object.values(layers).map(
+          (l: Record<string, unknown>) => (l.Properties as Record<string, unknown>)?.Description
+        );
+        expect(layerDescriptions.some((d: unknown) =>
+          typeof d === 'string' && d.includes('Node.js')
+        )).toBe(false);
+      });
+
+      it('should reference S3 bucket for Node.js layer code', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify layer references S3 bucket
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Content: Match.objectLike({
+            S3Bucket: Match.stringLikeRegexp('lambda-kata-nodejs-layers'),
+            S3Key: 'nodejs-20.x-x86_64.zip',
+          }),
+        });
+      });
+
+      it('should attach Node.js layer to the Lambda function', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Lambda should have 3 layers: KataConfigLayer, LambdaKataLayer, NodejsRuntimeLayer
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          Layers: Match.arrayWith([
+            Match.objectLike({ Ref: Match.stringLikeRegexp('NodejsRuntimeLayer') }),
+          ]),
         });
       });
     });

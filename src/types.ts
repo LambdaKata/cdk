@@ -99,6 +99,12 @@ export interface TransformationConfig {
   originalHandler: string;
 
   /**
+   * The original Node.js runtime (e.g., "nodejs20.x").
+   * Used to create the appropriate Node.js runtime layer.
+   */
+  originalRuntime?: string;
+
+  /**
    * The target runtime for the transformed Lambda.
    * Always Runtime.PYTHON_3_12 for Lambda Kata.
    */
