@@ -58,10 +58,20 @@ export interface LicensingResponse {
   entitled: boolean;
 
   /**
-   * Customer-specific Lambda Layer ARN containing the Lambda Kata runtime.
+   * Base Lambda Layer ARN (without version number).
    * Only present if the account is entitled.
+   * @deprecated Use layerVersionArn for attaching to Lambda functions
    */
   layerArn?: string;
+
+  /**
+   * Full Lambda Layer Version ARN (with version number).
+   * This is the ARN that should be used when attaching layers to Lambda functions.
+   * Only present if the account is entitled.
+   * 
+   * @example "arn:aws:lambda:eu-central-1:113258654684:layer:lambda-kata-euc:1"
+   */
+  layerVersionArn?: string;
 
   /**
    * Human-readable status message

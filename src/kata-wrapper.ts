@@ -256,20 +256,23 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   // Check entitlement
   const licensingResponse = await licensingService.checkEntitlement(accountId);
 
-  // Handle the licensing response
   // Handle the licensing response - distinguish 3 cases:
-  // 1. entitled: true + layerArn → transform
-  // 2. entitled: true + no layerArn → service error, skip transformation
+  // 1. entitled: true + layerVersionArn/layerArn → transform
+  // 2. entitled: true + no layer ARN → service error, skip transformation
   // 3. entitled: false → not subscribed, skip transformation
 
+  // Prefer layerVersionArn (full ARN with version) over layerArn (base ARN without version)
+  // AWS Lambda requires the full ARN with version number
+  const effectiveLayerArn = licensingResponse.layerVersionArn || licensingResponse.layerArn;
+
   if (licensingResponse.entitled) {
-    if (licensingResponse.layerArn) {
+    if (effectiveLayerArn) {
       // Case 1: Entitled with layer ARN - apply transformation
       await applyTransformationWithNodeSupport(lambda, {
         originalHandler: getOriginalHandler(lambda),
         targetRuntime: Runtime.PYTHON_3_12,
         targetHandler: LAMBDA_KATA_HANDLER,
-        layerArn: licensingResponse.layerArn,
+        layerArn: effectiveLayerArn,
         bundlePath: props?.bundlePath,
         middlewarePath: props?.middlewarePath,
         handlerResolver: props?.handlerResolver,
@@ -374,18 +377,22 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
   }
 
   // Handle the licensing response - distinguish 3 cases:
-  // 1. entitled: true + layerArn → transform
-  // 2. entitled: true + no layerArn → service error, skip transformation (don't say "not entitled")
+  // 1. entitled: true + layerVersionArn/layerArn → transform
+  // 2. entitled: true + no layer ARN → service error, skip transformation (don't say "not entitled")
   // 3. entitled: false → not subscribed, skip transformation
 
+  // Prefer layerVersionArn (full ARN with version) over layerArn (base ARN without version)
+  // AWS Lambda requires the full ARN with version number
+  const effectiveLayerArn = licensingResponse.layerVersionArn || licensingResponse.layerArn;
+
   if (licensingResponse.entitled) {
-    if (licensingResponse.layerArn) {
+    if (effectiveLayerArn) {
       // Case 1: Entitled with layer ARN - apply transformation
       applyTransformation(lambda, {
         originalHandler: getOriginalHandler(lambda),
         targetRuntime: Runtime.PYTHON_3_12,
         targetHandler: LAMBDA_KATA_HANDLER,
-        layerArn: licensingResponse.layerArn,
+        layerArn: effectiveLayerArn,
         bundlePath: props?.bundlePath,
         middlewarePath: props?.middlewarePath,
         handlerResolver: props?.handlerResolver,

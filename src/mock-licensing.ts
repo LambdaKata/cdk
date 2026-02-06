@@ -253,9 +253,12 @@ export class MockLicensingService implements LicensingService {
 
     if (layerArn) {
       // Account is entitled
+      // Return layerVersionArn (preferred) which is the same as layerArn in mock
+      // since mock ARNs should already include version number
       const response: LicensingResponse = {
         entitled: true,
         layerArn,
+        layerVersionArn: layerArn, // Full ARN with version for AWS Lambda
         message: this.entitledMessage,
       };
 
