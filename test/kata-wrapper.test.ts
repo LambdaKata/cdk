@@ -234,6 +234,247 @@ describe('kata-wrapper', () => {
     });
 
     /**
+     * **Validates: SnapStart enablement**
+     * THE kata_Wrapper SHALL enable SnapStart with ApplyOn: PublishedVersions
+     * for near-zero cold start times on transformed Lambda functions.
+     */
+    describe('SnapStart enablement', () => {
+      it('should enable SnapStart with ApplyOn: PublishedVersions', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const cfnFunction = lambda.node.defaultChild as CfnFunction;
+        expect(cfnFunction.snapStart).toEqual({
+          applyOn: 'PublishedVersions',
+        });
+      });
+
+      it('should set SnapStart in CloudFormation template', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          SnapStart: {
+            ApplyOn: 'PublishedVersions',
+          },
+        });
+      });
+
+      it('should create a Lambda Version for SnapStart activation', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify AWS::Lambda::Version resource is created
+        template.hasResourceProperties('AWS::Lambda::Version', {
+          Description: 'Lambda Kata optimized version with SnapStart',
+        });
+      });
+
+      it('should create a kata alias pointing to the version', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify AWS::Lambda::Alias resource is created with name 'kata'
+        template.hasResourceProperties('AWS::Lambda::Alias', {
+          Name: 'kata',
+          Description: 'Lambda Kata alias pointer',
+        });
+      });
+
+      it('should have alias depend on version', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+
+        // Verify alias references the version
+        template.hasResourceProperties('AWS::Lambda::Alias', {
+          FunctionVersion: Match.objectLike({
+            'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('KataVersion'), 'Version']),
+          }),
+        });
+      });
+    });
+
+    /**
+     * **Validates: Node.js Runtime Layer Creation**
+     * THE kata_Wrapper SHALL create a Node.js runtime layer from S3 when
+     * the original Lambda uses a Node.js runtime.
+     */
+    describe('Node.js Runtime Layer', () => {
+      it('should create Node.js runtime layer when originalRuntime is nodejs20.x', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify Node.js runtime layer is created
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Description: Match.stringLikeRegexp('Node.js nodejs20.x runtime for Lambda Kata'),
+        });
+      });
+
+      it('should create Node.js runtime layer for nodejs18.x', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs18.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Description: Match.stringLikeRegexp('Node.js nodejs18.x runtime for Lambda Kata'),
+        });
+      });
+
+      it('should NOT create Node.js runtime layer when originalRuntime is not provided', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          // originalRuntime not provided
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Should have exactly 1 LayerVersion (KataConfigLayer), not NodejsRuntimeLayer
+        const layers = template.findResources('AWS::Lambda::LayerVersion');
+        const layerDescriptions = Object.values(layers).map(
+          (l: Record<string, unknown>) => (l.Properties as Record<string, unknown>)?.Description
+        );
+        expect(layerDescriptions.some((d: unknown) =>
+          typeof d === 'string' && d.includes('Node.js')
+        )).toBe(false);
+      });
+
+      it('should reference S3 bucket for Node.js layer code', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Verify layer references S3 bucket
+        template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+          Content: Match.objectLike({
+            S3Bucket: Match.stringLikeRegexp('lambda-kata-nodejs-layers'),
+            S3Key: 'nodejs-20.x-x86_64.zip',
+          }),
+        });
+      });
+
+      it('should attach Node.js layer to the Lambda function', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_20_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          originalRuntime: 'nodejs20.x',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Lambda should have 3 layers: KataConfigLayer, LambdaKataLayer, NodejsRuntimeLayer
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          Layers: Match.arrayWith([
+            Match.objectLike({ Ref: Match.stringLikeRegexp('NodejsRuntimeLayer') }),
+          ]),
+        });
+      });
+    });
+
+    /**
      * **Validates: Requirements 3.4, 4.1, 4.2**
      * - 3.4: THE kata_Wrapper SHALL NOT set the `JS_HANDLER_PATH` environment variable
      * - 4.1: THE kata_Wrapper SHALL NOT add the `JS_HANDLER_PATH` environment variable to transformed Lambdas
@@ -432,7 +673,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       mockLicensing.setEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -457,7 +698,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       // Account is not entitled (no setEntitled call)
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -496,7 +737,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         // Account is not entitled (no setEntitled call)
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -513,7 +754,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -537,7 +778,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -555,7 +796,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -578,7 +819,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -598,7 +839,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -627,7 +868,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -654,7 +895,7 @@ describe('kata-wrapper', () => {
           'Lambda Kata not enabled: AWS account is not entitled. Subscribe via AWS Marketplace to enable.',
         );
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -679,7 +920,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setNotEntitledMessage('Custom licensing error: Account 123456789012 not found');
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -709,7 +950,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -734,7 +975,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -768,7 +1009,7 @@ describe('kata-wrapper', () => {
 
         const mockLicensing = new MockLicensingService();
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -852,7 +1093,7 @@ describe('kata-wrapper', () => {
         mockLicensing.setNotEntitledMessage('Account not found in entitlement database');
 
         await expect(
-          kataWithAccountId(lambda, '123456789012', {
+          kataWithAccountId(lambda, '123456789012', 'us-east-1', {
             licensingService: mockLicensing,
             unlicensedBehavior: 'fail',
           }),
@@ -875,7 +1116,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -898,7 +1139,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        await kataWithAccountId(lambda, '123456789012', {
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -1007,7 +1248,7 @@ describe('kata-wrapper', () => {
       const mockLicensing = new MockLicensingService();
       mockLicensing.setEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', {
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
         licensingService: mockLicensing,
       });
 
@@ -1365,7 +1606,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         mockLicensing.setEntitled('123456789012', layerArn);
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 
@@ -1395,7 +1636,7 @@ describe('kata-wrapper', () => {
         const mockLicensing = new MockLicensingService();
         // Account is not entitled (no setEntitled call)
 
-        const result = await kataWithAccountId(lambda, '123456789012', {
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
           licensingService: mockLicensing,
         });
 

@@ -242,7 +242,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -279,7 +279,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -316,7 +316,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -361,7 +361,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -412,7 +412,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -463,7 +463,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing1.setEntitled(accountId1, layerArn1);
                         mockLicensing1.setEntitled(accountId2, layerArn2);
 
-                        const result1 = await kataWithAccountId(lambda1, accountId1, {
+                        const result1 = await kataWithAccountId(lambda1, accountId1, 'us-east-1', {
                             licensingService: mockLicensing1,
                         });
 
@@ -475,7 +475,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         mockLicensing2.setEntitled(accountId1, layerArn1);
                         mockLicensing2.setEntitled(accountId2, layerArn2);
 
-                        const result2 = await kataWithAccountId(lambda2, accountId2, {
+                        const result2 = await kataWithAccountId(lambda2, accountId2, 'us-east-1', {
                             licensingService: mockLicensing2,
                         });
 
@@ -619,7 +619,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -659,7 +659,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -703,7 +703,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -742,7 +742,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -784,7 +784,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -836,7 +836,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -907,7 +907,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         }
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -965,7 +965,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1050,7 +1050,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1105,7 +1105,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1148,7 +1148,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1201,7 +1201,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         const mockLicensing = new MockLicensingService();
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1254,7 +1254,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1426,7 +1426,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1487,7 +1487,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         mockLicensing1.setEntitled(accountId1, layerArn1);
                         mockLicensing1.setEntitled(accountId2, layerArn2);
 
-                        const result1 = await kataWithAccountId(lambda1, accountId1, {
+                        const result1 = await kataWithAccountId(lambda1, accountId1, 'us-east-1', {
                             licensingService: mockLicensing1,
                         });
 
@@ -1503,7 +1503,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         mockLicensing2.setEntitled(accountId1, layerArn1);
                         mockLicensing2.setEntitled(accountId2, layerArn2);
 
-                        const result2 = await kataWithAccountId(lambda2, accountId2, {
+                        const result2 = await kataWithAccountId(lambda2, accountId2, 'us-east-1', {
                             licensingService: mockLicensing2,
                         });
 
@@ -1571,7 +1571,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         mockLicensing.setEntitled(targetAccountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, targetAccountId, {
+                        const result = await kataWithAccountId(lambda, targetAccountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1632,7 +1632,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1687,7 +1687,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         mockLicensing.setEntitled(accountId, layerArn);
 
                         // Apply transformation
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1885,7 +1885,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1934,7 +1934,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -1979,7 +1979,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2031,7 +2031,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2079,7 +2079,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2142,7 +2142,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         const mockLicensing1 = new MockLicensingService();
                         // Don't call setEntitled - both accounts are not entitled
 
-                        const result1 = await kataWithAccountId(lambda1, accountId1, {
+                        const result1 = await kataWithAccountId(lambda1, accountId1, 'us-east-1', {
                             licensingService: mockLicensing1,
                         });
 
@@ -2153,7 +2153,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         const mockLicensing2 = new MockLicensingService();
                         // Don't call setEntitled - both accounts are not entitled
 
-                        const result2 = await kataWithAccountId(lambda2, accountId2, {
+                        const result2 = await kataWithAccountId(lambda2, accountId2, 'us-east-1', {
                             licensingService: mockLicensing2,
                         });
 
@@ -2225,7 +2225,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         const mockLicensingEntitled = new MockLicensingService();
                         mockLicensingEntitled.setEntitled(entitledAccountId, layerArn);
 
-                        const entitledResult = await kataWithAccountId(entitledLambda, entitledAccountId, {
+                        const entitledResult = await kataWithAccountId(entitledLambda, entitledAccountId, 'us-east-1', {
                             licensingService: mockLicensingEntitled,
                         });
 
@@ -2236,7 +2236,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         const mockLicensingNonEntitled = new MockLicensingService();
                         // Don't call setEntitled - account is not entitled
 
-                        const nonEntitledResult = await kataWithAccountId(nonEntitledLambda, nonEntitledAccountId, {
+                        const nonEntitledResult = await kataWithAccountId(nonEntitledLambda, nonEntitledAccountId, 'us-east-1', {
                             licensingService: mockLicensingNonEntitled,
                         });
 
@@ -2431,7 +2431,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform but should emit warning)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2477,7 +2477,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform but should emit warning)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2522,7 +2522,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         // Don't call setEntitled - account is not entitled
 
                         // Apply transformation (should not transform but should emit warning)
-                        await kataWithAccountId(lambda, accountId, {
+                        await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 
@@ -2566,7 +2566,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         const mockLicensing1 = new MockLicensingService();
                         // Don't call setEntitled - account is not entitled
 
-                        await kataWithAccountId(lambda1, accountId1, {
+                        await kataWithAccountId(lambda1, accountId1, 'us-east-1', {
                             licensingService: mockLicensing1,
                         });
 
@@ -2577,7 +2577,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         const mockLicensing2 = new MockLicensingService();
                         // Don't call setEntitled - account is not entitled
 
-                        await kataWithAccountId(lambda2, accountId2, {
+                        await kataWithAccountId(lambda2, accountId2, 'us-east-1', {
                             licensingService: mockLicensing2,
                         });
 
@@ -2642,7 +2642,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         const mockLicensingEntitled = new MockLicensingService();
                         mockLicensingEntitled.setEntitled(entitledAccountId, layerArn);
 
-                        const entitledResult = await kataWithAccountId(entitledLambda, entitledAccountId, {
+                        const entitledResult = await kataWithAccountId(entitledLambda, entitledAccountId, 'us-east-1', {
                             licensingService: mockLicensingEntitled,
                         });
 
@@ -2653,7 +2653,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         const mockLicensingNonEntitled = new MockLicensingService();
                         // Don't call setEntitled - account is not entitled
 
-                        const nonEntitledResult = await kataWithAccountId(nonEntitledLambda, nonEntitledAccountId, {
+                        const nonEntitledResult = await kataWithAccountId(nonEntitledLambda, nonEntitledAccountId, 'us-east-1', {
                             licensingService: mockLicensingNonEntitled,
                         });
 
@@ -2698,7 +2698,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
-                    fc.string({ minLength: 10, maxLength: 100 }).filter(s => !s.includes('\n')),
+                    fc.string({ minLength: 10, maxLength: 100 }).map(s => s.replace(/\n/g, ' ')),
                     async (config, accountId, customMessage) => {
                         const { app, stack } = createTestStack(accountId);
                         const lambda = createTestLambda(stack, 'TestFunction', config);
@@ -2708,7 +2708,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         mockLicensing.setCustomMessage(accountId, customMessage);
 
                         // Apply transformation (should not transform but should emit warning with custom message)
-                        const result = await kataWithAccountId(lambda, accountId, {
+                        const result = await kataWithAccountId(lambda, accountId, 'us-east-1', {
                             licensingService: mockLicensing,
                         });
 

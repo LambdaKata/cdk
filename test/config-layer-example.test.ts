@@ -119,7 +119,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
             // Use kataWithAccountId with mock licensing service for testing
             const mockLicensing = createEntitledMockLicensing(accountId);
-            await kataWithAccountId(configLayerExample, accountId, {
+            await kataWithAccountId(configLayerExample, accountId, 'us-east-1', {
                 licensingService: mockLicensing,
             });
 
@@ -303,8 +303,8 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
             // Use kataWithAccountId with mock licensing service
             const mockLicensing = createEntitledMockLicensing(accountId);
-            await kataWithAccountId(lambda1, accountId, { licensingService: mockLicensing });
-            await kataWithAccountId(lambda2, accountId, { licensingService: mockLicensing });
+            await kataWithAccountId(lambda1, accountId, 'us-east-1', { licensingService: mockLicensing });
+            await kataWithAccountId(lambda2, accountId, 'us-east-1', { licensingService: mockLicensing });
 
             const template = Template.fromStack(stack);
 
@@ -338,7 +338,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
             // Use kataWithAccountId with mock licensing service
             const mockLicensing = createEntitledMockLicensing(accountId);
-            await kataWithAccountId(lambda, accountId, { licensingService: mockLicensing });
+            await kataWithAccountId(lambda, accountId, 'us-east-1', { licensingService: mockLicensing });
 
             const template = Template.fromStack(stack);
 
@@ -386,7 +386,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
             // Use kataWithAccountId with mock licensing service
             const mockLicensing = createEntitledMockLicensing(accountId);
-            await kataWithAccountId(lambda, accountId, { licensingService: mockLicensing });
+            await kataWithAccountId(lambda, accountId, 'us-east-1', { licensingService: mockLicensing });
 
             const template = Template.fromStack(stack);
 
@@ -429,7 +429,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
             });
 
             const mockLicensing = createEntitledMockLicensing(accountId);
-            await kataWithAccountId(lambda, accountId, { licensingService: mockLicensing });
+            await kataWithAccountId(lambda, accountId, 'us-east-1', { licensingService: mockLicensing });
 
             const template = Template.fromStack(stack);
 

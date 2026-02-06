@@ -35,46 +35,101 @@ export { KataProps, LicensingResponse, TransformationConfig } from './types';
 
 // Licensing service exports
 export {
-    LicensingService,
-    HttpLicensingService,
-    createLicensingService,
-    isValidAccountId,
+  LicensingService,
+  HttpLicensingService,
+  createLicensingService,
+  isValidAccountId,
 } from './licensing';
 
 // Mock licensing service for testing
 export {
-    MockLicensingService,
-    createMockLicensingService,
+  MockLicensingService,
+  createMockLicensingService,
 } from './mock-licensing';
 
 // Account resolver exports
 export {
-    resolveAccountId,
-    resolveAccountIdWithSource,
-    isValidAccountIdFormat,
-    AccountResolutionError,
-    AccountResolutionResult,
-    AccountResolverOptions,
+  resolveAccountId,
+  resolveAccountIdWithSource,
+  isValidAccountIdFormat,
+  AccountResolutionError,
+  AccountResolutionResult,
+  AccountResolverOptions,
 } from './account-resolver';
+
+// Synchronous account resolver exports
+export {
+  resolveAccountIdSync,
+  resolveAccountIdSyncWithSource,
+  resolveRegionSync,
+  SyncAccountResolutionError,
+  SyncAccountResolutionResult,
+  SyncAccountResolverOptions,
+} from './sync-account-resolver';
 
 // kata wrapper exports
 export {
-    kata,
-    kataWithAccountId,
-    applyTransformation,
-    handleUnlicensed,
-    isKataTransformed,
-    getKataPromise,
-    KataWrapperOptions,
-    KataResult,
+  kata,
+  kataWithAccountId,
+  applyTransformation,
+  handleUnlicensed,
+  isKataTransformed,
+  getKataPromise,
+  KataWrapperOptions,
+  KataResult,
 } from './kata-wrapper';
 
 // Config layer exports
 export {
-    createKataConfigLayer,
-    generateConfigContent,
-    KataConfigLayerProps,
-    CONFIG_DIR_NAME,
-    CONFIG_FILE_NAME,
-    HANDLER_CONFIG_KEY,
+  createKataConfigLayer,
+  generateConfigContent,
+  KataConfigLayerProps,
+  CONFIG_DIR_NAME,
+  CONFIG_FILE_NAME,
+  HANDLER_CONFIG_KEY,
 } from './config-layer';
+
+// Node.js Layer Management exports
+export {
+  EnsureNodeRuntimeLayerOptions,
+  EnsureNodeRuntimeLayerResult,
+  NodeVersionInfo,
+  LayerInfo,
+  LayerSearchOptions,
+  LayerRequirements,
+  LayerCreationOptions,
+  Logger,
+  RuntimeDetector,
+  LayerManager,
+  ErrorCodes,
+  NodeRuntimeLayerError,
+  VersionCacheEntry,
+  LayerMetadata,
+  // New deployment functionality exports
+  NodejsLayerDeploymentOptions,
+  NodejsLayerDeploymentResult,
+  MultiArchitectureDeploymentResult,
+} from './nodejs-layer-manager';
+
+// Docker Runtime Detector exports
+export {
+  DockerRuntimeDetector,
+  DockerRuntimeDetectorOptions,
+} from './docker-runtime-detector';
+
+// AWS Layer Manager exports
+export {
+  AWSLayerManager,
+  AWSLayerManagerOptions,
+} from './aws-layer-manager';
+
+// Logger exports
+export {
+  NoOpLogger,
+  ConsoleLogger,
+  createDefaultLogger,
+  OperationTimer,
+} from './logger';
+
+// Main API function export
+export { ensureNodeRuntimeLayer } from './ensure-node-runtime-layer';

@@ -27,7 +27,7 @@
 
 import { Construct } from 'constructs';
 import { Stack, Token } from 'aws-cdk-lib';
-import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 
 /**
  * Error thrown when account ID cannot be resolved through any strategy.

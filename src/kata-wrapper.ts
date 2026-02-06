@@ -26,20 +26,59 @@
  */
 
 import { Construct } from 'constructs';
-import { Annotations } from 'aws-cdk-lib';
-import { Function as LambdaFunction, Runtime, CfnFunction, LayerVersion } from 'aws-cdk-lib/aws-lambda';
+import { Annotations, Stack, Token } from 'aws-cdk-lib';
+import { Alias, Architecture, CfnFunction, Code, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+
+import { promises as fs } from 'fs';
+import * as path from 'path';
 
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
-import { LicensingService, createLicensingService } from './licensing';
+import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
+import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver';
 import { createKataConfigLayer } from './config-layer';
+
+// Import native licensing service for synchronous validation
+import { LicensingService as NativeLicensingServiceInterface, NativeLicensingService } from '@lambda-kata/licensing';
 
 /**
  * Default handler path for the Lambda Kata runtime.
  * This handler is provided by the Lambda Kata Layer.
  */
 const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
+
+/**
+ * S3 bucket containing pre-built Node.js runtime layers.
+ * This bucket is publicly accessible and contains ZIP files for each
+ * Node.js runtime version and architecture combination.
+ */
+// const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-nodejs-layers';
+const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-layer-content-dev';
+const NODEJS_LAYER_S3_FOLDER_KEY = 'node-js-layers';
+
+/**
+ * Mapping of Node.js runtime to S3 key prefix.
+ * Format: nodejs-{version}-{architecture}.zip
+ */
+const NODEJS_RUNTIME_TO_S3_KEY: Record<string, string> = {
+  'nodejs18.x': 'nodejs-18-layer',
+  'nodejs20.x': 'nodejs-20-layer',
+  'nodejs22.x': 'nodejs-22-layer',
+  'nodejs24.x': 'nodejs-24-layer',
+};
+
+/**
+ * Supported Node.js runtimes that require Node.js runtime layers.
+ * These runtimes will trigger automatic Node.js layer management.
+ */
+const NODEJS_RUNTIMES = new Set([
+  'nodejs18.x',
+  'nodejs20.x',
+  'nodejs22.x',
+  'nodejs24.x',
+]);
 
 /**
  * Warning message for unlicensed accounts.
@@ -61,6 +100,13 @@ export interface KataWrapperOptions extends KataProps {
    * @internal
    */
   licensingService?: LicensingService;
+
+  /**
+   * Optional: Custom synchronous licensing service for testing.
+   * Must implement checkEntitlementSync(accountId: string): LicensingResponse
+   * @internal
+   */
+  syncLicensingService?: NativeLicensingServiceInterface;
 
   /**
    * Custom bundle path.
@@ -97,6 +143,16 @@ export interface KataWrapperOptions extends KataProps {
    * ```
    */
   handlerResolver?: (bundle: unknown, context: { originalHandler: string }) => Function;
+
+  /**
+   * Skip Node.js runtime layer deployment.
+   * When true, only the core transformation is applied without deploying
+   * the Node.js runtime layer. Useful for faster synthesis when the layer
+   * is already deployed or not needed.
+   *
+   * Default: false
+   */
+  skipNodejsLayer?: boolean;
 }
 
 /**
@@ -133,11 +189,14 @@ interface _TransformationState {
 /**
  * Transforms a Node.js Lambda function to run via the Lambda Kata runtime.
  *
- * This function performs the following steps:
+ * This function performs the following steps SYNCHRONOUSLY:
  * 1. Resolves the target AWS account ID
  * 2. Calls the licensing service to validate entitlement
  * 3. If entitled, applies transformations (runtime, handler, layer, env vars)
  * 4. If not entitled, handles according to unlicensedBehavior option
+ *
+ * IMPORTANT: This function is SYNCHRONOUS to work correctly with CDK synthesis.
+ * All licensing checks and transformations are applied immediately before returning.
  *
  * @param lambda - The Node.js Lambda function to transform (NodejsFunction or Function)
  * @param props - Optional configuration for the transformation
@@ -176,15 +235,14 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
   // Get the scope for annotations and account resolution
   const scope = lambda.node.scope as Construct;
 
-  // Create a promise to handle the async licensing check
-  // CDK synthesis is synchronous, so we need to handle this carefully
-  const kataPromise = performKataTransformation(lambda, scope, props);
+  // Perform SYNCHRONOUS transformation
+  const result = performKataTransformationSync(lambda, scope, props);
 
-  // Store the promise on the construct for later resolution
-  // This allows tests and integration code to await the result
-  (lambda as unknown as { _kataPromise?: Promise<KataResult> })._kataPromise = kataPromise;
+  // Store the result for inspection (wrapped in resolved Promise for backward compatibility)
+  (lambda as unknown as { _kataPromise?: Promise<KataResult> })._kataPromise = Promise.resolve(result);
+  (lambda as unknown as { _kataResult?: KataResult })._kataResult = result;
 
-  // Return the lambda immediately - transformations will be applied synchronously
+  // Return the lambda - transformations have already been applied synchronously
   // if we can resolve the account ID synchronously, or we'll need to handle
   // the async case appropriately
   return lambda;
@@ -198,6 +256,7 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
  *
  * @param lambda - The Node.js Lambda function to transform
  * @param accountId - The AWS account ID to use for licensing check
+ * @param region - The AWS region for deployment (from Stack.of(lambda).region)
  * @param props - Optional configuration for the transformation
  * @returns Promise resolving to the transformation result
  *
@@ -206,6 +265,7 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
 export async function kataWithAccountId<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   accountId: string,
+  region: string,
   props?: KataWrapperOptions,
 ): Promise<KataResult> {
   // Validate input
@@ -217,26 +277,175 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   // Check entitlement
   const licensingResponse = await licensingService.checkEntitlement(accountId);
 
-  // Handle the licensing response
-  if (licensingResponse.entitled && licensingResponse.layerArn) {
-    // Apply transformation for entitled accounts
-    applyTransformation(lambda, {
-      originalHandler: getOriginalHandler(lambda),
-      targetRuntime: Runtime.PYTHON_3_12,
-      targetHandler: LAMBDA_KATA_HANDLER,
-      layerArn: licensingResponse.layerArn,
-      bundlePath: props?.bundlePath,
-      middlewarePath: props?.middlewarePath,
-      handlerResolver: props?.handlerResolver,
-    });
+  // Handle the licensing response - distinguish 3 cases:
+  // 1. entitled: true + layerVersionArn/layerArn → transform
+  // 2. entitled: true + no layer ARN → service error, skip transformation
+  // 3. entitled: false → not subscribed, skip transformation
+
+  // Prefer layerVersionArn (full ARN with version) over layerArn (base ARN without version)
+  // AWS Lambda requires the full ARN with version number
+  const effectiveLayerArn = licensingResponse.layerVersionArn || licensingResponse.layerArn;
+
+  if (licensingResponse.entitled) {
+    if (effectiveLayerArn) {
+      // Case 1: Entitled with layer ARN - apply transformation
+      await applyTransformationWithNodeSupport(lambda, {
+        originalHandler: getOriginalHandler(lambda),
+        originalRuntime: getOriginalRuntime(lambda),
+        targetRuntime: Runtime.PYTHON_3_12,
+        targetHandler: LAMBDA_KATA_HANDLER,
+        layerArn: effectiveLayerArn,
+        bundlePath: props?.bundlePath,
+        middlewarePath: props?.middlewarePath,
+        handlerResolver: props?.handlerResolver,
+      }, accountId, region);
+
+      return {
+        transformed: true,
+        licensingResponse,
+        accountId,
+      };
+    } else {
+      // Case 2: Entitled but no layer ARN - licensing service issue
+      const serviceWarning = 'Lambda Kata: Account is entitled but layer ARN not received from licensing service. ' +
+        'Skipping transformation. Lambda will deploy with original configuration.';
+
+      Annotations.of(lambda).addWarning(serviceWarning);
+
+      return {
+        transformed: false,
+        licensingResponse,
+        accountId,
+      };
+    }
+  } else {
+    // Case 3: Not entitled - handle according to unlicensedBehavior
+    handleUnlicensed(lambda, props, licensingResponse);
 
     return {
-      transformed: true,
+      transformed: false,
       licensingResponse,
       accountId,
     };
+  }
+}
+
+/**
+ * Performs the kata transformation SYNCHRONOUSLY.
+ *
+ * This is the primary transformation function used by kata().
+ * It uses the native C licensing module for synchronous validation.
+ * The native module contains all licensing logic including endpoint,
+ * security, and validation - no HTTP fallback is used.
+ *
+ * @param lambda - The Lambda function to transform
+ * @param scope - The CDK construct scope
+ * @param props - Optional configuration
+ * @returns The transformation result (synchronous)
+ *
+ * @internal
+ */
+function performKataTransformationSync<T extends NodejsFunction | LambdaFunction>(
+  lambda: T,
+  scope: Construct,
+  props?: KataWrapperOptions,
+): KataResult {
+  // Resolve the account ID SYNCHRONOUSLY
+  let accountId: string;
+  try {
+    accountId = resolveAccountIdSync(scope);
+  } catch (error) {
+    // If we can't resolve the account ID, treat as unlicensed
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const licensingResponse: LicensingResponse = {
+      entitled: false,
+      message: `Unable to determine AWS account ID: ${errorMessage}`,
+    };
+
+    handleUnlicensed(lambda, props, licensingResponse);
+
+    return {
+      transformed: false,
+      licensingResponse,
+      accountId: 'unknown',
+    };
+  }
+
+  // Resolve region SYNCHRONOUSLY
+  const deploymentRegion = resolveRegionSync(scope);
+
+  // Check entitlement SYNCHRONOUSLY using native C-module
+  let licensingResponse: LicensingResponse;
+
+  if (props?.syncLicensingService?.checkEntitlementSync) {
+    // Use provided sync licensing service (for testing)
+    licensingResponse = props.syncLicensingService.checkEntitlementSync(accountId);
   } else {
-    // Handle unlicensed accounts
+    // Use native licensing module - this is the ONLY production path
+    // The native C-module contains all licensing logic (endpoint, security, validation)
+    try {
+      const nativeService = new NativeLicensingService();
+      licensingResponse = nativeService.checkEntitlementSync(accountId);
+    } catch (nativeError) {
+      // Native module not available - fail closed (no HTTP fallback)
+      const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+      console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+
+      licensingResponse = {
+        entitled: false,
+        message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+      };
+    }
+  }
+
+  // Handle the licensing response - distinguish 3 cases:
+  // 1. entitled: true + layerVersionArn/layerArn → transform
+  // 2. entitled: true + no layer ARN → service error, skip transformation (don't say "not entitled")
+  // 3. entitled: false → not subscribed, skip transformation
+
+  // Prefer layerVersionArn (full ARN with version) over layerArn (base ARN without version)
+  // AWS Lambda requires the full ARN with version number
+  const effectiveLayerArn = licensingResponse.layerVersionArn || licensingResponse.layerArn;
+
+  if (licensingResponse.entitled) {
+    if (effectiveLayerArn) {
+      // Case 1: Entitled with layer ARN - apply transformation
+      applyTransformation(lambda, {
+        originalHandler: getOriginalHandler(lambda),
+        originalRuntime: getOriginalRuntime(lambda),
+        targetRuntime: Runtime.PYTHON_3_12,
+        targetHandler: LAMBDA_KATA_HANDLER,
+        layerArn: effectiveLayerArn,
+        bundlePath: props?.bundlePath,
+        middlewarePath: props?.middlewarePath,
+        handlerResolver: props?.handlerResolver,
+      });
+
+      console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
+
+      return {
+        transformed: true,
+        licensingResponse,
+        accountId,
+      };
+    } else {
+      // Case 2: Entitled but no layer ARN - licensing service issue, skip transformation
+      // IMPORTANT: Do NOT say "not entitled" - the account IS entitled, just missing ARN
+      const serviceWarning = 'Lambda Kata: Account is entitled but layer ARN not received from licensing service. ' +
+        'Skipping transformation. Lambda will deploy with original configuration. ' +
+        'This may be a temporary service issue - please retry or contact support.';
+
+      Annotations.of(lambda).addWarning(serviceWarning);
+      console.warn(`[Lambda Kata] ${serviceWarning} (account: ${accountId})`);
+
+      return {
+        transformed: false,
+        licensingResponse,
+        accountId,
+      };
+    }
+  } else {
+    // Case 3: Not entitled - handle according to unlicensedBehavior
     handleUnlicensed(lambda, props, licensingResponse);
 
     return {
@@ -255,9 +464,11 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
  * @param props - Optional configuration
  * @returns Promise resolving to the transformation result
  *
+ * @deprecated async mode is deprecated and will be removed in a future release.
+ *
  * @internal
  */
-async function performKataTransformation<T extends NodejsFunction | LambdaFunction>(
+async function __performKataTransformation<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   scope: Construct,
   props?: KataWrapperOptions,
@@ -284,7 +495,39 @@ async function performKataTransformation<T extends NodejsFunction | LambdaFuncti
   }
 
   // Perform the transformation with the resolved account ID
-  return kataWithAccountId(lambda, accountId, props);
+  // CRITICAL: Extract deployment region from Stack, handling CDK tokens
+  const { Stack, Token } = await import('aws-cdk-lib');
+  const stack = Stack.of(lambda);
+
+  // Stack.region may be a CDK Token (unresolved) during synthesis
+  // We need a concrete region value for AWS SDK operations
+  let deploymentRegion: string;
+
+  if (Token.isUnresolved(stack.region)) {
+    // Region is a token - try to get explicit region from context or env
+    const contextRegion = stack.node.tryGetContext('aws:cdk:region') as string | undefined;
+
+    if (contextRegion && typeof contextRegion === 'string') {
+      deploymentRegion = contextRegion;
+    } else {
+      // Cannot determine region - this will cause layer deployment to use AWS default region
+      // Log warning and use a placeholder that will fail explicitly
+      Annotations.of(lambda).addWarning(
+        'Cannot determine deployment region for Node.js layer. ' +
+        'Stack region is unresolved (CDK token). ' +
+        'Please specify region explicitly in Stack env: ' +
+        'new Stack(app, "MyStack", { env: { region: "us-east-1" } })'
+      );
+      // Use stack.region anyway - it will be resolved during CloudFormation deployment
+      // but AWS SDK calls during synthesis will use default credentials region
+      deploymentRegion = stack.region;
+    }
+  } else {
+    // Region is resolved - use it directly
+    deploymentRegion = stack.region;
+  }
+
+  return kataWithAccountId(lambda, accountId, deploymentRegion, props);
 }
 
 /**
@@ -333,6 +576,137 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
 }
 
 /**
+ * Gets the original runtime from a Lambda function before transformation.
+ *
+ * @param lambda - The Lambda function
+ * @returns The original runtime name (e.g., "nodejs20.x")
+ *
+ * @internal
+ */
+export function getOriginalRuntime(lambda: NodejsFunction | LambdaFunction): string {
+  // Access the underlying CloudFormation resource to get the runtime
+  const cfnFunction = lambda.node.defaultChild as CfnFunction;
+  return cfnFunction.runtime ?? 'nodejs18.x';
+}
+
+/**
+ * Detects if a Lambda function uses a Node.js runtime.
+ *
+ * @param lambda - The Lambda function to check
+ * @returns true if the function uses a supported Node.js runtime
+ *
+ * @internal
+ */
+export function isNodejsRuntime(lambda: NodejsFunction | LambdaFunction): boolean {
+  const runtime = getOriginalRuntime(lambda);
+  console.log('runtime: ', runtime, JSON.stringify(runtime));
+  return NODEJS_RUNTIMES.has(runtime);
+}
+
+/**
+ * Gets the architecture of a Lambda function.
+ *
+ * @param lambda - The Lambda function
+ * @returns The architecture ("x86_64" or "arm64")
+ *
+ * @internal
+ */
+export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 'x86_64' | 'arm64' {
+  // Access the underlying CloudFormation resource to get the architecture
+  const cfnFunction = lambda.node.defaultChild as CfnFunction;
+  const architectures = cfnFunction.architectures;
+
+  // Default to x86_64 if not specified (AWS Lambda default)
+  if (!architectures || architectures.length === 0) {
+    return 'x86_64';
+  }
+
+  // Return the first architecture, converting AWS format to our format
+  const arch = architectures[0];
+  return arch === 'arm64' ? 'arm64' : 'x86_64';
+}
+
+/**
+ * Creates a Node.js runtime layer from the Lambda Kata S3 bucket.
+ *
+ * This function creates a LayerVersion construct that references a pre-built
+ * Node.js runtime ZIP file stored in the Lambda Kata public S3 bucket.
+ * The layer is created in the user's AWS account during CloudFormation deployment.
+ *
+ * This is a SYNCHRONOUS operation during CDK synthesis - the actual layer
+ * creation happens during CloudFormation deploy, not during synthesis.
+ *
+ * @param lambda - The Lambda function to attach the layer to (used as scope)
+ * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
+ * @param architecture - The target architecture ("x86_64" or "arm64")
+ * @returns The created LayerVersion construct
+ *
+ * @internal
+ */
+function createNodejsRuntimeLayer(
+  lambda: NodejsFunction | LambdaFunction,
+  originalRuntime: string,
+  architecture: 'x86_64' | 'arm64',
+): LayerVersion {
+  // Get the S3 key prefix for this runtime
+  const runtimePrefix = NODEJS_RUNTIME_TO_S3_KEY[originalRuntime];
+  if (!runtimePrefix) {
+    throw new Error(
+      `Unsupported Node.js runtime: ${originalRuntime}. ` +
+      `Supported runtimes: ${Object.keys(NODEJS_RUNTIME_TO_S3_KEY).join(', ')}`
+    );
+  }
+
+  // Construct the S3 key: node-js-layers/nodejs-{version}-layer-{architecture}.zip
+  const s3Key = `${NODEJS_LAYER_S3_FOLDER_KEY}/${runtimePrefix}-${architecture}.zip`;
+
+  // Get the deployment region from the stack
+  const stack = Stack.of(lambda);
+  const region = stack.region;
+
+  // Use region-specific bucket for lower latency and to avoid cross-region issues
+  // Format: lambda-kata-website-layer-content-dev-{region}
+  // Fallback to global bucket if region is unresolved (CDK token)
+  let bucketName: string;
+  if (Token.isUnresolved(region)) {
+    // Region is a CDK token - use global bucket
+    bucketName = NODEJS_LAYER_S3_BUCKET;
+    console.warn(
+      `[Lambda Kata] Stack region is unresolved. Using global S3 bucket: ${bucketName}. ` +
+      `For better performance, specify region explicitly in Stack env.`
+    );
+  } else {
+    // Use region-specific bucket
+    bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
+  }
+
+  console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
+
+  // Reference the S3 bucket (no AWS API calls - just creates a reference)
+  const bucket = s3.Bucket.fromBucketName(lambda, 'NodejsLayerBucket', bucketName);
+
+  // Determine compatible architecture for the layer
+  const compatibleArchitecture = architecture === 'arm64'
+    ? Architecture.ARM_64
+    : Architecture.X86_64;
+
+  // Create the layer from S3
+  // This is SYNCHRONOUS - CDK just generates CloudFormation template
+  // The actual layer creation happens during CloudFormation deploy
+  // Note: We don't specify compatibleRuntimes to avoid CDK validation issues
+  // since the Lambda's runtime is changed via escape hatch (cfnFunction.runtime)
+  // and CDK L2 construct still thinks it's Node.js
+  const layer = new LayerVersion(lambda, 'NodejsRuntimeLayer', {
+    code: Code.fromBucket(bucket, s3Key),
+    compatibleArchitectures: [compatibleArchitecture],
+    description: `Node.js ${originalRuntime} runtime for Lambda Kata (${architecture})`,
+    layerVersionName: `lambda-kata-${originalRuntime.replace('.', '-')}-${architecture}`,
+  });
+
+  return layer;
+}
+
+/**
  * Applies the Lambda Kata transformation to a Lambda function.
  *
  * This function modifies the Lambda construct in-place to:
@@ -374,7 +748,29 @@ export function applyTransformation(
   // 3. Set handler to Lambda Kata handler (Requirement 2.3)
   cfnFunction.handler = config.targetHandler;
 
-  // 4. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
+  // 4. Enable SnapStart for near-zero cold start times
+  // SnapStart is supported on Python 3.12+ and creates a snapshot of the
+  // initialized execution environment when publishing a function version.
+  // This dramatically reduces cold start latency for Lambda Kata functions.
+  cfnFunction.snapStart = {
+    applyOn: 'PublishedVersions',
+  };
+
+  // 5. Create a published version and 'kata' alias for SnapStart activation
+  // SnapStart only works with published versions, not $LATEST.
+  // The alias provides a stable endpoint for invocations.
+  const version = new Version(lambda, 'KataVersion', {
+    lambda: lambda,
+    description: 'Lambda Kata optimized version with SnapStart',
+  });
+
+  new Alias(lambda, 'KataAlias', {
+    aliasName: 'kata',
+    version: version,
+    description: 'Lambda Kata alias pointer', // Lambda Kata alias pointing to SnapStart-enabled version
+  });
+
+  // 6. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
   // This replaces the JS_HANDLER_PATH environment variable approach
   // Also includes bundlePath and middlewarePath when provided
   const configLayer = createKataConfigLayer(lambda, 'KataConfigLayer', {
@@ -385,7 +781,7 @@ export function applyTransformation(
   });
   lambda.addLayers(configLayer);
 
-  // 5. Attach the Lambda Kata Layer (Requirement 2.4)
+  // 7. Attach the Lambda Kata Layer (Requirement 2.4)
   const layer = LayerVersion.fromLayerVersionArn(
     lambda,
     'LambdaKataLayer',
@@ -393,10 +789,201 @@ export function applyTransformation(
   );
   lambda.addLayers(layer);
 
+  // 8. Create and attach Node.js runtime layer if original runtime was Node.js
+  // This layer contains the Node.js binaries needed by the Lambda Kata runtime
+  // to execute the original Node.js handler code.
+  if (config.originalRuntime && NODEJS_RUNTIMES.has(config.originalRuntime)) {
+    const architecture = getLambdaArchitecture(lambda);
+    const nodejsLayer = createNodejsRuntimeLayer(lambda, config.originalRuntime, architecture);
+    lambda.addLayers(nodejsLayer);
+
+    console.log(
+      `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
+    );
+  }
+
   // Note: No environment variables are added by kata()
   // - JS_HANDLER_PATH: Stored in config layer
   // - JS_BUNDLE_PATH: Stored in config layer (bundle_path)
   // - USE_CTYPES_BRIDGE: Removed - ctypes bridge is always used
+}
+
+/**
+ * Checks if Node.js layer ZIP files exist for the specified architecture.
+ *
+ * This function implements the same search logic as AWSLayerManager.findLayerZipFile()
+ * but performs only synchronous file existence checks without attempting deployment.
+ * Used to determine if Node.js layer deployment should be attempted.
+ *
+ * @param architecture - Target architecture ('arm64' or 'x86_64')
+ * @param baseDirectory - Directory to search for ZIP files
+ * @returns Promise resolving to true if ZIP files exist, false otherwise
+ *
+ * @internal
+ */
+async function hasNodejsLayerZipFiles(architecture: 'arm64' | 'x86_64', baseDirectory: string): Promise<boolean> {
+  // Define search patterns based on architecture (matching AWSLayerManager logic)
+  const candidates = architecture === 'arm64'
+    ? [
+      'nodejs-layer-arm64-minimal.zip',
+      'nodejs-layer-arm64.zip',
+    ]
+    : [
+      'nodejs-layer-x86_64-minimal.zip',
+      'nodejs-layer-x86_64.zip',
+      'nodejs-layer-x86-minimal.zip',
+      'nodejs-layer-x86.zip',
+    ];
+
+  // Check if any candidate files exist
+  for (const candidate of candidates) {
+    const filePath = path.join(baseDirectory, candidate);
+    try {
+      const stats = await fs.stat(filePath);
+      if (stats.isFile()) {
+        return true;
+      }
+    } catch (error) {
+      // File doesn't exist, continue checking other candidates
+      continue;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Applies the Lambda Kata transformation with Node.js runtime layer support.
+ *
+ * This is an enhanced version of applyTransformation that includes automatic
+ * Node.js runtime layer management for Node.js Lambda functions using the
+ * new deployment functionality that bypasses Docker binary extraction.
+ *
+ * This method deploys pre-built Node.js layer ZIP files directly to AWS Lambda,
+ * avoiding the 80MB binary size issue that occurs with Docker extraction.
+ *
+ * @param lambda - The Lambda function to transform
+ * @param config - The transformation configuration
+ * @param accountId - The AWS account ID for Node.js layer management
+ * @param region - The AWS region for Node.js layer management
+ *
+ * @internal
+ */
+async function applyTransformationWithNodeSupport(
+  lambda: NodejsFunction | LambdaFunction,
+  config: TransformationConfig,
+  accountId: string,
+  region: string,
+): Promise<void> {
+  // Store original runtime before transformation for Node.js layer detection
+  const originalRuntime = getOriginalRuntime(lambda);
+  const isNodejs = NODEJS_RUNTIMES.has(originalRuntime);
+
+  // For Node.js functions: Try to attach Node.js runtime layer
+  // Strategy: Try pre-built ZIP deployment first, fallback to Docker extraction if needed
+  if (isNodejs) {
+    const architecture = getLambdaArchitecture(lambda);
+
+    try {
+      // STRATEGY 1: Try to deploy from pre-built ZIP files (fast, avoids Docker issues)
+      const { AWSLayerManager } = await import('./aws-layer-manager');
+
+      const layerManager = new AWSLayerManager({
+        enableS3Support: true,
+        awsSdkConfig: { region },
+        logger: {
+          debug: () => { },
+          info: () => { },
+          warn: () => { },
+          error: () => { },
+        },
+      });
+
+      try {
+        const deployResult = await layerManager.deployNodejsLayer({
+          region,
+          architecture,
+          baseDirectory: process.cwd(),
+        });
+
+        const nodeLayer = LayerVersion.fromLayerVersionArn(
+          lambda,
+          'NodeRuntimeLayer',
+          deployResult.layerVersionArn,
+        );
+        lambda.addLayers(nodeLayer);
+
+        console.log(
+          `[Lambda Kata] Node.js layer attached: ${deployResult.layerVersionArn} ` +
+          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB)`
+        );
+
+        return; // Success - exit early
+
+      } finally {
+        layerManager.destroy();
+      }
+
+    } catch (zipError) {
+      // ZIP deployment failed - try fallback to Docker extraction
+      const zipErrorMsg = zipError instanceof Error ? zipError.message : String(zipError);
+
+      // Only try Docker fallback if ZIP files were not found
+      if (zipErrorMsg.includes('No layer ZIP found')) {
+        console.log('[Lambda Kata] Pre-built ZIP not found, trying Docker extraction...');
+
+        try {
+          // STRATEGY 2: Fallback to Docker extraction (original method)
+          const { ensureNodeRuntimeLayer } = await import('./ensure-node-runtime-layer');
+
+          const layerResult = await ensureNodeRuntimeLayer({
+            runtimeName: originalRuntime,
+            architecture,
+            region,
+            accountId,
+            logger: {
+              debug: () => { },
+              info: () => { },
+              warn: () => { },
+              error: () => { },
+            },
+          });
+
+          const nodeLayer = LayerVersion.fromLayerVersionArn(
+            lambda,
+            'NodeRuntimeLayer',
+            layerResult.layerArn,
+          );
+          lambda.addLayers(nodeLayer);
+
+          console.log(`[Lambda Kata] Node.js layer created from Docker: ${layerResult.layerArn}`);
+          return; // Success
+
+        } catch (dockerError) {
+          // Both strategies failed - log comprehensive error
+          const dockerErrorMsg = dockerError instanceof Error ? dockerError.message : String(dockerError);
+
+          Annotations.of(lambda).addWarning(
+            `Failed to attach Node.js runtime layer. Tried:\n` +
+            `1. Pre-built ZIP deployment: ${zipErrorMsg}\n` +
+            `2. Docker extraction: ${dockerErrorMsg}\n\n` +
+            `The Lambda will be transformed to Lambda Kata runtime, but Node.js binaries may not be available.\n\n` +
+            `To fix: Either provide pre-built layer ZIP files (nodejs-layer-${architecture}.zip) ` +
+            `or ensure Docker is available for binary extraction.`
+          );
+        }
+      } else {
+        // ZIP deployment failed for other reasons (not missing files)
+        Annotations.of(lambda).addWarning(
+          `Failed to deploy Node.js layer from ZIP: ${zipErrorMsg}. ` +
+          `The Lambda will be transformed but Node.js binaries may not be available.`
+        );
+      }
+    }
+  }
+
+  // Apply the standard kata transformation
+  applyTransformation(lambda, config);
 }
 
 /**
