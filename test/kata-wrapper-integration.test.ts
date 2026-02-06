@@ -432,6 +432,45 @@ describe('kata() Wrapper Integration Tests', () => {
         });
 
         /**
+         * Test entitled account without layerArn (service issue)
+         * This tests the case where licensing service returns entitled: true
+         * but fails to provide the layerArn - should NOT say "not entitled"
+         */
+        it('should handle entitled account without layerArn gracefully', async () => {
+            const { app, stack } = createTestApp('123456789012');
+            const lambda = createTestLambda(stack, 'EntitledNoArnFunction', {
+                runtime: Runtime.NODEJS_20_X,
+                handler: 'index.handler',
+            });
+
+            // Setup mock licensing service to return entitled: true but no layerArn
+            const mockLicensing = new MockLicensingService();
+            mockLicensing.setSimulateEntitledWithoutLayerArn(true);
+
+            // Apply kata transformation
+            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
+                licensingService: mockLicensing,
+            });
+
+            // Should NOT be transformed (no layerArn to use)
+            expect(result.transformed).toBe(false);
+            // But should still be entitled
+            expect(result.licensingResponse.entitled).toBe(true);
+            // And should NOT have layerArn
+            expect(result.licensingResponse.layerArn).toBeUndefined();
+
+            // Synthesize CDK template
+            const template = Template.fromStack(stack);
+
+            // Verify NO transformation was applied - original runtime preserved
+            template.hasResourceProperties('AWS::Lambda::Function', {
+                Runtime: 'nodejs20.x',
+                Handler: 'index.handler',
+                Layers: Match.absent(),
+            });
+        });
+
+        /**
          * Test mixed runtime stack (Node.js and non-Node.js functions)
          */
         it('should handle mixed runtime stack correctly', async () => {

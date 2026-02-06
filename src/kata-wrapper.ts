@@ -257,26 +257,44 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   const licensingResponse = await licensingService.checkEntitlement(accountId);
 
   // Handle the licensing response
-  if (licensingResponse.entitled && licensingResponse.layerArn) {
-    // Apply transformation for entitled accounts with Node.js layer support
-    // Use the provided region parameter (from Stack.of(lambda).region)
-    await applyTransformationWithNodeSupport(lambda, {
-      originalHandler: getOriginalHandler(lambda),
-      targetRuntime: Runtime.PYTHON_3_12,
-      targetHandler: LAMBDA_KATA_HANDLER,
-      layerArn: licensingResponse.layerArn,
-      bundlePath: props?.bundlePath,
-      middlewarePath: props?.middlewarePath,
-      handlerResolver: props?.handlerResolver,
-    }, accountId, region);
+  // Handle the licensing response - distinguish 3 cases:
+  // 1. entitled: true + layerArn → transform
+  // 2. entitled: true + no layerArn → service error, skip transformation
+  // 3. entitled: false → not subscribed, skip transformation
 
-    return {
-      transformed: true,
-      licensingResponse,
-      accountId,
-    };
+  if (licensingResponse.entitled) {
+    if (licensingResponse.layerArn) {
+      // Case 1: Entitled with layer ARN - apply transformation
+      await applyTransformationWithNodeSupport(lambda, {
+        originalHandler: getOriginalHandler(lambda),
+        targetRuntime: Runtime.PYTHON_3_12,
+        targetHandler: LAMBDA_KATA_HANDLER,
+        layerArn: licensingResponse.layerArn,
+        bundlePath: props?.bundlePath,
+        middlewarePath: props?.middlewarePath,
+        handlerResolver: props?.handlerResolver,
+      }, accountId, region);
+
+      return {
+        transformed: true,
+        licensingResponse,
+        accountId,
+      };
+    } else {
+      // Case 2: Entitled but no layer ARN - licensing service issue
+      const serviceWarning = 'Lambda Kata: Account is entitled but layer ARN not received from licensing service. ' +
+        'Skipping transformation. Lambda will deploy with original configuration.';
+
+      Annotations.of(lambda).addWarning(serviceWarning);
+
+      return {
+        transformed: false,
+        licensingResponse,
+        accountId,
+      };
+    }
   } else {
-    // Handle unlicensed accounts
+    // Case 3: Not entitled - handle according to unlicensedBehavior
     handleUnlicensed(lambda, props, licensingResponse);
 
     return {
@@ -355,30 +373,49 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
     }
   }
 
-  // Handle the licensing response
-  if (licensingResponse.entitled && licensingResponse.layerArn) {
-    // Apply transformation for entitled accounts
-    // Note: Node.js layer deployment is skipped in sync mode (can be done separately)
-    applyTransformation(lambda, {
-      originalHandler: getOriginalHandler(lambda),
-      targetRuntime: Runtime.PYTHON_3_12,
-      targetHandler: LAMBDA_KATA_HANDLER,
-      layerArn: licensingResponse.layerArn,
-      bundlePath: props?.bundlePath,
-      middlewarePath: props?.middlewarePath,
-      handlerResolver: props?.handlerResolver,
-    });
+  // Handle the licensing response - distinguish 3 cases:
+  // 1. entitled: true + layerArn → transform
+  // 2. entitled: true + no layerArn → service error, skip transformation (don't say "not entitled")
+  // 3. entitled: false → not subscribed, skip transformation
 
-    // Log success
-    console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
+  if (licensingResponse.entitled) {
+    if (licensingResponse.layerArn) {
+      // Case 1: Entitled with layer ARN - apply transformation
+      applyTransformation(lambda, {
+        originalHandler: getOriginalHandler(lambda),
+        targetRuntime: Runtime.PYTHON_3_12,
+        targetHandler: LAMBDA_KATA_HANDLER,
+        layerArn: licensingResponse.layerArn,
+        bundlePath: props?.bundlePath,
+        middlewarePath: props?.middlewarePath,
+        handlerResolver: props?.handlerResolver,
+      });
 
-    return {
-      transformed: true,
-      licensingResponse,
-      accountId,
-    };
+      console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
+
+      return {
+        transformed: true,
+        licensingResponse,
+        accountId,
+      };
+    } else {
+      // Case 2: Entitled but no layer ARN - licensing service issue, skip transformation
+      // IMPORTANT: Do NOT say "not entitled" - the account IS entitled, just missing ARN
+      const serviceWarning = 'Lambda Kata: Account is entitled but layer ARN not received from licensing service. ' +
+        'Skipping transformation. Lambda will deploy with original configuration. ' +
+        'This may be a temporary service issue - please retry or contact support.';
+
+      Annotations.of(lambda).addWarning(serviceWarning);
+      console.warn(`[Lambda Kata] ${serviceWarning} (account: ${accountId})`);
+
+      return {
+        transformed: false,
+        licensingResponse,
+        accountId,
+      };
+    }
   } else {
-    // Handle unlicensed accounts
+    // Case 3: Not entitled - handle according to unlicensedBehavior
     handleUnlicensed(lambda, props, licensingResponse);
 
     return {

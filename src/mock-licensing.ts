@@ -90,6 +90,11 @@ export class MockLicensingService implements LicensingService {
   private serviceErrorMessage: string = 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.';
 
   /**
+   * Flag to simulate entitled response without layerArn (service issue).
+   */
+  private simulateEntitledWithoutLayerArn: boolean = false;
+
+  /**
    * Sets an account as entitled with a specific Layer ARN.
    *
    * @param accountId - The AWS account ID (12-digit string)
@@ -196,6 +201,23 @@ export class MockLicensingService implements LicensingService {
   }
 
   /**
+   * Configures the mock to simulate entitled response without layerArn.
+   * This simulates a licensing service issue where the account is entitled
+   * but the service fails to return the layer ARN.
+   *
+   * @param simulate - Whether to simulate entitled without layerArn
+   *
+   * @example
+   * ```typescript
+   * // Simulate service returning entitled: true but no layerArn
+   * mockService.setSimulateEntitledWithoutLayerArn(true);
+   * ```
+   */
+  setSimulateEntitledWithoutLayerArn(simulate: boolean): void {
+    this.simulateEntitledWithoutLayerArn = simulate;
+  }
+
+  /**
    * Check if an AWS account is entitled to use Lambda Kata.
    *
    * This mock implementation returns entitlement status based on
@@ -215,6 +237,15 @@ export class MockLicensingService implements LicensingService {
       return {
         entitled: false,
         message: this.serviceErrorMessage,
+      };
+    }
+
+    // Simulate entitled without layerArn (service issue)
+    if (this.simulateEntitledWithoutLayerArn) {
+      return {
+        entitled: true,
+        // No layerArn - simulates service returning entitled but missing ARN
+        message: this.entitledMessage,
       };
     }
 
