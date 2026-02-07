@@ -1468,10 +1468,10 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@lambda-kata/licensing@0.1.26":
-  version "0.1.26"
-  resolved "https://registry.yarnpkg.com/@lambda-kata/licensing/-/licensing-0.1.26.tgz#3757ef532c7cecdd53c46adde819b5671c05276e"
-  integrity sha512-mClG/zQbaJq+sls/ZD/qnufN8V3g7PoDKVH1KFCpAuy2fa4jYSC/SxgAqKgxgFbktWkBZYo4RAtt+hWaKR1MqQ==
+"@lambda-kata/licensing@0.1.29":
+  version "0.1.29"
+  resolved "https://registry.yarnpkg.com/@lambda-kata/licensing/-/licensing-0.1.29.tgz#f3eef2e21b3dcd29d4c8e73ac98bbe39e25010d7"
+  integrity sha512-SdtHdE9A8GwnBuGFMgTNpHQ0LMzWccGNuO3gyXMrwnb8epjvfiqePDLodAXUR/pGS7STOX/P/+5/4IaEsme+tw==
   dependencies:
     node-addon-api "^7.0.0"
 

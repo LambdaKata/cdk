@@ -27,7 +27,7 @@
 
 import { Construct } from 'constructs';
 import { Annotations, Stack, Token } from 'aws-cdk-lib';
-import { Alias, Architecture, CfnFunction, Code, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
+import { Alias, Architecture, CfnFunction, Code, CodeConfig, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
@@ -48,6 +48,35 @@ import { LicensingService as NativeLicensingServiceInterface, NativeLicensingSer
  * This handler is provided by the Lambda Kata Layer.
  */
 const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
+
+/**
+ * Custom S3 Code implementation that doesn't emit the objectVersion warning.
+ * Used for Lambda Kata S3 bucket which contains immutable layer ZIP files.
+ * Updates are published as new S3 keys, not new object versions.
+ *
+ * @internal
+ */
+class S3CodeWithoutWarning extends Code {
+  public readonly isInline = false;
+  private readonly bucketName: string;
+
+  constructor(
+    private readonly bucket: s3.IBucket,
+    private readonly key: string,
+  ) {
+    super();
+    this.bucketName = bucket.bucketName;
+  }
+
+  public bind(): CodeConfig {
+    return {
+      s3Location: {
+        bucketName: this.bucketName,
+        objectKey: this.key,
+      },
+    };
+  }
+}
 
 /**
  * S3 bucket containing pre-built Node.js runtime layers.
@@ -640,6 +669,9 @@ export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 
  * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
  * @param architecture - The target architecture ("x86_64" or "arm64")
  * @returns The created LayerVersion construct
+ * 
+ * @future: 
+ * - Add support for custom Node.js runtimes for Enterprise
  *
  * @internal
  */
@@ -680,7 +712,8 @@ function createNodejsRuntimeLayer(
     bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
   }
 
-  console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
+  // @note: debug logs
+  // console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
 
   // Reference the S3 bucket (no AWS API calls - just creates a reference)
   const bucket = s3.Bucket.fromBucketName(lambda, 'NodejsLayerBucket', bucketName);
@@ -690,14 +723,12 @@ function createNodejsRuntimeLayer(
     ? Architecture.ARM_64
     : Architecture.X86_64;
 
-  // Create the layer from S3
-  // This is SYNCHRONOUS - CDK just generates CloudFormation template
-  // The actual layer creation happens during CloudFormation deploy
-  // Note: We don't specify compatibleRuntimes to avoid CDK validation issues
-  // since the Lambda's runtime is changed via escape hatch (cfnFunction.runtime)
-  // and CDK L2 construct still thinks it's Node.js
+  // Create the layer from S3 using custom S3CodeWithoutWarning class.
+  // This avoids the CDK warning about missing objectVersion.
+  // The Lambda Kata S3 bucket contains immutable layer ZIP files - updates are
+  // published as new S3 keys, not new object versions.
   const layer = new LayerVersion(lambda, 'NodejsRuntimeLayer', {
-    code: Code.fromBucket(bucket, s3Key),
+    code: new S3CodeWithoutWarning(bucket, s3Key),
     compatibleArchitectures: [compatibleArchitecture],
     description: `Node.js ${originalRuntime} runtime for Lambda Kata (${architecture})`,
     layerVersionName: `lambda-kata-${originalRuntime.replace('.', '-')}-${architecture}`,
@@ -797,9 +828,10 @@ export function applyTransformation(
     const nodejsLayer = createNodejsRuntimeLayer(lambda, config.originalRuntime, architecture);
     lambda.addLayers(nodejsLayer);
 
-    console.log(
-      `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
-    );
+    // @note: debug logs
+    // console.log(
+    //   `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
+    // );
   }
 
   // Note: No environment variables are added by kata()
