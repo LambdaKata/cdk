@@ -640,6 +640,9 @@ export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 
  * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
  * @param architecture - The target architecture ("x86_64" or "arm64")
  * @returns The created LayerVersion construct
+ * 
+ * @future: 
+ * - Add support for custom Node.js runtimes for Enterprise
  *
  * @internal
  */
@@ -680,10 +683,21 @@ function createNodejsRuntimeLayer(
     bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
   }
 
-  console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
+  // @note: debug logs
+  // console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
 
   // Reference the S3 bucket (no AWS API calls - just creates a reference)
   const bucket = s3.Bucket.fromBucketName(lambda, 'NodejsLayerBucket', bucketName);
+
+  // Acknowledge the S3 object version warning.
+  // The Lambda Kata S3 bucket contains immutable, versioned layer ZIP files.
+  // Each runtime/architecture combination has a fixed ZIP that doesn't change.
+  // Updates are published as new files (e.g., nodejs-20-layer-v2-x86_64.zip).
+  // Therefore, objectVersion is not needed and the warning can be safely suppressed.
+  Annotations.of(bucket).acknowledgeWarning(
+    '@aws-cdk/aws-lambda:codeFromBucketObjectVersionNotSpecified',
+    'Lambda Kata layer ZIPs are immutable; updates use new S3 keys, not object versions.'
+  );
 
   // Determine compatible architecture for the layer
   const compatibleArchitecture = architecture === 'arm64'
@@ -797,9 +811,10 @@ export function applyTransformation(
     const nodejsLayer = createNodejsRuntimeLayer(lambda, config.originalRuntime, architecture);
     lambda.addLayers(nodejsLayer);
 
-    console.log(
-      `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
-    );
+    // @note: debug logs
+    // console.log(
+    //   `[Lambda Kata] Node.js runtime layer created for ${config.originalRuntime} (${architecture})`
+    // );
   }
 
   // Note: No environment variables are added by kata()
