@@ -608,8 +608,10 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
 /**
  * Lambda task root directory where function code is deployed.
  * This is the standard AWS Lambda directory for function code.
+ * 
+ * @deprecated C-lang Lambda Kata makes its own decision for either absolute or relative path
  */
-const LAMBDA_TASK_ROOT = '/var/task';
+// const LAMBDA_TASK_ROOT = '/var/task';
 
 /**
  * Extracts the bundle path from a Lambda handler string.
@@ -630,7 +632,7 @@ const LAMBDA_TASK_ROOT = '/var/task';
  */
 export function extractBundlePathFromHandler(handler: string): string {
   if (!handler || handler.trim() === '') {
-    return `${LAMBDA_TASK_ROOT}/index.js`;
+    return `index.js`;
   }
 
   // Handler format: "<module>.<function>" or "<path/module>.<function>"
@@ -639,7 +641,7 @@ export function extractBundlePathFromHandler(handler: string): string {
 
   if (lastDotIndex === -1) {
     // No dot found - treat entire string as module name
-    return `${LAMBDA_TASK_ROOT}/${handler}.js`;
+    return `${handler}.js`;
   }
 
   // Extract module path (everything before the last dot)
@@ -647,10 +649,10 @@ export function extractBundlePathFromHandler(handler: string): string {
 
   if (modulePath === '') {
     // Handler starts with dot (e.g., ".handler") - invalid, use default
-    return `${LAMBDA_TASK_ROOT}/index.js`;
+    return `index.js`;
   }
 
-  return `${LAMBDA_TASK_ROOT}/${modulePath}.js`;
+  return `${modulePath}.js`;
 }
 
 
@@ -720,8 +722,8 @@ export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 
  * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
  * @param architecture - The target architecture ("x86_64" or "arm64")
  * @returns The created LayerVersion construct
- * 
- * @future: 
+ *
+ * @future:
  * - Add support for custom Node.js runtimes for Enterprise
  *
  * @internal
