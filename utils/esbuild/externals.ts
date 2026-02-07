@@ -177,7 +177,7 @@ export const nodeBuiltinExternals: string[] = [
  * **IMPORTANT**: Do NOT add chalk here - it's used in CLI (src/bin/) and must be bundled.
  */
 export const buildToolExternals: string[] = [
-  // 'esbuild',
+  'esbuild',
   'webpack',
   'typescript',
   'ts-node',

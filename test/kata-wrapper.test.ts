@@ -39,6 +39,21 @@ import {
 } from '../src/kata-wrapper';
 import { TransformationConfig } from '../src/types';
 import { MockLicensingService } from '../src/mock-licensing';
+import { SnapStartActivator } from '../src/snapstart-construct';
+
+// Mock aws-layer-manager to prevent real AWS API calls in kataWithAccountId tests.
+// The dynamic import() in applyTransformationWithNodeSupport will resolve to this mock.
+jest.mock('../src/aws-layer-manager', () => ({
+  AWSLayerManager: jest.fn().mockImplementation(() => ({
+    deployNodejsLayer: jest.fn().mockRejectedValue(new Error('No layer ZIP found at expected paths')),
+    destroy: jest.fn(),
+  })),
+}));
+
+// Mock ensure-node-runtime-layer to prevent Docker extraction fallback.
+jest.mock('../src/ensure-node-runtime-layer', () => ({
+  ensureNodeRuntimeLayer: jest.fn().mockRejectedValue(new Error('Docker not available in test environment')),
+}));
 
 /**
  * Helper to create a test Lambda function
@@ -350,6 +365,149 @@ describe('kata-wrapper', () => {
           },
         });
       });
+
+      /**
+       * **Validates: Requirement 10.1**
+       * WHEN kata() transforms a Lambda function, THE kata() function SHALL create a SnapStart_Activator construct
+       */
+      it('should create SnapStartActivator when kata() transforms a function via kataWithAccountId', async () => {
+        const { stack } = createTestStack('123456789012');
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+          handler: 'index.handler',
+        });
+        const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
+
+        const mockLicensing = new MockLicensingService();
+        mockLicensing.setEntitled('123456789012', layerArn);
+
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
+          licensingService: mockLicensing,
+        });
+
+        expect(result.transformed).toBe(true);
+
+        // Verify SnapStartActivator Custom Resource is created in the synthesized template
+        const template = Template.fromStack(stack);
+        template.resourceCountIs('AWS::CloudFormation::CustomResource', 1);
+
+        // Verify the Custom Resource has the expected SnapStart properties
+        template.hasResourceProperties('AWS::CloudFormation::CustomResource', {
+          FunctionName: Match.anyValue(),
+          AliasName: 'kata',
+        });
+      });
+
+      /**
+       * **Validates: Requirement 10.2**
+       * THE SnapStart_Activator SHALL be created as a child of the target Lambda function construct
+       */
+      it('should create SnapStartActivator as a child of the target Lambda function construct', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        // Verify SnapStartActivator is a child of the Lambda function in the construct tree
+        const snapStartChild = lambda.node.tryFindChild('SnapStartActivator');
+        expect(snapStartChild).toBeDefined();
+        expect(snapStartChild).toBeInstanceOf(SnapStartActivator);
+      });
+
+      /**
+       * **Validates: Requirements 10.1, 10.2**
+       * Integration: kata() → kataWithAccountId → applyTransformation creates SnapStartActivator
+       * as a child of the target Lambda, verifiable via both construct tree and CloudFormation template.
+       */
+      it('should create SnapStartActivator as child of Lambda when kata() transforms via licensing', async () => {
+        const { stack } = createTestStack('123456789012');
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+          handler: 'index.handler',
+        });
+        const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
+
+        const mockLicensing = new MockLicensingService();
+        mockLicensing.setEntitled('123456789012', layerArn);
+
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
+          licensingService: mockLicensing,
+        });
+
+        // Req 10.1: SnapStartActivator construct is created
+        const snapStartChild = lambda.node.tryFindChild('SnapStartActivator');
+        expect(snapStartChild).toBeDefined();
+        expect(snapStartChild).toBeInstanceOf(SnapStartActivator);
+
+        // Req 10.2: SnapStartActivator is a child of the target Lambda (parent-child relationship)
+        // Verify the construct tree path includes the Lambda function as parent
+        const activator = snapStartChild as SnapStartActivator;
+        expect(activator.node.path).toContain('TestFunction');
+        expect(activator.node.path).toMatch(/TestFunction\/SnapStartActivator$/);
+      });
+
+      /**
+       * **Validates: Requirement 10.2 (negative case)**
+       * When account is NOT entitled, no SnapStartActivator should be created
+       */
+      it('should NOT create SnapStartActivator when account is not entitled', async () => {
+        const { stack } = createTestStack('123456789012');
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+          handler: 'index.handler',
+        });
+
+        const mockLicensing = new MockLicensingService();
+        // Account is not entitled (no setEntitled call)
+
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
+          licensingService: mockLicensing,
+        });
+
+        expect(result.transformed).toBe(false);
+
+        // Verify no SnapStartActivator is created
+        const snapStartChild = lambda.node.tryFindChild('SnapStartActivator');
+        expect(snapStartChild).toBeUndefined();
+      });
+
+      /**
+       * **Validates: Requirements 10.3, 10.4**
+       * 10.3: THE SnapStart_Activator SHALL use "kata" as the default alias name
+       * 10.4: THE SnapStart_Activator SHALL use 180 seconds as the default snapshot timeout
+       */
+      it('should use default alias name "kata" and default timeout 180 seconds', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+
+        // Req 10.3: Default alias name is "kata"
+        template.hasResourceProperties('AWS::CloudFormation::CustomResource', {
+          AliasName: 'kata',
+        });
+
+        // Req 10.4: Default snapshot timeout is 180 seconds
+        template.hasResourceProperties('AWS::CloudFormation::CustomResource', {
+          SnapshotTimeoutSeconds: '180',
+        });
+      });
     });
 
     /**
@@ -448,8 +606,8 @@ describe('kata-wrapper', () => {
         // Verify layer references S3 bucket
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
           Content: Match.objectLike({
-            S3Bucket: Match.stringLikeRegexp('lambda-kata-nodejs-layers'),
-            S3Key: 'nodejs-20.x-x86_64.zip',
+            S3Bucket: Match.stringLikeRegexp('lambda-kata-website-layer-content-dev'),
+            S3Key: 'node-js-layers/nodejs-20-layer-x86_64.zip',
           }),
         });
       });

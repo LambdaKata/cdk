@@ -281,7 +281,169 @@ describe('snapstart-activator', () => {
                 });
 
                 await expect(activateSnapStart(mockLambdaClient, functionName))
-                    .rejects.toThrow('Initialization error');
+                    .rejects.toThrow('SnapStart snapshot creation failed: Initialization error');
+            });
+
+            it('should include full StateReason in error message when State is Failed', async () => {
+                const stateReason = 'The function failed to initialize due to a runtime error in handler code';
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'PublishVersion') {
+                        return Promise.resolve({ Version: '3' });
+                    }
+                    if (command._type === 'GetFunctionConfiguration') {
+                        return Promise.resolve({
+                            State: 'Failed',
+                            StateReason: stateReason,
+                            SnapStart: { OptimizationStatus: 'Off' },
+                        });
+                    }
+                    return Promise.resolve({});
+                });
+
+                try {
+                    await activateSnapStart(mockLambdaClient, functionName);
+                    fail('Expected activateSnapStart to throw');
+                } catch (e: any) {
+                    expect(e).toBeInstanceOf(Error);
+                    expect(e.message).toBe(`SnapStart snapshot creation failed: ${stateReason}`);
+                }
+            });
+
+            it('should use "Unknown" as StateReason fallback when StateReason is undefined', async () => {
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'PublishVersion') {
+                        return Promise.resolve({ Version: '1' });
+                    }
+                    if (command._type === 'GetFunctionConfiguration') {
+                        return Promise.resolve({
+                            State: 'Failed',
+                            // StateReason intentionally omitted
+                            SnapStart: { OptimizationStatus: 'Off' },
+                        });
+                    }
+                    return Promise.resolve({});
+                });
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('SnapStart snapshot creation failed: Unknown');
+            });
+        });
+
+        describe('permission error handling', () => {
+            it('should throw descriptive error with required permissions when waitUntilFunctionActiveV2 gets AccessDeniedException', async () => {
+                const error = new Error('User is not authorized');
+                (error as any).name = 'AccessDeniedException';
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(error);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('Insufficient permissions to activate SnapStart');
+
+                try {
+                    await activateSnapStart(mockLambdaClient, functionName);
+                } catch (e: any) {
+                    expect(e.message).toContain('lambda:GetFunction');
+                    expect(e.message).toContain('lambda:GetFunctionConfiguration');
+                    expect(e.message).toContain('lambda:UpdateFunctionConfiguration');
+                    expect(e.message).toContain('lambda:PublishVersion');
+                    expect(e.message).toContain('lambda:GetAlias');
+                    expect(e.message).toContain('lambda:CreateAlias');
+                    expect(e.message).toContain('lambda:UpdateAlias');
+                    expect(e.message).toContain(functionName);
+                }
+            });
+
+            it('should throw descriptive error with required permissions when waitUntilFunctionUpdatedV2 gets AccessDeniedException', async () => {
+                // Step 0 succeeds, Step 1 (UpdateFunctionConfiguration) succeeds
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'UpdateFunctionConfiguration') {
+                        return Promise.resolve({});
+                    }
+                    return Promise.resolve({});
+                });
+
+                // Step 2 waiter throws AccessDeniedException
+                const error = new Error('User is not authorized');
+                (error as any).name = 'AccessDeniedException';
+                mockWaitUntilFunctionUpdatedV2.mockRejectedValue(error);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('Insufficient permissions to activate SnapStart');
+            });
+
+            it('should throw descriptive error when send call gets AccessDeniedException', async () => {
+                // Waiters succeed, but a send call (e.g., UpdateFunctionConfiguration) throws AccessDeniedException
+                const error = new Error('User is not authorized to perform: lambda:UpdateFunctionConfiguration');
+                (error as any).name = 'AccessDeniedException';
+                mockSend.mockRejectedValue(error);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('Insufficient permissions to activate SnapStart');
+
+                try {
+                    await activateSnapStart(mockLambdaClient, functionName);
+                } catch (e: any) {
+                    expect(e.message).toContain('lambda:GetFunction');
+                    expect(e.message).toContain('lambda:UpdateAlias');
+                    expect(e.message).toContain(functionName);
+                }
+            });
+
+            it('should detect AccessDeniedException wrapped in waiter cause chain', async () => {
+                const cause = new Error('AccessDeniedException');
+                (cause as any).name = 'AccessDeniedException';
+                const waiterError = new Error('Waiter has entered a failure state');
+                (waiterError as any).cause = cause;
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(waiterError);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('Insufficient permissions to activate SnapStart');
+            });
+        });
+
+        describe('function not found error handling', () => {
+            it('should throw descriptive error when waitUntilFunctionActiveV2 gets ResourceNotFoundException', async () => {
+                const error = new Error('Function not found');
+                (error as any).name = 'ResourceNotFoundException';
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(error);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow(`Lambda function '${functionName}' does not exist`);
+            });
+
+            it('should throw descriptive error when waitUntilFunctionUpdatedV2 gets ResourceNotFoundException', async () => {
+                // Step 0 succeeds, Step 1 (UpdateFunctionConfiguration) succeeds
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'UpdateFunctionConfiguration') {
+                        return Promise.resolve({});
+                    }
+                    return Promise.resolve({});
+                });
+
+                // Step 2 waiter throws ResourceNotFoundException
+                const error = new Error('Function not found');
+                (error as any).name = 'ResourceNotFoundException';
+                mockWaitUntilFunctionUpdatedV2.mockRejectedValue(error);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow(`Lambda function '${functionName}' does not exist`);
+            });
+
+            it('should detect ResourceNotFoundException wrapped in waiter cause chain', async () => {
+                const cause = new Error('ResourceNotFoundException');
+                (cause as any).name = 'ResourceNotFoundException';
+                const waiterError = new Error('Waiter has entered a failure state');
+                (waiterError as any).cause = cause;
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(waiterError);
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow(`Lambda function '${functionName}' does not exist`);
+            });
+
+            it('should re-throw non-ResourceNotFoundException errors from waiters', async () => {
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(new Error('Timeout exceeded'));
+
+                await expect(activateSnapStart(mockLambdaClient, functionName))
+                    .rejects.toThrow('Timeout exceeded');
             });
         });
 
@@ -452,6 +614,60 @@ describe('snapstart-activator', () => {
 
                 expect(response.Status).toBe('FAILED');
                 expect(response.Reason).toContain('Access denied');
+            });
+
+            it('should return FAILED with required permissions when AccessDeniedException occurs', async () => {
+                const error = new Error('User is not authorized');
+                (error as any).name = 'AccessDeniedException';
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(error);
+
+                const response = await handler(baseEvent);
+
+                expect(response.Status).toBe('FAILED');
+                expect(response.Reason).toContain('Insufficient permissions');
+                expect(response.Reason).toContain('lambda:GetFunction');
+                expect(response.Reason).toContain('lambda:UpdateFunctionConfiguration');
+                expect(response.Reason).toContain('lambda:PublishVersion');
+                expect(response.Reason).toContain('lambda:CreateAlias');
+                expect(response.Reason).toContain('lambda:UpdateAlias');
+            });
+
+            it('should return FAILED with descriptive message when function does not exist', async () => {
+                const error = new Error('ResourceNotFoundException');
+                (error as any).name = 'ResourceNotFoundException';
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(error);
+
+                const response = await handler(baseEvent);
+
+                expect(response.Status).toBe('FAILED');
+                expect(response.Reason).toContain('does not exist');
+                expect(response.Reason).toContain('test-function');
+            });
+
+            it('should return FAILED with StateReason when snapshot creation fails', async () => {
+                const stateReason = 'Runtime.ImportModuleError: Unable to import module';
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'UpdateFunctionConfiguration') {
+                        return Promise.resolve({});
+                    }
+                    if (command._type === 'PublishVersion') {
+                        return Promise.resolve({ Version: '1' });
+                    }
+                    if (command._type === 'GetFunctionConfiguration') {
+                        return Promise.resolve({
+                            State: 'Failed',
+                            StateReason: stateReason,
+                            SnapStart: { OptimizationStatus: 'Off' },
+                        });
+                    }
+                    return Promise.resolve({});
+                });
+
+                const response = await handler(baseEvent);
+
+                expect(response.Status).toBe('FAILED');
+                expect(response.Reason).toContain('SnapStart snapshot creation failed');
+                expect(response.Reason).toContain(stateReason);
             });
         });
     });

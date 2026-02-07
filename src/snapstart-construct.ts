@@ -28,23 +28,27 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 
 /**
- * Properties for SnapStartActivator construct.
+ * Properties for the {@link SnapStartActivator} construct.
+ *
+ * @see {@link SnapStartActivator} for the construct that consumes these properties
  */
 export interface SnapStartActivatorProps {
   /**
    * The Lambda function to enable SnapStart on.
+   * The construct will add a dependency so the Custom Resource runs after this function is created.
    */
   targetFunction: IFunction;
 
   /**
-   * The alias name to create/update.
+   * The alias name to create or update after publishing a SnapStart-enabled version.
    * @default 'kata'
    */
   aliasName?: string;
 
   /**
-   * Maximum time to wait for snapshot creation in seconds.
-   * @default 180 (3 minutes)
+   * Maximum time in seconds to wait for SnapStart snapshot creation.
+   * The Custom Resource handler timeout is set to this value plus a 60-second buffer.
+   * @default 180
    */
   snapshotTimeoutSeconds?: number;
 }
@@ -52,43 +56,65 @@ export interface SnapStartActivatorProps {
 /**
  * CDK Construct that enables SnapStart on a Lambda function after deployment.
  *
- * This construct creates a Custom Resource that:
- * 1. Waits for the target function to be Active
- * 2. Enables SnapStart configuration
+ * Creates a CloudFormation Custom Resource backed by a Lambda handler that
+ * performs the full SnapStart activation cycle during stack deployment:
+ *
+ * 1. Waits for the target function to reach Active state
+ * 2. Enables SnapStart configuration (`ApplyOn: PublishedVersions`)
  * 3. Publishes a new version (triggers snapshot creation)
- * 4. Waits for the snapshot to be ready
- * 5. Creates/updates an alias pointing to the new version
+ * 4. Polls until the snapshot is ready (or timeout is reached)
+ * 5. Creates or updates an alias pointing to the new version
+ *
+ * After deployment, the published version number and alias ARN are available
+ * as CloudFormation attributes via {@link versionRef} and {@link aliasArnRef}.
  *
  * @example
  * ```typescript
  * const myFunction = new lambda.Function(this, 'MyFunction', { ... });
  *
- * new SnapStartActivator(this, 'SnapStart', {
+ * const snapStart = new SnapStartActivator(this, 'SnapStart', {
  *   targetFunction: myFunction,
  *   aliasName: 'kata',
+ *   snapshotTimeoutSeconds: 180,
  * });
+ *
+ * // Reference outputs after deployment
+ * new CfnOutput(this, 'Version', { value: snapStart.versionRef });
+ * new CfnOutput(this, 'AliasArn', { value: snapStart.aliasArnRef });
  * ```
+ *
+ * @see {@link SnapStartActivatorProps} for configuration options
  */
 export class SnapStartActivator extends Construct {
   /**
-   * The alias name that was created/updated.
+   * The alias name that was created or updated (e.g. "kata").
+   *
+   * This is a static property set at synthesis time from {@link SnapStartActivatorProps.aliasName}.
    */
   public readonly aliasName: string;
 
   /**
-   * The Custom Resource that manages SnapStart activation.
+   * The Custom Resource that manages SnapStart activation during deployment.
+   *
+   * Use this to add additional dependencies or access CloudFormation attributes.
    */
   public readonly resource: CustomResource;
 
   /**
-   * The version number created by SnapStart activation.
-   * Available after deployment via CloudFormation outputs.
+   * The version number created by SnapStart activation (CloudFormation attribute).
+   *
+   * This value is resolved at deployment time when the Custom Resource handler
+   * publishes a new Lambda version. Use it in `CfnOutput` or other constructs
+   * that need to reference the published version.
    */
   public readonly versionRef: string;
 
   /**
-   * The alias ARN created by SnapStart activation.
-   * Available after deployment via CloudFormation outputs.
+   * The alias ARN created by SnapStart activation (CloudFormation attribute).
+   *
+   * This value is resolved at deployment time when the Custom Resource handler
+   * creates or updates the alias. Use it in `CfnOutput` or other constructs
+   * that need to reference the alias.
    */
   public readonly aliasArnRef: string;
 
@@ -115,6 +141,7 @@ export class SnapStartActivator extends Construct {
       properties: {
         FunctionName: props.targetFunction.functionName,
         AliasName: this.aliasName,
+        SnapshotTimeoutSeconds: timeoutSeconds.toString(),
         // Add a timestamp to force update on each deployment
         Timestamp: Date.now().toString(),
       },
@@ -199,8 +226,9 @@ exports.handler = async (event) => {
   }
   
   const client = new LambdaClient({});
-  const maxAttempts = 90;
+  const snapshotTimeoutSeconds = parseInt(ResourceProperties.SnapshotTimeoutSeconds || '180', 10);
   const pollingInterval = 2000;
+  const maxAttempts = Math.ceil((snapshotTimeoutSeconds * 1000) / pollingInterval);
   
   console.log('='.repeat(60));
   console.log('SNAPSTART ACTIVATION CYCLE');
