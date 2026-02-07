@@ -234,12 +234,14 @@ describe('kata-wrapper', () => {
     });
 
     /**
-     * **Validates: SnapStart enablement**
-     * THE kata_Wrapper SHALL enable SnapStart with ApplyOn: PublishedVersions
-     * for near-zero cold start times on transformed Lambda functions.
+     * **Validates: SnapStart enablement via Custom Resource**
+     * THE kata_Wrapper SHALL enable SnapStart via a Custom Resource that
+     * activates SnapStart after the Lambda function is deployed.
+     * This is necessary because SnapStart requires asynchronous waiting
+     * for snapshot creation, which cannot be done during CDK synthesis.
      */
     describe('SnapStart enablement', () => {
-      it('should enable SnapStart with ApplyOn: PublishedVersions', () => {
+      it('should create SnapStartActivator Custom Resource', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction', {
           runtime: Runtime.NODEJS_18_X,
@@ -254,13 +256,12 @@ describe('kata-wrapper', () => {
 
         applyTransformation(lambda, config);
 
-        const cfnFunction = lambda.node.defaultChild as CfnFunction;
-        expect(cfnFunction.snapStart).toEqual({
-          applyOn: 'PublishedVersions',
-        });
+        const template = Template.fromStack(stack);
+        // Verify Custom Resource is created for SnapStart activation
+        template.resourceCountIs('AWS::CloudFormation::CustomResource', 1);
       });
 
-      it('should set SnapStart in CloudFormation template', () => {
+      it('should pass function name to Custom Resource', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction');
 
@@ -274,14 +275,56 @@ describe('kata-wrapper', () => {
         applyTransformation(lambda, config);
 
         const template = Template.fromStack(stack);
-        template.hasResourceProperties('AWS::Lambda::Function', {
-          SnapStart: {
-            ApplyOn: 'PublishedVersions',
+        template.hasResourceProperties('AWS::CloudFormation::CustomResource', {
+          FunctionName: Match.objectLike({
+            Ref: Match.stringLikeRegexp('TestFunction'),
+          }),
+        });
+      });
+
+      it('should set alias name to "kata" in Custom Resource', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::CloudFormation::CustomResource', {
+          AliasName: 'kata',
+        });
+      });
+
+      it('should create provider Lambda for Custom Resource', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        // Should have provider Lambda with SnapStart description
+        const lambdaResources = template.findResources('AWS::Lambda::Function', {
+          Properties: {
+            Description: Match.stringLikeRegexp('SnapStart'),
           },
         });
+        expect(Object.keys(lambdaResources).length).toBeGreaterThanOrEqual(1);
       });
 
-      it('should create a Lambda Version for SnapStart activation', () => {
+      it('should grant Lambda permissions to provider', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction');
 
@@ -295,53 +338,16 @@ describe('kata-wrapper', () => {
         applyTransformation(lambda, config);
 
         const template = Template.fromStack(stack);
-        // Verify AWS::Lambda::Version resource is created
-        template.hasResourceProperties('AWS::Lambda::Version', {
-          Description: 'Lambda Kata optimized version with SnapStart',
-        });
-      });
-
-      it('should create a kata alias pointing to the version', () => {
-        const { stack } = createTestStack();
-        const lambda = createTestLambda(stack, 'TestFunction');
-
-        const config: TransformationConfig = {
-          originalHandler: 'index.handler',
-          targetRuntime: Runtime.PYTHON_3_12,
-          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
-          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
-        };
-
-        applyTransformation(lambda, config);
-
-        const template = Template.fromStack(stack);
-        // Verify AWS::Lambda::Alias resource is created with name 'kata'
-        template.hasResourceProperties('AWS::Lambda::Alias', {
-          Name: 'kata',
-          Description: 'Lambda Kata alias pointer',
-        });
-      });
-
-      it('should have alias depend on version', () => {
-        const { stack } = createTestStack();
-        const lambda = createTestLambda(stack, 'TestFunction');
-
-        const config: TransformationConfig = {
-          originalHandler: 'index.handler',
-          targetRuntime: Runtime.PYTHON_3_12,
-          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
-          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
-        };
-
-        applyTransformation(lambda, config);
-
-        const template = Template.fromStack(stack);
-
-        // Verify alias references the version
-        template.hasResourceProperties('AWS::Lambda::Alias', {
-          FunctionVersion: Match.objectLike({
-            'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('KataVersion'), 'Version']),
-          }),
+        // Verify IAM policy grants Lambda permissions
+        template.hasResourceProperties('AWS::IAM::Policy', {
+          PolicyDocument: {
+            Statement: Match.arrayWith([
+              Match.objectLike({
+                Action: Match.arrayWith(['lambda:PublishVersion']),
+                Effect: 'Allow',
+              }),
+            ]),
+          },
         });
       });
     });
@@ -651,9 +657,9 @@ describe('kata-wrapper', () => {
 
         applyTransformation(lambda, config);
 
-        // The logical ID should be preserved - verify by counting Lambda functions
+        // The logical ID should be preserved - verify the target function exists
+        // Note: SnapStartActivator creates additional Lambda functions (provider + framework)
         const template = Template.fromStack(stack);
-        template.resourceCountIs('AWS::Lambda::Function', 1);
 
         // Verify the function has the expected properties after transformation
         template.hasResourceProperties('AWS::Lambda::Function', {
