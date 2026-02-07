@@ -26,9 +26,10 @@
  */
 
 import { Construct } from 'constructs';
-import { Annotations, Stack, Token } from 'aws-cdk-lib';
+import { Annotations, CfnResource, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
 import { Architecture, CfnFunction, Code, CodeConfig, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { LogRetention, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { promises as fs } from 'fs';
@@ -816,10 +817,90 @@ function createNodejsRuntimeLayer(
  *
  * @internal
  */
+
+/**
+ * Replaces CDK-managed LogGroup with a safe LogRetention Custom Resource.
+ *
+ * When the CDK feature flag `@aws-cdk/aws-lambda:useCdkManagedLogGroup` is enabled
+ * (default in new CDK projects), CDK creates a direct `AWS::Logs::LogGroup` resource
+ * for each Lambda function. This causes `AlreadyExists` errors on redeployment when
+ * the LogGroup was previously created by AWS automatically (outside CloudFormation).
+ *
+ * This function detects the CDK-managed LogGroup, removes it from the construct tree,
+ * and replaces it with a `LogRetention` Custom Resource that safely handles the
+ * `ResourceAlreadyExistsException` case — it calls `createLogGroup` and catches the
+ * exception if the group already exists.
+ *
+ * @param lambda - The Lambda function whose LogGroup should be made safe
+ *
+ * @remarks
+ * - Only acts when CDK feature flag created a LogGroup child with construct ID "LogGroup"
+ * - No-op when the user explicitly provided `logGroup` or `logRetention` props
+ * - No-op when the feature flag is disabled (no "LogGroup" child exists)
+ * - The LogRetention resource uses INFINITE retention to match CDK default behavior
+ *
+ * @internal
+ */
+function ensureSafeLogGroup(lambda: NodejsFunction | LambdaFunction): void {
+  // CDK feature flag `@aws-cdk/aws-lambda:useCdkManagedLogGroup` creates a child
+  // construct with ID "LogGroup" of type `AWS::Logs::LogGroup`. This direct CFN
+  // resource fails with AlreadyExists if the LogGroup was previously created by AWS
+  // automatically (e.g., on first Lambda invocation outside CloudFormation).
+  //
+  // We detect this specific child, remove it, and replace with LogRetention which
+  // uses a Custom Resource handler that catches ResourceAlreadyExistsException.
+  const logGroupChild = lambda.node.tryFindChild('LogGroup');
+  if (!logGroupChild) {
+    // No CDK-managed LogGroup — either feature flag is off, or user provided
+    // their own logGroup/logRetention. Nothing to do.
+    return;
+  }
+
+  // Verify this is actually a CDK-managed LogGroup (AWS::Logs::LogGroup CfnResource)
+  // by checking for the "Resource" child which is the CfnLogGroup.
+  // LogGroup construct creates a CfnLogGroup as its default child with ID "Resource".
+  const cfnLogGroup = logGroupChild.node.tryFindChild('Resource');
+  if (!cfnLogGroup || !(cfnLogGroup instanceof CfnResource)) {
+    // Not the expected structure — don't touch it
+    return;
+  }
+
+  // Verify it's actually an AWS::Logs::LogGroup resource
+  if ((cfnLogGroup as CfnResource).cfnResourceType !== 'AWS::Logs::LogGroup') {
+    return;
+  }
+
+  // Remove the CDK-managed LogGroup from the construct tree.
+  // This prevents CloudFormation from creating a direct AWS::Logs::LogGroup
+  // resource that would fail with AlreadyExists.
+  const removed = lambda.node.tryRemoveChild('LogGroup');
+  if (!removed) {
+    // Defensive: if removal failed, don't create a duplicate LogRetention
+    console.warn('[Lambda Kata] Failed to remove CDK-managed LogGroup from construct tree');
+    return;
+  }
+
+  // Replace with LogRetention Custom Resource.
+  // LogRetention's handler calls createLogGroup and catches
+  // ResourceAlreadyExistsException, making it safe for redeployment.
+  // Uses INFINITE retention to match CDK's default LogGroup behavior
+  // (no expiration policy = logs kept forever).
+  new LogRetention(lambda, 'KataLogRetention', {
+    logGroupName: `/aws/lambda/${lambda.functionName}`,
+    retention: RetentionDays.INFINITE,
+  });
+}
+
 export function applyTransformation(
   lambda: NodejsFunction | LambdaFunction,
   config: TransformationConfig,
 ): void {
+  // 0. Replace CDK-managed LogGroup with safe LogRetention Custom Resource.
+  // This MUST happen before any other transformation to prevent AlreadyExists
+  // errors on redeployment when the feature flag
+  // @aws-cdk/aws-lambda:useCdkManagedLogGroup is enabled.
+  ensureSafeLogGroup(lambda);
+
   // 1. Use CDK escape hatch to modify runtime and handler FIRST
   // Runtime and handler are immutable after construction, so we need to
   // access the underlying CloudFormation resource
