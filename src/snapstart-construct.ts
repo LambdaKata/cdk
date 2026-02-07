@@ -20,12 +20,12 @@
  * @module snapstart-construct
  */
 
-import * as path from 'path';
 import { Construct } from 'constructs';
-import { CustomResource, Duration } from 'aws-cdk-lib';
-import { Code, Function as LambdaFunction, IFunction, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { CustomResource, Duration, Stack } from 'aws-cdk-lib';
+import { Function as LambdaFunction, Runtime, Code, IFunction } from 'aws-cdk-lib/aws-lambda';
 import { Provider } from 'aws-cdk-lib/custom-resources';
-import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
+import * as path from 'path';
 
 /**
  * Properties for the {@link SnapStartActivator} construct.
@@ -124,11 +124,11 @@ export class SnapStartActivator extends Construct {
     this.aliasName = props.aliasName ?? 'kata';
     const timeoutSeconds = props.snapshotTimeoutSeconds ?? 180;
 
-    // Create the provider function with permissions baked into its initial role policy.
-    // Using initialPolicy instead of addToRolePolicy ensures the IAM policy is created
-    // as part of the role itself, avoiding race conditions where CloudFormation invokes
-    // the Custom Resource before a separate inline policy resource is applied.
-    const providerFunction = this.createProviderFunction(timeoutSeconds, props.targetFunction);
+    // Create the provider function that will handle Custom Resource events
+    const providerFunction = this.createProviderFunction(timeoutSeconds);
+
+    // Grant permissions to manage the target function
+    this.grantPermissions(providerFunction, props.targetFunction);
 
     // Create the Custom Resource provider
     const provider = new Provider(this, 'Provider', {
@@ -157,47 +157,169 @@ export class SnapStartActivator extends Construct {
 
   /**
    * Creates the Lambda function that handles Custom Resource events.
-   * Permissions are passed via initialPolicy to ensure they are part of the
-   * role creation (not a separate AWS::IAM::Policy resource), preventing
-   * IAM propagation race conditions.
    */
-  private createProviderFunction(timeoutSeconds: number, targetFunction: IFunction): LambdaFunction {
-    // Resolve path to bundled handler directory
-    // __dirname in npm package: node_modules/@lambdakata/cdk/out/dist/
-    // Handler location: node_modules/@lambdakata/cdk/out/dist/snapstart-handler.js
-    const handlerDir = path.join(__dirname);
+  private createProviderFunction(timeoutSeconds: number): LambdaFunction {
+    // The handler code is bundled with the CDK package
+    // We use inline code to avoid external dependencies
+    const handlerCode = this.generateHandlerCode();
 
     const fn = new LambdaFunction(this, 'Handler', {
       runtime: Runtime.NODEJS_18_X,
-      handler: 'snapstart-handler.handler',
-      code: Code.fromAsset(handlerDir, {
-        // Only include the handler file, not the entire dist directory
-        exclude: ['*', '!snapstart-handler.js'],
-      }),
+      handler: 'index.handler',
+      code: Code.fromInline(handlerCode),
       timeout: Duration.seconds(timeoutSeconds + 60), // Extra time for setup/teardown
       description: 'Lambda Kata SnapStart Activator - Custom Resource Handler',
       memorySize: 256,
-      initialPolicy: [
-        new PolicyStatement({
-          effect: Effect.ALLOW,
-          actions: [
-            'lambda:GetFunction',
-            'lambda:GetFunctionConfiguration',
-            'lambda:UpdateFunctionConfiguration',
-            'lambda:PublishVersion',
-            'lambda:GetAlias',
-            'lambda:CreateAlias',
-            'lambda:UpdateAlias',
-          ],
-          resources: [
-            targetFunction.functionArn,
-            `${targetFunction.functionArn}:*`,
-          ],
-        }),
-      ],
     });
 
     return fn;
   }
 
+  /**
+   * Grants necessary permissions to the provider function.
+   */
+  private grantPermissions(providerFunction: LambdaFunction, targetFunction: IFunction): void {
+    // Permission to manage the target function's configuration
+    // lambda:GetFunction is required by waitUntilFunctionActiveV2 waiter
+    providerFunction.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: [
+        'lambda:GetFunction',
+        'lambda:GetFunctionConfiguration',
+        'lambda:UpdateFunctionConfiguration',
+        'lambda:PublishVersion',
+        'lambda:GetAlias',
+        'lambda:CreateAlias',
+        'lambda:UpdateAlias',
+      ],
+      resources: [
+        targetFunction.functionArn,
+        `${targetFunction.functionArn}:*`,
+      ],
+    }));
+  }
+
+  /**
+   * Generates the inline handler code for the Custom Resource.
+   *
+   * This is a self-contained version of the snapstart-activator logic
+   * that can be deployed as inline Lambda code.
+   */
+  private generateHandlerCode(): string {
+    return `
+const { LambdaClient, UpdateFunctionConfigurationCommand, PublishVersionCommand,
+        GetFunctionConfigurationCommand, CreateAliasCommand, UpdateAliasCommand,
+        GetAliasCommand, waitUntilFunctionUpdatedV2, waitUntilFunctionActiveV2 } = require('@aws-sdk/client-lambda');
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+exports.handler = async (event) => {
+  console.log('Event:', JSON.stringify(event, null, 2));
+  
+  const { RequestType, ResourceProperties } = event;
+  const functionName = ResourceProperties.FunctionName;
+  const aliasName = ResourceProperties.AliasName || 'kata';
+  
+  if (RequestType === 'Delete') {
+    console.log('Delete request - no action needed');
+    return { Version: 'N/A', AliasName: aliasName, AliasArn: 'N/A', OptimizationStatus: 'N/A' };
+  }
+  
+  const client = new LambdaClient({});
+  const snapshotTimeoutSeconds = parseInt(ResourceProperties.SnapshotTimeoutSeconds || '180', 10);
+  const pollingInterval = 2000;
+  const maxAttempts = Math.ceil((snapshotTimeoutSeconds * 1000) / pollingInterval);
+  
+  console.log('='.repeat(60));
+  console.log('SNAPSTART ACTIVATION CYCLE');
+  console.log('='.repeat(60));
+  
+  // Step 0: Wait for function to be Active
+  console.log('[0/5] Ensuring function is Active...');
+  await waitUntilFunctionActiveV2({ client, maxWaitTime: 60 }, { FunctionName: functionName });
+  console.log('      Function is Active');
+  
+  // Step 1: Enable SnapStart
+  console.log('[1/5] Enabling SnapStart...');
+  await client.send(new UpdateFunctionConfigurationCommand({
+    FunctionName: functionName,
+    SnapStart: { ApplyOn: 'PublishedVersions' }
+  }));
+  
+  // Step 2: Wait for configuration update
+  console.log('[2/5] Waiting for configuration update...');
+  await waitUntilFunctionUpdatedV2({ client, maxWaitTime: 120 }, { FunctionName: functionName });
+  console.log('      Configuration updated');
+  
+  // Step 3: Publish version
+  console.log('[3/5] Publishing new version...');
+  const publishResponse = await client.send(new PublishVersionCommand({
+    FunctionName: functionName,
+    Description: 'SnapStart enabled - ' + new Date().toISOString()
+  }));
+  const version = publishResponse.Version;
+  console.log('      Published version:', version);
+  
+  // Step 4: Wait for snapshot
+  console.log('[4/5] Waiting for snapshot creation...');
+  let optimizationStatus = 'Unknown';
+  let state = 'Unknown';
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    const config = await client.send(new GetFunctionConfigurationCommand({
+      FunctionName: functionName,
+      Qualifier: version
+    }));
+    
+    optimizationStatus = config.SnapStart?.OptimizationStatus || 'Unknown';
+    state = config.State || 'Unknown';
+    
+    if (state === 'Active') {
+      console.log('      Snapshot ready! Status:', optimizationStatus);
+      break;
+    } else if (state === 'Failed') {
+      throw new Error('Snapshot creation failed: ' + (config.StateReason || 'Unknown'));
+    }
+    
+    if (i % 10 === 0) console.log('      Creating snapshot... State:', state, '(' + (i * 2) + 's)');
+    await sleep(pollingInterval);
+  }
+  
+  // Step 5: Create/update alias
+  console.log('[5/5] Creating/updating alias...');
+  let aliasArn;
+  
+  try {
+    await client.send(new GetAliasCommand({ FunctionName: functionName, Name: aliasName }));
+    const updateResp = await client.send(new UpdateAliasCommand({
+      FunctionName: functionName,
+      Name: aliasName,
+      FunctionVersion: version,
+      Description: 'Lambda Kata SnapStart-enabled version'
+    }));
+    aliasArn = updateResp.AliasArn;
+    console.log('      Updated alias:', aliasArn);
+  } catch (e) {
+    if (e.name === 'ResourceNotFoundException') {
+      const createResp = await client.send(new CreateAliasCommand({
+        FunctionName: functionName,
+        Name: aliasName,
+        FunctionVersion: version,
+        Description: 'Lambda Kata SnapStart-enabled version'
+      }));
+      aliasArn = createResp.AliasArn;
+      console.log('      Created alias:', aliasArn);
+    } else {
+      throw e;
+    }
+  }
+  
+  console.log('='.repeat(60));
+  console.log('SNAPSTART ACTIVATION COMPLETE');
+  console.log('='.repeat(60));
+  
+  return { Version: version, AliasName: aliasName, AliasArn: aliasArn, OptimizationStatus: optimizationStatus };
+};
+`;
+  }
 }
