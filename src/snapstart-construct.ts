@@ -334,29 +334,15 @@ exports.handler = async (event) => {
   
   // After all retries, check final state
   if (state === 'Failed') {
-    // Before failing, check if a working alias already exists.
-    // If it does, the function is already operational — avoid destructive rollback.
     console.log('      All ' + MAX_PUBLISH_RETRIES + ' snapshot attempts failed.');
-    console.log('      Checking if existing alias is available as fallback...');
-    try {
-      const existingAlias = await client.send(new GetAliasCommand({ FunctionName: functionName, Name: aliasName }));
-      const existingVersion = existingAlias.FunctionVersion || 'unknown';
-      const existingAliasArn = existingAlias.AliasArn || 'unknown';
-      console.log('      Found existing alias ' + aliasName + ' -> version ' + existingVersion);
-      console.log('      Keeping existing working alias to avoid deployment rollback.');
-      console.log('='.repeat(60));
-      console.log('SNAPSTART ACTIVATION COMPLETE (EXISTING ALIAS PRESERVED)');
-      console.log('='.repeat(60));
-      return { Version: existingVersion, AliasName: aliasName, AliasArn: existingAliasArn, OptimizationStatus: 'Preserved' };
-    } catch (aliasErr) {
-      if (aliasErr.name === 'ResourceNotFoundException') {
-        console.log('      No existing alias found - cannot fall back.');
-      }
-      throw new Error('Snapshot creation failed after ' + MAX_PUBLISH_RETRIES + ' attempts: ' + lastFailReason);
-    }
+    console.log('      Reason:', lastFailReason);
+    console.log('');
+    console.log('      [Lambda Kata] SnapStart optimization failed. Alias will be created pointing');
+    console.log('      to the latest version. Function remains operational without SnapStart.');
+    console.log('      Review CloudWatch logs for initialization errors.');
   }
   
-  if (state !== 'Active') {
+  if (state !== 'Active' && state !== 'Failed') {
     console.log('      Warning: Snapshot creation timeout. Final state:', state);
   }
   

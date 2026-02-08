@@ -275,7 +275,7 @@ describe('snapstart-activator', () => {
                 expect(result.optimizationStatus).toBe('On');
             });
 
-            it('should throw error when snapshot creation fails and no existing alias', async () => {
+            it('should create alias even when snapshot creation fails', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
                         return Promise.resolve({ Version: '1' });
@@ -292,14 +292,23 @@ describe('snapstart-activator', () => {
                         (error as any).name = 'ResourceNotFoundException';
                         return Promise.reject(error);
                     }
+                    if (command._type === 'CreateAlias') {
+                        return Promise.resolve({
+                            AliasArn: `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:kata`,
+                        });
+                    }
                     return Promise.resolve({});
                 });
 
-                await expect(activateSnapStart(mockLambdaClient, functionName))
-                    .rejects.toThrow('SnapStart snapshot creation failed after 5 attempts: Initialization error');
+                // Should succeed and create alias even when snapshot fails
+                const result = await activateSnapStart(mockLambdaClient, functionName);
+                expect(result.version).toBe('1');
+                expect(result.aliasName).toBe('kata');
+                expect(result.aliasArn).toContain(functionName);
+                expect(result.optimizationStatus).toBe('Off');
             });
 
-            it('should fall back to existing alias when snapshot fails but alias exists', async () => {
+            it('should create alias even when snapshot fails', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
                         return Promise.resolve({ Version: '1' });
@@ -312,8 +321,12 @@ describe('snapstart-activator', () => {
                         });
                     }
                     if (command._type === 'GetAlias') {
+                        const error = new Error('Not found');
+                        (error as any).name = 'ResourceNotFoundException';
+                        return Promise.reject(error);
+                    }
+                    if (command._type === 'CreateAlias') {
                         return Promise.resolve({
-                            FunctionVersion: '7',
                             AliasArn: `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:kata`,
                         });
                     }
@@ -322,13 +335,13 @@ describe('snapstart-activator', () => {
 
                 const result = await activateSnapStart(mockLambdaClient, functionName);
 
-                expect(result.version).toBe('7');
+                expect(result.version).toBe('1');
                 expect(result.aliasName).toBe('kata');
                 expect(result.aliasArn).toContain(functionName);
-                expect(result.optimizationStatus).toBe('Preserved');
+                expect(result.optimizationStatus).toBe('Off');
             });
 
-            it('should include full StateReason in error message when State is Failed and no alias exists', async () => {
+            it('should succeed with alias creation when snapshot fails (StateReason logged)', async () => {
                 const stateReason = 'The function failed to initialize due to a runtime error in handler code';
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
@@ -346,19 +359,23 @@ describe('snapstart-activator', () => {
                         (error as any).name = 'ResourceNotFoundException';
                         return Promise.reject(error);
                     }
+                    if (command._type === 'CreateAlias') {
+                        return Promise.resolve({
+                            AliasArn: `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:kata`,
+                        });
+                    }
                     return Promise.resolve({});
                 });
 
-                try {
-                    await activateSnapStart(mockLambdaClient, functionName);
-                    fail('Expected activateSnapStart to throw');
-                } catch (e: any) {
-                    expect(e).toBeInstanceOf(Error);
-                    expect(e.message).toBe(`SnapStart snapshot creation failed after 5 attempts: ${stateReason}`);
-                }
+                // Should succeed and create alias even when snapshot fails
+                const result = await activateSnapStart(mockLambdaClient, functionName);
+                expect(result.version).toBe('3');
+                expect(result.aliasName).toBe('kata');
+                expect(result.aliasArn).toContain(functionName);
+                expect(result.optimizationStatus).toBe('Off');
             });
 
-            it('should use "Unknown" as StateReason fallback when StateReason is undefined and no alias exists', async () => {
+            it('should create alias when StateReason is undefined and snapshot fails', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
                         return Promise.resolve({ Version: '1' });
@@ -375,11 +392,19 @@ describe('snapstart-activator', () => {
                         (error as any).name = 'ResourceNotFoundException';
                         return Promise.reject(error);
                     }
+                    if (command._type === 'CreateAlias') {
+                        return Promise.resolve({
+                            AliasArn: `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:kata`,
+                        });
+                    }
                     return Promise.resolve({});
                 });
 
-                await expect(activateSnapStart(mockLambdaClient, functionName))
-                    .rejects.toThrow('SnapStart snapshot creation failed after 5 attempts: Unknown');
+                // Should succeed and create alias even when snapshot fails with no StateReason
+                const result = await activateSnapStart(mockLambdaClient, functionName);
+                expect(result.version).toBe('1');
+                expect(result.aliasName).toBe('kata');
+                expect(result.optimizationStatus).toBe('Off');
             });
         });
 
@@ -714,7 +739,7 @@ describe('snapstart-activator', () => {
                 expect(response.Reason).toContain('test-function');
             });
 
-            it('should return FAILED with StateReason when snapshot creation fails and no alias exists', async () => {
+            it('should return SUCCESS with alias when snapshot creation fails', async () => {
                 const stateReason = 'Runtime.ImportModuleError: Unable to import module';
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'UpdateFunctionConfiguration') {
@@ -735,23 +760,30 @@ describe('snapstart-activator', () => {
                         (error as any).name = 'ResourceNotFoundException';
                         return Promise.reject(error);
                     }
+                    if (command._type === 'CreateAlias') {
+                        return Promise.resolve({
+                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
+                        });
+                    }
                     return Promise.resolve({});
                 });
 
                 const response = await handler(baseEvent);
 
-                expect(response.Status).toBe('FAILED');
-                expect(response.Reason).toContain('SnapStart snapshot creation failed');
-                expect(response.Reason).toContain(stateReason);
+                // Should succeed and create alias even when snapshot fails
+                expect(response.Status).toBe('SUCCESS');
+                expect(response.Data?.Version).toBe('1');
+                expect(response.Data?.AliasName).toBe('kata');
+                expect(response.Data?.OptimizationStatus).toBe('Off');
             });
 
-            it('should return SUCCESS with existing alias when snapshot fails but alias exists', async () => {
+            it('should return SUCCESS and update existing alias when snapshot fails', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'UpdateFunctionConfiguration') {
                         return Promise.resolve({});
                     }
                     if (command._type === 'PublishVersion') {
-                        return Promise.resolve({ Version: '1' });
+                        return Promise.resolve({ Version: '6' });
                     }
                     if (command._type === 'GetFunctionConfiguration') {
                         return Promise.resolve({
@@ -766,14 +798,20 @@ describe('snapstart-activator', () => {
                             AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
                         });
                     }
+                    if (command._type === 'UpdateAlias') {
+                        return Promise.resolve({
+                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
+                        });
+                    }
                     return Promise.resolve({});
                 });
 
                 const response = await handler(baseEvent);
 
+                // Should succeed and update alias to new version even when snapshot fails
                 expect(response.Status).toBe('SUCCESS');
-                expect(response.Data?.Version).toBe('5');
-                expect(response.Data?.OptimizationStatus).toBe('Preserved');
+                expect(response.Data?.Version).toBe('6');
+                expect(response.Data?.OptimizationStatus).toBe('Off');
             });
         });
     });
