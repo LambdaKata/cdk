@@ -125,20 +125,57 @@ export interface SnapStartActivatorConfig {
      * @default 'kata'
      */
     aliasName?: string;
+    /**
+     * @internal Override pre-publish delay in milliseconds (for testing only).
+     * @default 3000
+     */
+    _prePublishDelayMs?: number;
+    /**
+     * @internal Override retry delay in milliseconds (for testing only).
+     * @default 5000
+     */
+    _retryDelayMs?: number;
 }
+
+/**
+ * Maximum number of PublishVersion + snapshot polling attempts.
+ * Each retry publishes a NEW version (new snapshot attempt).
+ * Bounded to prevent infinite loops; total worst-case time:
+ * 5 * (15s delay + publish + 180s poll) ≈ 16min, within Lambda 15min limit
+ * (but snapshot timeout is typically much shorter than 180s per attempt).
+ */
+const MAX_PUBLISH_RETRIES = 5;
+
+/**
+ * Delay in milliseconds before retrying a failed snapshot creation.
+ * Set to 15s to give transient Lambda init failures time to clear.
+ */
+const RETRY_DELAY_MS = 15000;
+
+/**
+ * Delay in milliseconds after waitUntilFunctionUpdatedV2 completes,
+ * before the first PublishVersion call. Mitigates eventual consistency
+ * between Lambda config update propagation and PublishVersion init phase.
+ */
+const PRE_PUBLISH_DELAY_MS = 3000;
 
 const DEFAULT_CONFIG: Required<SnapStartActivatorConfig> = {
     snapshotTimeoutSeconds: 180,
     pollingIntervalSeconds: 2,
     aliasName: 'kata',
+    _prePublishDelayMs: PRE_PUBLISH_DELAY_MS,
+    _retryDelayMs: RETRY_DELAY_MS,
 };
 
 /**
  * Sleep for specified milliseconds.
+ * @internal Exported for testability — tests can jest.spyOn to avoid real delays.
  */
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+export const _testable = {
+    sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+};
 
 /**
  * Checks whether an error (or its cause chain) is a ResourceNotFoundException.
@@ -208,9 +245,13 @@ function isAccessDeniedError(error: unknown): boolean {
  * 1. Ensures function is Active
  * 2. Enables SnapStart configuration
  * 3. Waits for configuration update
- * 4. Publishes new version
+ * 4. Publishes new version (with retry on snapshot failure)
  * 5. Waits for snapshot creation
  * 6. Creates/updates alias
+ *
+ * Steps 3+4 are wrapped in a retry loop: on State: Failed, a new version
+ * is published (up to MAX_PUBLISH_RETRIES attempts) to handle transient
+ * initialization failures during snapshot creation.
  *
  * @param lambdaClient - AWS Lambda client
  * @param functionName - Name or ARN of the Lambda function
@@ -230,6 +271,7 @@ export async function activateSnapStart(
     console.log('='.repeat(60));
     console.log(`Function: ${functionName}`);
     console.log(`Timeout: ${cfg.snapshotTimeoutSeconds}s, Polling: ${cfg.pollingIntervalSeconds}s`);
+    console.log(`Max publish retries: ${MAX_PUBLISH_RETRIES}`);
 
     try {
         // Step 0: Ensure function is Active before starting
@@ -282,48 +324,144 @@ export async function activateSnapStart(
         }
         console.log('      Configuration updated successfully');
 
-        // Step 3: Publish new version to create snapshot
-        console.log('[3/5] Publishing new version to create SnapStart snapshot...');
-        const publishResponse = await lambdaClient.send(new PublishVersionCommand({
-            FunctionName: functionName,
-            Description: `SnapStart enabled - ${new Date().toISOString()}`,
-        }));
-        const version = publishResponse.Version!;
-        console.log(`      Published version: ${version}`);
+        // Pre-publish delay: mitigate eventual consistency between
+        // Lambda config update propagation and PublishVersion init phase
+        console.log(`      Waiting ${cfg._prePublishDelayMs / 1000}s for configuration propagation...`);
+        await _testable.sleep(cfg._prePublishDelayMs);
 
-        // Step 4: Wait for snapshot optimization and verify status
-        console.log('[4/5] Waiting for SnapStart snapshot creation (this may take 1-3 minutes)...');
+        // Steps 3+4: Publish version and wait for snapshot (WITH RETRY)
+        let version: string = '';
         let optimizationStatus = 'Unknown';
         let state = 'Unknown';
+        let lastFailReason = '';
 
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const versionConfig = await lambdaClient.send(new GetFunctionConfigurationCommand({
-                FunctionName: functionName,
-                Qualifier: version,
-            }));
+        for (let publishAttempt = 1; publishAttempt <= MAX_PUBLISH_RETRIES; publishAttempt++) {
+            // Step 3: Publish new version to create snapshot
+            console.log(`[3/5] Publishing new version (attempt ${publishAttempt}/${MAX_PUBLISH_RETRIES})...`);
 
-            const snapStartStatus = versionConfig.SnapStart ?? {};
-            optimizationStatus = snapStartStatus.OptimizationStatus ?? 'Unknown';
-            state = versionConfig.State ?? 'Unknown';
-
-            if (state === 'Active') {
-                console.log('      SnapStart snapshot ready!');
-                console.log(`      OptimizationStatus: ${optimizationStatus}`);
-                console.log(`      State: ${state}`);
-                break;
-            } else if (state === 'Failed') {
-                const stateReason = versionConfig.StateReason ?? 'Unknown';
-                console.log(`      ERROR: Snapshot creation failed - ${stateReason}`);
-                throw new Error(`SnapStart snapshot creation failed: ${stateReason}`);
-            } else {
-                // Show progress every 10 attempts or first 5
-                if (attempt % 10 === 0 || attempt < 5) {
-                    const elapsed = attempt * cfg.pollingIntervalSeconds;
-                    console.log(`      Creating snapshot... Status: ${optimizationStatus}, State: ${state} (${elapsed}s elapsed)`);
-                }
+            // Before re-publish (attempt > 1), wait and ensure function is ready
+            if (publishAttempt > 1) {
+                console.log(`      Waiting ${cfg._retryDelayMs / 1000}s before retry...`);
+                await _testable.sleep(cfg._retryDelayMs);
+                console.log('      Ensuring function is Active before re-publish...');
+                await waitUntilFunctionActiveV2(
+                    { client: lambdaClient, maxWaitTime: 60 },
+                    { FunctionName: functionName }
+                );
+                // Force a config update so PublishVersion creates a genuinely new version.
+                // Without this, PublishVersion returns the same (Failed) version number
+                // because Lambda deduplicates identical configurations.
+                console.log('      Re-applying SnapStart config to force new version...');
+                await lambdaClient.send(new UpdateFunctionConfigurationCommand({
+                    FunctionName: functionName,
+                    SnapStart: { ApplyOn: 'PublishedVersions' },
+                }));
+                await waitUntilFunctionUpdatedV2(
+                    { client: lambdaClient, maxWaitTime: 120 },
+                    { FunctionName: functionName }
+                );
+                console.log(`      Waiting ${cfg._prePublishDelayMs / 1000}s for configuration propagation...`);
+                await _testable.sleep(cfg._prePublishDelayMs);
             }
 
-            await sleep(cfg.pollingIntervalSeconds * 1000);
+            const publishResponse = await lambdaClient.send(new PublishVersionCommand({
+                FunctionName: functionName,
+                Description: `SnapStart enabled - ${new Date().toISOString()} (attempt ${publishAttempt})`,
+            }));
+            version = publishResponse.Version!;
+            console.log(`      Published version: ${version}`);
+
+            // Step 4: Wait for snapshot optimization and verify status
+            console.log('[4/5] Waiting for SnapStart snapshot creation...');
+            state = 'Unknown';
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const versionConfig = await lambdaClient.send(new GetFunctionConfigurationCommand({
+                    FunctionName: functionName,
+                    Qualifier: version,
+                }));
+
+                const snapStartStatus = versionConfig.SnapStart ?? {};
+                optimizationStatus = snapStartStatus.OptimizationStatus ?? 'Unknown';
+                state = versionConfig.State ?? 'Unknown';
+
+                if (state === 'Active') {
+                    console.log('      SnapStart snapshot ready!');
+                    console.log(`      OptimizationStatus: ${optimizationStatus}`);
+                    console.log(`      State: ${state}`);
+                    break;
+                } else if (state === 'Failed') {
+                    lastFailReason = versionConfig.StateReason ?? 'Unknown';
+                    console.log(`      Snapshot creation failed: ${lastFailReason}`);
+                    break;
+                } else {
+                    // Show progress every 10 attempts or first 5
+                    if (attempt % 10 === 0 || attempt < 5) {
+                        const elapsed = attempt * cfg.pollingIntervalSeconds;
+                        console.log(`      Creating snapshot... Status: ${optimizationStatus}, State: ${state} (${elapsed}s elapsed)`);
+                    }
+                }
+
+                await _testable.sleep(cfg.pollingIntervalSeconds * 1000);
+            }
+
+            // If snapshot succeeded, break out of retry loop
+            if (state === 'Active') {
+                break;
+            }
+
+            // Only retry on Failed state — timeout (Pending) should not retry
+            if (state !== 'Failed') {
+                break;
+            }
+
+            // If failed and we have retries left, log and continue
+            if (publishAttempt < MAX_PUBLISH_RETRIES) {
+                console.log(`      Snapshot failed on attempt ${publishAttempt}, will retry with new version...`);
+                console.log(`      Reason: ${lastFailReason}`);
+            }
+        }
+
+        // After all retries, check final state
+        if (state === 'Failed') {
+            // Before failing the deployment, check if a working alias already exists.
+            // If it does, the function is already operational with a previous SnapStart version.
+            // Failing the Custom Resource would trigger a CloudFormation rollback, which is
+            // destructive when the function is actually working fine.
+            console.log(`      All ${MAX_PUBLISH_RETRIES} snapshot attempts failed.`);
+            console.log('      Checking if existing alias is available as fallback...');
+            try {
+                const existingAlias = await lambdaClient.send(new GetAliasCommand({
+                    FunctionName: functionName,
+                    Name: cfg.aliasName,
+                }));
+                // Alias exists — the function is already working with a previous version.
+                // Return SUCCESS to avoid a destructive rollback.
+                const existingVersion = existingAlias.FunctionVersion ?? 'unknown';
+                const existingAliasArn = existingAlias.AliasArn ?? `arn:unknown:${functionName}:${cfg.aliasName}`;
+                console.log(`      Found existing alias '${cfg.aliasName}' -> version ${existingVersion}`);
+                console.log('      Keeping existing working alias to avoid deployment rollback.');
+                console.log(`      Snapshot failure reason: ${lastFailReason}`);
+                console.log('\n' + '='.repeat(60));
+                console.log('SNAPSTART ACTIVATION COMPLETE (EXISTING ALIAS PRESERVED)');
+                console.log('='.repeat(60));
+                return {
+                    version: existingVersion,
+                    aliasName: cfg.aliasName,
+                    aliasArn: existingAliasArn,
+                    optimizationStatus: 'Preserved',
+                };
+            } catch (aliasError) {
+                // No existing alias — this is a first deployment, we must fail.
+                const isNotFound = aliasError instanceof ResourceNotFoundException ||
+                    (aliasError instanceof Error && aliasError.name === 'ResourceNotFoundException');
+                if (isNotFound) {
+                    console.log('      No existing alias found — cannot fall back.');
+                }
+                throw new Error(
+                    `SnapStart snapshot creation failed after ${MAX_PUBLISH_RETRIES} attempts: ${lastFailReason}`
+                );
+            }
         }
 
         // Check if we timed out
@@ -451,6 +589,20 @@ export async function handler(event: CustomResourceEvent): Promise<CustomResourc
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('SnapStart activation failed:', errorMessage);
+
+        // On Update requests, return SUCCESS even on failure to prevent
+        // CloudFormation rollback from getting stuck in UPDATE_ROLLBACK_FAILED.
+        // Returning FAILED from an Update during rollback blocks the entire stack.
+        // The function remains operational with its previous configuration.
+        if (RequestType === 'Update') {
+            console.log('Returning SUCCESS for Update request to prevent rollback deadlock.');
+            console.log('The function will continue with its previous SnapStart configuration.');
+            return {
+                ...baseResponse,
+                Status: 'SUCCESS',
+                Reason: `SnapStart activation failed (non-blocking): ${errorMessage}`,
+            };
+        }
 
         return {
             ...baseResponse,

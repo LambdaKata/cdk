@@ -21,11 +21,10 @@
  */
 
 import { Construct } from 'constructs';
-import { CustomResource, Duration, Stack } from 'aws-cdk-lib';
+import { CustomResource, Duration } from 'aws-cdk-lib';
 import { Function as LambdaFunction, Runtime, Code, IFunction } from 'aws-cdk-lib/aws-lambda';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
-import * as path from 'path';
 
 /**
  * Properties for the {@link SnapStartActivator} construct.
@@ -220,10 +219,14 @@ exports.handler = async (event) => {
     return { Version: 'N/A', AliasName: aliasName, AliasArn: 'N/A', OptimizationStatus: 'N/A' };
   }
   
+  try {
   const client = new LambdaClient({});
   const snapshotTimeoutSeconds = parseInt(ResourceProperties.SnapshotTimeoutSeconds || '180', 10);
   const pollingInterval = 2000;
   const maxAttempts = Math.ceil((snapshotTimeoutSeconds * 1000) / pollingInterval);
+  const MAX_PUBLISH_RETRIES = 5;
+  const RETRY_DELAY_MS = 15000;
+  const PRE_PUBLISH_DELAY_MS = 3000;
   
   console.log('='.repeat(60));
   console.log('SNAPSTART ACTIVATION CYCLE');
@@ -246,38 +249,115 @@ exports.handler = async (event) => {
   await waitUntilFunctionUpdatedV2({ client, maxWaitTime: 120 }, { FunctionName: functionName });
   console.log('      Configuration updated');
   
-  // Step 3: Publish version
-  console.log('[3/5] Publishing new version...');
-  const publishResponse = await client.send(new PublishVersionCommand({
-    FunctionName: functionName,
-    Description: 'SnapStart enabled - ' + new Date().toISOString()
-  }));
-  const version = publishResponse.Version;
-  console.log('      Published version:', version);
+  // Pre-publish delay: mitigate eventual consistency
+  console.log('      Waiting ' + (PRE_PUBLISH_DELAY_MS / 1000) + 's for configuration propagation...');
+  await sleep(PRE_PUBLISH_DELAY_MS);
   
-  // Step 4: Wait for snapshot
-  console.log('[4/5] Waiting for snapshot creation...');
+  // Steps 3+4: Publish version and wait for snapshot (WITH RETRY)
+  let version;
   let optimizationStatus = 'Unknown';
   let state = 'Unknown';
+  let lastFailReason = '';
   
-  for (let i = 0; i < maxAttempts; i++) {
-    const config = await client.send(new GetFunctionConfigurationCommand({
-      FunctionName: functionName,
-      Qualifier: version
-    }));
+  for (let publishAttempt = 1; publishAttempt <= MAX_PUBLISH_RETRIES; publishAttempt++) {
+    // Step 3: Publish version
+    console.log('[3/5] Publishing new version (attempt ' + publishAttempt + '/' + MAX_PUBLISH_RETRIES + ')...');
     
-    optimizationStatus = config.SnapStart?.OptimizationStatus || 'Unknown';
-    state = config.State || 'Unknown';
-    
-    if (state === 'Active') {
-      console.log('      Snapshot ready! Status:', optimizationStatus);
-      break;
-    } else if (state === 'Failed') {
-      throw new Error('Snapshot creation failed: ' + (config.StateReason || 'Unknown'));
+    // Before re-publish, ensure function is ready
+    if (publishAttempt > 1) {
+      console.log('      Waiting ' + (RETRY_DELAY_MS / 1000) + 's before retry...');
+      await sleep(RETRY_DELAY_MS);
+      console.log('      Ensuring function is Active before re-publish...');
+      await waitUntilFunctionActiveV2({ client, maxWaitTime: 60 }, { FunctionName: functionName });
+      // Force a config update so PublishVersion creates a genuinely new version.
+      // Without this, PublishVersion returns the same (Failed) version number
+      // because Lambda deduplicates identical configurations.
+      console.log('      Re-applying SnapStart config to force new version...');
+      await client.send(new UpdateFunctionConfigurationCommand({
+        FunctionName: functionName,
+        SnapStart: { ApplyOn: 'PublishedVersions' }
+      }));
+      await waitUntilFunctionUpdatedV2({ client, maxWaitTime: 120 }, { FunctionName: functionName });
+      console.log('      Waiting ' + (PRE_PUBLISH_DELAY_MS / 1000) + 's for configuration propagation...');
+      await sleep(PRE_PUBLISH_DELAY_MS);
     }
     
-    if (i % 10 === 0) console.log('      Creating snapshot... State:', state, '(' + (i * 2) + 's)');
-    await sleep(pollingInterval);
+    const publishResponse = await client.send(new PublishVersionCommand({
+      FunctionName: functionName,
+      Description: 'SnapStart enabled - ' + new Date().toISOString() + ' (attempt ' + publishAttempt + ')'
+    }));
+    version = publishResponse.Version;
+    console.log('      Published version:', version);
+    
+    // Step 4: Wait for snapshot
+    console.log('[4/5] Waiting for snapshot creation...');
+    state = 'Unknown';
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      const config = await client.send(new GetFunctionConfigurationCommand({
+        FunctionName: functionName,
+        Qualifier: version
+      }));
+      
+      optimizationStatus = config.SnapStart?.OptimizationStatus || 'Unknown';
+      state = config.State || 'Unknown';
+      
+      if (state === 'Active') {
+        console.log('      Snapshot ready! Status:', optimizationStatus);
+        break;
+      } else if (state === 'Failed') {
+        lastFailReason = config.StateReason || 'Unknown';
+        console.log('      Snapshot creation failed:', lastFailReason);
+        break;
+      }
+      
+      if (i % 10 === 0) console.log('      Creating snapshot... State:', state, '(' + (i * 2) + 's)');
+      await sleep(pollingInterval);
+    }
+    
+    // If snapshot succeeded, break out of retry loop
+    if (state === 'Active') {
+      break;
+    }
+    
+    // Only retry on Failed state — timeout (Pending) should not retry
+    if (state !== 'Failed') {
+      break;
+    }
+    
+    // If failed and we have retries left, log and continue
+    if (publishAttempt < MAX_PUBLISH_RETRIES) {
+      console.log('      Snapshot failed on attempt ' + publishAttempt + ', will retry with new version...');
+      console.log('      Reason:', lastFailReason);
+    }
+  }
+  
+  // After all retries, check final state
+  if (state === 'Failed') {
+    // Before failing, check if a working alias already exists.
+    // If it does, the function is already operational — avoid destructive rollback.
+    console.log('      All ' + MAX_PUBLISH_RETRIES + ' snapshot attempts failed.');
+    console.log('      Checking if existing alias is available as fallback...');
+    try {
+      const existingAlias = await client.send(new GetAliasCommand({ FunctionName: functionName, Name: aliasName }));
+      const existingVersion = existingAlias.FunctionVersion || 'unknown';
+      const existingAliasArn = existingAlias.AliasArn || 'unknown';
+      console.log('      Found existing alias ' + aliasName + ' -> version ' + existingVersion);
+      console.log('      Keeping existing working alias to avoid deployment rollback.');
+      console.log('='.repeat(60));
+      console.log('SNAPSTART ACTIVATION COMPLETE (EXISTING ALIAS PRESERVED)');
+      console.log('='.repeat(60));
+      return { Version: existingVersion, AliasName: aliasName, AliasArn: existingAliasArn, OptimizationStatus: 'Preserved' };
+    } catch (aliasErr) {
+      if (aliasErr.name === 'ResourceNotFoundException') {
+        console.log('      No existing alias found - cannot fall back.');
+      }
+      throw new Error('Snapshot creation failed after ' + MAX_PUBLISH_RETRIES + ' attempts: ' + lastFailReason);
+    }
+  }
+  
+  if (state !== 'Active') {
+    console.log('      Warning: Snapshot creation timeout. Final state:', state);
   }
   
   // Step 5: Create/update alias
@@ -314,6 +394,17 @@ exports.handler = async (event) => {
   console.log('='.repeat(60));
   
   return { Version: version, AliasName: aliasName, AliasArn: aliasArn, OptimizationStatus: optimizationStatus };
+  
+  } catch (err) {
+    console.error('SnapStart activation failed:', err.message || err);
+    // On Update requests, return SUCCESS to prevent CloudFormation rollback deadlock.
+    // Returning FAILED from Update during rollback causes UPDATE_ROLLBACK_FAILED.
+    if (RequestType === 'Update') {
+      console.log('Returning SUCCESS for Update to prevent rollback deadlock.');
+      return { Version: 'N/A', AliasName: aliasName, AliasArn: 'N/A', OptimizationStatus: 'Failed' };
+    }
+    throw err;
+  }
 };
 `;
   }

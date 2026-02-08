@@ -25,7 +25,17 @@ import {
     CustomResourceEvent,
     SnapStartActivationResult,
     SnapStartActivatorConfig,
+    _testable,
 } from '../src/snapstart-activator';
+
+// Mock sleep to avoid real delays in tests
+const originalSleep = _testable.sleep;
+beforeAll(() => {
+    _testable.sleep = jest.fn().mockResolvedValue(undefined);
+});
+afterAll(() => {
+    _testable.sleep = originalSleep;
+});
 
 // Mock AWS SDK
 const mockSend = jest.fn();
@@ -265,7 +275,7 @@ describe('snapstart-activator', () => {
                 expect(result.optimizationStatus).toBe('On');
             });
 
-            it('should throw error when snapshot creation fails', async () => {
+            it('should throw error when snapshot creation fails and no existing alias', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
                         return Promise.resolve({ Version: '1' });
@@ -277,14 +287,48 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
+                    if (command._type === 'GetAlias') {
+                        const error = new Error('Not found');
+                        (error as any).name = 'ResourceNotFoundException';
+                        return Promise.reject(error);
+                    }
                     return Promise.resolve({});
                 });
 
                 await expect(activateSnapStart(mockLambdaClient, functionName))
-                    .rejects.toThrow('SnapStart snapshot creation failed: Initialization error');
+                    .rejects.toThrow('SnapStart snapshot creation failed after 5 attempts: Initialization error');
             });
 
-            it('should include full StateReason in error message when State is Failed', async () => {
+            it('should fall back to existing alias when snapshot fails but alias exists', async () => {
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'PublishVersion') {
+                        return Promise.resolve({ Version: '1' });
+                    }
+                    if (command._type === 'GetFunctionConfiguration') {
+                        return Promise.resolve({
+                            State: 'Failed',
+                            StateReason: 'Initialization error',
+                            SnapStart: { OptimizationStatus: 'Off' },
+                        });
+                    }
+                    if (command._type === 'GetAlias') {
+                        return Promise.resolve({
+                            FunctionVersion: '7',
+                            AliasArn: `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:kata`,
+                        });
+                    }
+                    return Promise.resolve({});
+                });
+
+                const result = await activateSnapStart(mockLambdaClient, functionName);
+
+                expect(result.version).toBe('7');
+                expect(result.aliasName).toBe('kata');
+                expect(result.aliasArn).toContain(functionName);
+                expect(result.optimizationStatus).toBe('Preserved');
+            });
+
+            it('should include full StateReason in error message when State is Failed and no alias exists', async () => {
                 const stateReason = 'The function failed to initialize due to a runtime error in handler code';
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
@@ -297,6 +341,11 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
+                    if (command._type === 'GetAlias') {
+                        const error = new Error('Not found');
+                        (error as any).name = 'ResourceNotFoundException';
+                        return Promise.reject(error);
+                    }
                     return Promise.resolve({});
                 });
 
@@ -305,11 +354,11 @@ describe('snapstart-activator', () => {
                     fail('Expected activateSnapStart to throw');
                 } catch (e: any) {
                     expect(e).toBeInstanceOf(Error);
-                    expect(e.message).toBe(`SnapStart snapshot creation failed: ${stateReason}`);
+                    expect(e.message).toBe(`SnapStart snapshot creation failed after 5 attempts: ${stateReason}`);
                 }
             });
 
-            it('should use "Unknown" as StateReason fallback when StateReason is undefined', async () => {
+            it('should use "Unknown" as StateReason fallback when StateReason is undefined and no alias exists', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'PublishVersion') {
                         return Promise.resolve({ Version: '1' });
@@ -321,11 +370,16 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
+                    if (command._type === 'GetAlias') {
+                        const error = new Error('Not found');
+                        (error as any).name = 'ResourceNotFoundException';
+                        return Promise.reject(error);
+                    }
                     return Promise.resolve({});
                 });
 
                 await expect(activateSnapStart(mockLambdaClient, functionName))
-                    .rejects.toThrow('SnapStart snapshot creation failed: Unknown');
+                    .rejects.toThrow('SnapStart snapshot creation failed after 5 attempts: Unknown');
             });
         });
 
@@ -598,7 +652,7 @@ describe('snapstart-activator', () => {
         });
 
         describe('error handling', () => {
-            it('should return FAILED status on error', async () => {
+            it('should return FAILED status on error for Create request', async () => {
                 mockWaitUntilFunctionActiveV2.mockRejectedValue(new Error('Function not found'));
 
                 const response = await handler(baseEvent);
@@ -607,7 +661,23 @@ describe('snapstart-activator', () => {
                 expect(response.Reason).toContain('Function not found');
             });
 
-            it('should include error message in reason', async () => {
+            it('should return SUCCESS on error for Update request to prevent rollback deadlock', async () => {
+                mockWaitUntilFunctionActiveV2.mockRejectedValue(new Error('Access denied'));
+
+                const event: CustomResourceEvent = {
+                    ...baseEvent,
+                    RequestType: 'Update',
+                    PhysicalResourceId: 'test-function:snapstart:kata',
+                };
+
+                const response = await handler(event);
+
+                expect(response.Status).toBe('SUCCESS');
+                expect(response.Reason).toContain('non-blocking');
+                expect(response.Reason).toContain('Access denied');
+            });
+
+            it('should include error message in reason for Create request', async () => {
                 mockSend.mockRejectedValue(new Error('Access denied'));
 
                 const response = await handler(baseEvent);
@@ -644,7 +714,7 @@ describe('snapstart-activator', () => {
                 expect(response.Reason).toContain('test-function');
             });
 
-            it('should return FAILED with StateReason when snapshot creation fails', async () => {
+            it('should return FAILED with StateReason when snapshot creation fails and no alias exists', async () => {
                 const stateReason = 'Runtime.ImportModuleError: Unable to import module';
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'UpdateFunctionConfiguration') {
@@ -660,6 +730,11 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
+                    if (command._type === 'GetAlias') {
+                        const error = new Error('Not found');
+                        (error as any).name = 'ResourceNotFoundException';
+                        return Promise.reject(error);
+                    }
                     return Promise.resolve({});
                 });
 
@@ -668,6 +743,37 @@ describe('snapstart-activator', () => {
                 expect(response.Status).toBe('FAILED');
                 expect(response.Reason).toContain('SnapStart snapshot creation failed');
                 expect(response.Reason).toContain(stateReason);
+            });
+
+            it('should return SUCCESS with existing alias when snapshot fails but alias exists', async () => {
+                mockSend.mockImplementation((command: any) => {
+                    if (command._type === 'UpdateFunctionConfiguration') {
+                        return Promise.resolve({});
+                    }
+                    if (command._type === 'PublishVersion') {
+                        return Promise.resolve({ Version: '1' });
+                    }
+                    if (command._type === 'GetFunctionConfiguration') {
+                        return Promise.resolve({
+                            State: 'Failed',
+                            StateReason: 'Initialization error',
+                            SnapStart: { OptimizationStatus: 'Off' },
+                        });
+                    }
+                    if (command._type === 'GetAlias') {
+                        return Promise.resolve({
+                            FunctionVersion: '5',
+                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
+                        });
+                    }
+                    return Promise.resolve({});
+                });
+
+                const response = await handler(baseEvent);
+
+                expect(response.Status).toBe('SUCCESS');
+                expect(response.Data?.Version).toBe('5');
+                expect(response.Data?.OptimizationStatus).toBe('Preserved');
             });
         });
     });
