@@ -124,11 +124,11 @@ export class SnapStartActivator extends Construct {
     this.aliasName = props.aliasName ?? 'kata';
     const timeoutSeconds = props.snapshotTimeoutSeconds ?? 180;
 
-    // Create the provider function that will handle Custom Resource events
-    const providerFunction = this.createProviderFunction(timeoutSeconds);
-
-    // Grant permissions to manage the target function
-    this.grantPermissions(providerFunction, props.targetFunction);
+    // Create the provider function with permissions baked into its initial role policy.
+    // Using initialPolicy instead of addToRolePolicy ensures the IAM policy is created
+    // as part of the role itself, avoiding race conditions where CloudFormation invokes
+    // the Custom Resource before a separate inline policy resource is applied.
+    const providerFunction = this.createProviderFunction(timeoutSeconds, props.targetFunction);
 
     // Create the Custom Resource provider
     const provider = new Provider(this, 'Provider', {
@@ -157,10 +157,11 @@ export class SnapStartActivator extends Construct {
 
   /**
    * Creates the Lambda function that handles Custom Resource events.
+   * Permissions are passed via initialPolicy to ensure they are part of the
+   * role creation (not a separate AWS::IAM::Policy resource), preventing
+   * IAM propagation race conditions.
    */
-  private createProviderFunction(timeoutSeconds: number): LambdaFunction {
-    // The handler code is bundled with the CDK package
-    // We use inline code to avoid external dependencies
+  private createProviderFunction(timeoutSeconds: number, targetFunction: IFunction): LambdaFunction {
     const handlerCode = this.generateHandlerCode();
 
     const fn = new LambdaFunction(this, 'Handler', {
@@ -170,33 +171,27 @@ export class SnapStartActivator extends Construct {
       timeout: Duration.seconds(timeoutSeconds + 60), // Extra time for setup/teardown
       description: 'Lambda Kata SnapStart Activator - Custom Resource Handler',
       memorySize: 256,
+      initialPolicy: [
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: [
+            'lambda:GetFunction',
+            'lambda:GetFunctionConfiguration',
+            'lambda:UpdateFunctionConfiguration',
+            'lambda:PublishVersion',
+            'lambda:GetAlias',
+            'lambda:CreateAlias',
+            'lambda:UpdateAlias',
+          ],
+          resources: [
+            targetFunction.functionArn,
+            `${targetFunction.functionArn}:*`,
+          ],
+        }),
+      ],
     });
 
     return fn;
-  }
-
-  /**
-   * Grants necessary permissions to the provider function.
-   */
-  private grantPermissions(providerFunction: LambdaFunction, targetFunction: IFunction): void {
-    // Permission to manage the target function's configuration
-    // lambda:GetFunction is required by waitUntilFunctionActiveV2 waiter
-    providerFunction.addToRolePolicy(new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: [
-        'lambda:GetFunction',
-        'lambda:GetFunctionConfiguration',
-        'lambda:UpdateFunctionConfiguration',
-        'lambda:PublishVersion',
-        'lambda:GetAlias',
-        'lambda:CreateAlias',
-        'lambda:UpdateAlias',
-      ],
-      resources: [
-        targetFunction.functionArn,
-        `${targetFunction.functionArn}:*`,
-      ],
-    }));
   }
 
   /**
