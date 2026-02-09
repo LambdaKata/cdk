@@ -68,7 +68,7 @@ export interface LicensingResponse {
    * Full Lambda Layer Version ARN (with version number).
    * This is the ARN that should be used when attaching layers to Lambda functions.
    * Only present if the account is entitled.
-   * 
+   *
    * @example "arn:aws:lambda:eu-central-1:113258654684:layer:lambda-kata-euc:1"
    */
   layerVersionArn?: string;
@@ -112,7 +112,7 @@ export interface TransformationConfig {
 
   /**
    * The handler path for the Lambda Kata runtime.
-   * Always "lambdakata.optimized_handler.lambda_handler"
+   * Always "handler.lambda_handler"
    */
   targetHandler: string;
 

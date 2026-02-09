@@ -201,6 +201,85 @@ describe('kata-wrapper', () => {
     });
 
     /**
+     * **Validates: Inline Python code replacement**
+     * THE kata_Wrapper SHALL replace the Lambda code with inline Python code
+     * that imports the optimized handler from the Lambda Kata Layer.
+     */
+    describe('Inline Python code replacement', () => {
+      it('should replace Lambda code with inline Python handler', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const cfnFunction = lambda.node.defaultChild as CfnFunction;
+        const code = cfnFunction.code as { zipFile?: string };
+
+        expect(code.zipFile).toBeDefined();
+        expect(code.zipFile).toContain('from lambdakata.optimized_handler import lambda_handler');
+        expect(code.zipFile).toContain('Lambda that uses Lambda Kata Layer');
+      });
+
+      it('should use ZipFile format for inline code', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        // Verify CloudFormation template uses ZipFile
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          Code: {
+            ZipFile: Match.stringLikeRegexp('from lambdakata\\.optimized_handler import lambda_handler'),
+          },
+        });
+      });
+
+      it('should replace original Node.js code with Python import', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          runtime: Runtime.NODEJS_18_X,
+        });
+
+        // Verify original code is Node.js
+        const cfnFunctionBefore = lambda.node.defaultChild as CfnFunction;
+        const codeBefore = cfnFunctionBefore.code as { zipFile?: string };
+        expect(codeBefore.zipFile).toContain('exports.handler');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        // Verify code is now Python
+        const cfnFunctionAfter = lambda.node.defaultChild as CfnFunction;
+        const codeAfter = cfnFunctionAfter.code as { zipFile?: string };
+        expect(codeAfter.zipFile).not.toContain('exports.handler');
+        expect(codeAfter.zipFile).toContain('from lambdakata.optimized_handler import lambda_handler');
+      });
+    });
+
+    /**
      * **Validates: Requirement 2.4**
      * THE kata_Wrapper SHALL attach the customer-specific Lambda_Layer ARN to the Lambda
      */
