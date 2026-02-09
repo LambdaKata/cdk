@@ -129,7 +129,7 @@ export class MiddlewareExampleStack extends Stack {
         //
         // AFTER kata():
         //   - Runtime: python3.12
-        //   - Handler: lambdakata.optimized_handler.lambda_handler
+        //   - Handler: handler.lambda_handler
         //   - Layers: [KataConfigLayer (with middleware.js), LambdaKataLayer]
         //   - Config: {
         //       original_js_handler: "index.handler",

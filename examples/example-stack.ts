@@ -31,7 +31,7 @@
  *
  * 2. **Runtime Transformation**: The `kata()` wrapper transforms your Lambda:
  *    - Runtime: Node.js → Python 3.12
- *    - Handler: Your handler → `lambdakata.optimized_handler.lambda_handler`
+ *    - Handler: Your handler → `handler.lambda_handler`
  *
  * 3. **Layer Provides the Handler**: The Lambda Kata Layer (attached automatically)
  *    contains the Python handler at `/opt/python/lambdakata/optimized_handler.py`.
@@ -146,7 +146,7 @@ export class ExampleLambdaKataStack extends Stack {
         //
         // AFTER kata() (if licensed):
         //   - Runtime: python3.12
-        //   - Handler: lambdakata.optimized_handler.lambda_handler
+        //   - Handler: handler.lambda_handler
         //   - Layers: [arn:aws:lambda:REGION:ACCOUNT:layer:lambda-kata:VERSION, config-layer]
         //   - SnapStart: { ApplyOn: 'PublishedVersions' }  // Automatically enabled!
         //   - Environment: {

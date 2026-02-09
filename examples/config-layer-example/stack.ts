@@ -31,7 +31,7 @@
  * 1. A config layer is created with your original handler path
  * 2. The config layer is attached to your Lambda
  * 3. Runtime is changed to Python 3.12
- * 4. Handler is set to lambdakata.optimized_handler.lambda_handler
+ * 4. Handler is set to handler.lambda_handler
  * 5. Lambda Kata Layer is attached
  * 6. No Lambda Kata-specific environment variables are added
  *
@@ -128,7 +128,7 @@ export class ConfigLayerExampleStack extends Stack {
         //
         // AFTER kata():
         //   - Runtime: python3.12
-        //   - Handler: lambdakata.optimized_handler.lambda_handler
+        //   - Handler: handler.lambda_handler
         //   - Layers: [KataConfigLayer, LambdaKataLayer]
         //   - Environment: {
         //       LOG_LEVEL: 'DEBUG',           // Original preserved

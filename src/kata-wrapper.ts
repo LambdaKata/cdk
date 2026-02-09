@@ -26,9 +26,10 @@
  */
 
 import { Construct } from 'constructs';
-import { Annotations, Stack, Token } from 'aws-cdk-lib';
-import { Alias, Architecture, CfnFunction, Code, CodeConfig, Function as LambdaFunction, LayerVersion, Runtime, Version } from 'aws-cdk-lib/aws-lambda';
+import { Annotations, CfnResource, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
+import { Architecture, CfnFunction, Code, CodeConfig, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { LogRetention, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { promises as fs } from 'fs';
@@ -39,6 +40,7 @@ import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver';
 import { createKataConfigLayer } from './config-layer';
+import { SnapStartActivator } from './snapstart-construct';
 
 // Import native licensing service for synchronous validation
 import { LicensingService as NativeLicensingServiceInterface, NativeLicensingService } from '@lambda-kata/licensing';
@@ -605,6 +607,58 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
 }
 
 /**
+ * Lambda task root directory where function code is deployed.
+ * This is the standard AWS Lambda directory for function code.
+ *
+ * @deprecated C-lang Lambda Kata makes its own decision for either absolute or relative path
+ */
+// const LAMBDA_TASK_ROOT = '/var/task';
+
+/**
+ * Extracts the bundle path from a Lambda handler string.
+ *
+ * The handler format is "<module>.<function>" or "<path/module>.<function>".
+ * This function extracts the module path, appends ".js" extension,
+ * and prepends the Lambda task root directory (/var/task).
+ *
+ * @param handler - The Lambda handler string (e.g., "index.handler", "src/app.myHandler")
+ * @returns The absolute bundle path in Lambda environment (e.g., "/var/task/index.js")
+ *
+ * @example
+ * extractBundlePathFromHandler("index.handler") // => "/var/task/index.js"
+ * extractBundlePathFromHandler("src/app.myHandler") // => "/var/task/src/app.js"
+ * extractBundlePathFromHandler("dist/handlers/api.handler") // => "/var/task/dist/handlers/api.js"
+ *
+ * @internal
+ */
+export function extractBundlePathFromHandler(handler: string): string {
+  if (!handler || handler.trim() === '') {
+    return `index.js`;
+  }
+
+  // Handler format: "<module>.<function>" or "<path/module>.<function>"
+  // The last dot separates the module path from the function name
+  const lastDotIndex = handler.lastIndexOf('.');
+
+  if (lastDotIndex === -1) {
+    // No dot found - treat entire string as module name
+    return `${handler}.js`;
+  }
+
+  // Extract module path (everything before the last dot)
+  const modulePath = handler.substring(0, lastDotIndex);
+
+  if (modulePath === '') {
+    // Handler starts with dot (e.g., ".handler") - invalid, use default
+    return `index.js`;
+  }
+
+  return `${modulePath}.js`;
+}
+
+
+
+/**
  * Gets the original runtime from a Lambda function before transformation.
  *
  * @param lambda - The Lambda function
@@ -669,8 +723,8 @@ export function getLambdaArchitecture(lambda: NodejsFunction | LambdaFunction): 
  * @param originalRuntime - The original Node.js runtime (e.g., "nodejs20.x")
  * @param architecture - The target architecture ("x86_64" or "arm64")
  * @returns The created LayerVersion construct
- * 
- * @future: 
+ *
+ * @future:
  * - Add support for custom Node.js runtimes for Enterprise
  *
  * @internal
@@ -753,7 +807,7 @@ function createNodejsRuntimeLayer(
  * @remarks
  * Validates: Requirements 2.2, 2.3, 2.4, 3.3, 3.4, 4.1, 4.2, 5.4
  * - 2.2: THE kata_Wrapper SHALL change the Lambda runtime from Node.js to Python 3.12
- * - 2.3: THE kata_Wrapper SHALL set the Lambda handler to `lambdakata.optimized_handler.lambda_handler`
+ * - 2.3: THE kata_Wrapper SHALL set the Lambda handler to `handler.lambda_handler`
  * - 2.4: THE kata_Wrapper SHALL attach the customer-specific Lambda_Layer ARN to the Lambda
  * - 3.3: THE kata_Wrapper SHALL attach the Config_Layer to the transformed Lambda
  * - 3.4: THE kata_Wrapper SHALL NOT set the `JS_HANDLER_PATH` environment variable
@@ -763,10 +817,90 @@ function createNodejsRuntimeLayer(
  *
  * @internal
  */
+
+/**
+ * Replaces CDK-managed LogGroup with a safe LogRetention Custom Resource.
+ *
+ * When the CDK feature flag `@aws-cdk/aws-lambda:useCdkManagedLogGroup` is enabled
+ * (default in new CDK projects), CDK creates a direct `AWS::Logs::LogGroup` resource
+ * for each Lambda function. This causes `AlreadyExists` errors on redeployment when
+ * the LogGroup was previously created by AWS automatically (outside CloudFormation).
+ *
+ * This function detects the CDK-managed LogGroup, removes it from the construct tree,
+ * and replaces it with a `LogRetention` Custom Resource that safely handles the
+ * `ResourceAlreadyExistsException` case — it calls `createLogGroup` and catches the
+ * exception if the group already exists.
+ *
+ * @param lambda - The Lambda function whose LogGroup should be made safe
+ *
+ * @remarks
+ * - Only acts when CDK feature flag created a LogGroup child with construct ID "LogGroup"
+ * - No-op when the user explicitly provided `logGroup` or `logRetention` props
+ * - No-op when the feature flag is disabled (no "LogGroup" child exists)
+ * - The LogRetention resource uses INFINITE retention to match CDK default behavior
+ *
+ * @internal
+ */
+function ensureSafeLogGroup(lambda: NodejsFunction | LambdaFunction): void {
+  // CDK feature flag `@aws-cdk/aws-lambda:useCdkManagedLogGroup` creates a child
+  // construct with ID "LogGroup" of type `AWS::Logs::LogGroup`. This direct CFN
+  // resource fails with AlreadyExists if the LogGroup was previously created by AWS
+  // automatically (e.g., on first Lambda invocation outside CloudFormation).
+  //
+  // We detect this specific child, remove it, and replace with LogRetention which
+  // uses a Custom Resource handler that catches ResourceAlreadyExistsException.
+  const logGroupChild = lambda.node.tryFindChild('LogGroup');
+  if (!logGroupChild) {
+    // No CDK-managed LogGroup — either feature flag is off, or user provided
+    // their own logGroup/logRetention. Nothing to do.
+    return;
+  }
+
+  // Verify this is actually a CDK-managed LogGroup (AWS::Logs::LogGroup CfnResource)
+  // by checking for the "Resource" child which is the CfnLogGroup.
+  // LogGroup construct creates a CfnLogGroup as its default child with ID "Resource".
+  const cfnLogGroup = logGroupChild.node.tryFindChild('Resource');
+  if (!cfnLogGroup || !(cfnLogGroup instanceof CfnResource)) {
+    // Not the expected structure — don't touch it
+    return;
+  }
+
+  // Verify it's actually an AWS::Logs::LogGroup resource
+  if ((cfnLogGroup as CfnResource).cfnResourceType !== 'AWS::Logs::LogGroup') {
+    return;
+  }
+
+  // Remove the CDK-managed LogGroup from the construct tree.
+  // This prevents CloudFormation from creating a direct AWS::Logs::LogGroup
+  // resource that would fail with AlreadyExists.
+  const removed = lambda.node.tryRemoveChild('LogGroup');
+  if (!removed) {
+    // Defensive: if removal failed, don't create a duplicate LogRetention
+    console.warn('[Lambda Kata] Failed to remove CDK-managed LogGroup from construct tree');
+    return;
+  }
+
+  // Replace with LogRetention Custom Resource.
+  // LogRetention's handler calls createLogGroup and catches
+  // ResourceAlreadyExistsException, making it safe for redeployment.
+  // Uses INFINITE retention to match CDK's default LogGroup behavior
+  // (no expiration policy = logs kept forever).
+  new LogRetention(lambda, 'KataLogRetention', {
+    logGroupName: `/aws/lambda/${lambda.functionName}`,
+    retention: RetentionDays.INFINITE,
+  });
+}
+
 export function applyTransformation(
   lambda: NodejsFunction | LambdaFunction,
   config: TransformationConfig,
 ): void {
+  // 0. Replace CDK-managed LogGroup with safe LogRetention Custom Resource.
+  // This MUST happen before any other transformation to prevent AlreadyExists
+  // errors on redeployment when the feature flag
+  // @aws-cdk/aws-lambda:useCdkManagedLogGroup is enabled.
+  ensureSafeLogGroup(lambda);
+
   // 1. Use CDK escape hatch to modify runtime and handler FIRST
   // Runtime and handler are immutable after construction, so we need to
   // access the underlying CloudFormation resource
@@ -779,40 +913,45 @@ export function applyTransformation(
   // 3. Set handler to Lambda Kata handler (Requirement 2.3)
   cfnFunction.handler = config.targetHandler;
 
-  // 4. Enable SnapStart for near-zero cold start times
-  // SnapStart is supported on Python 3.12+ and creates a snapshot of the
-  // initialized execution environment when publishing a function version.
-  // This dramatically reduces cold start latency for Lambda Kata functions.
-  cfnFunction.snapStart = {
-    applyOn: 'PublishedVersions',
-  };
+  // 3.1. Ensure minimum memory size for Lambda Kata runtime
+  // Lambda Kata requires at least 512MB to function properly.
+  // If original Lambda has more, preserve that value.
+  const LAMBDA_KATA_MIN_MEMORY_MB = 512;
+  const currentMemory = cfnFunction.memorySize ?? 128; // CDK default is 128MB
+  if (currentMemory < LAMBDA_KATA_MIN_MEMORY_MB) {
+    cfnFunction.memorySize = LAMBDA_KATA_MIN_MEMORY_MB;
+    console.log(`[Lambda Kata] Memory size increased from ${currentMemory}MB to ${LAMBDA_KATA_MIN_MEMORY_MB}MB (minimum required)`);
+  }
 
-  // 5. Create a published version and 'kata' alias for SnapStart activation
-  // SnapStart only works with published versions, not $LATEST.
-  // The alias provides a stable endpoint for invocations.
-  const version = new Version(lambda, 'KataVersion', {
-    lambda: lambda,
-    description: 'Lambda Kata optimized version with SnapStart',
-  });
-
-  new Alias(lambda, 'KataAlias', {
+  // 4. SnapStart activation via Custom Resource
+  // SnapStart requires asynchronous waiting for snapshot creation, which cannot
+  // be done during CDK synthesis. We use a Custom Resource that runs after
+  // the Lambda function is deployed to:
+  // 1. Enable SnapStart configuration
+  // 2. Wait for configuration update
+  // 3. Publish a new version (triggers snapshot creation)
+  // 4. Wait for snapshot to be ready (up to 3 minutes)
+  // 5. Create/update 'kata' alias pointing to the new version
+  new SnapStartActivator(lambda, 'SnapStartActivator', {
+    targetFunction: lambda,
     aliasName: 'kata',
-    version: version,
-    description: 'Lambda Kata alias pointer', // Lambda Kata alias pointing to SnapStart-enabled version
+    snapshotTimeoutSeconds: 180,
   });
 
-  // 6. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
+  // 5. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
   // This replaces the JS_HANDLER_PATH environment variable approach
   // Also includes bundlePath and middlewarePath when provided
+  // If bundlePath is not explicitly provided, extract it from originalHandler
+  const effectiveBundlePath = config.bundlePath ?? extractBundlePathFromHandler(config.originalHandler);
   const configLayer = createKataConfigLayer(lambda, 'KataConfigLayer', {
     originalHandler: config.originalHandler,
-    bundlePath: config.bundlePath,
+    bundlePath: effectiveBundlePath,
     middlewarePath: config.middlewarePath,
     handlerResolver: config.handlerResolver,
   });
   lambda.addLayers(configLayer);
 
-  // 7. Attach the Lambda Kata Layer (Requirement 2.4)
+  // 6. Attach the Lambda Kata Layer (Requirement 2.4)
   const layer = LayerVersion.fromLayerVersionArn(
     lambda,
     'LambdaKataLayer',

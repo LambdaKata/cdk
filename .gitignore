@@ -30,3 +30,5 @@ Thumbs.db
 
 # CDK
 cdk.out/
+
+sandbox/

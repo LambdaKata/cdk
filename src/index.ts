@@ -75,9 +75,22 @@ export {
   handleUnlicensed,
   isKataTransformed,
   getKataPromise,
+  extractBundlePathFromHandler,
   KataWrapperOptions,
   KataResult,
 } from './kata-wrapper';
+
+// SnapStart activation exports
+export {
+  SnapStartActivator,
+  SnapStartActivatorProps,
+} from './snapstart-construct';
+
+export {
+  activateSnapStart,
+  SnapStartActivationResult,
+  SnapStartActivatorConfig,
+} from './snapstart-activator';
 
 // Config layer exports
 export {
