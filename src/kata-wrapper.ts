@@ -49,8 +49,7 @@ import { LicensingService as NativeLicensingServiceInterface, NativeLicensingSer
  * Default handler path for the Lambda Kata runtime.
  * This handler is provided by the Lambda Kata Layer.
  */
-// const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
-const LAMBDA_KATA_HANDLER = 'handler.lambda_handler';
+const LAMBDA_KATA_HANDLER = 'lambdakata.optimized_handler.lambda_handler';
 
 /**
  * Custom S3 Code implementation that doesn't emit the objectVersion warning.
@@ -913,15 +912,6 @@ export function applyTransformation(
 
   // 3. Set handler to Lambda Kata handler (Requirement 2.3)
   cfnFunction.handler = config.targetHandler;
-
-  // 3.1. Replace Lambda code with inline Python handler that imports from Lambda Kata Layer
-  // The original Node.js code is preserved in the config layer and loaded by the Lambda Kata runtime.
-  // This inline code simply imports and re-exports the optimized handler from the layer.
-  cfnFunction.code = {
-    zipFile: `"""Lambda that uses Lambda Kata Layer. Handler: handler.lambda_handler"""
-from lambdakata.optimized_handler import lambda_handler
-`,
-  };
 
   // 4. SnapStart activation via Custom Resource
   // SnapStart requires asynchronous waiting for snapshot creation, which cannot
