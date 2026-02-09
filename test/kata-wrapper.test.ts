@@ -802,6 +802,69 @@ describe('kata-wrapper', () => {
         });
       });
 
+      it('should increase memory size to 512MB minimum when below threshold', () => {
+        const { stack } = createTestStack();
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          memorySize: 128, // CDK default
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          MemorySize: 512, // Should be increased to minimum
+        });
+      });
+
+      it('should preserve memory size when above 512MB minimum', () => {
+        const { stack } = createTestStack();
+        const memorySize = 1024;
+        const lambda = createTestLambda(stack, 'TestFunction', {
+          memorySize,
+        });
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          MemorySize: memorySize, // Should preserve original
+        });
+      });
+
+      it('should increase memory size to 512MB when no memory specified (CDK default 128MB)', () => {
+        const { stack } = createTestStack();
+        // No memorySize specified - CDK defaults to 128MB
+        const lambda = createTestLambda(stack, 'TestFunction');
+
+        const config: TransformationConfig = {
+          originalHandler: 'index.handler',
+          targetRuntime: Runtime.PYTHON_3_12,
+          targetHandler: 'lambdakata.optimized_handler.lambda_handler',
+          layerArn: 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1',
+        };
+
+        applyTransformation(lambda, config);
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Lambda::Function', {
+          MemorySize: 512, // Should be increased to minimum
+        });
+      });
+
       it('should preserve function logical ID', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'MySpecialFunction');

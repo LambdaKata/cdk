@@ -913,6 +913,16 @@ export function applyTransformation(
   // 3. Set handler to Lambda Kata handler (Requirement 2.3)
   cfnFunction.handler = config.targetHandler;
 
+  // 3.1. Ensure minimum memory size for Lambda Kata runtime
+  // Lambda Kata requires at least 512MB to function properly.
+  // If original Lambda has more, preserve that value.
+  const LAMBDA_KATA_MIN_MEMORY_MB = 512;
+  const currentMemory = cfnFunction.memorySize ?? 128; // CDK default is 128MB
+  if (currentMemory < LAMBDA_KATA_MIN_MEMORY_MB) {
+    cfnFunction.memorySize = LAMBDA_KATA_MIN_MEMORY_MB;
+    console.log(`[Lambda Kata] Memory size increased from ${currentMemory}MB to ${LAMBDA_KATA_MIN_MEMORY_MB}MB (minimum required)`);
+  }
+
   // 4. SnapStart activation via Custom Resource
   // SnapStart requires asynchronous waiting for snapshot creation, which cannot
   // be done during CDK synthesis. We use a Custom Resource that runs after
