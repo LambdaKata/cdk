@@ -5,7 +5,8 @@
   "main": "out/dist/index.js",
   "types": "out/tsc/src/index.d.ts",
   "scripts": {
-    "build": "rm -rf ./dist && rm -rf ./out && rm -rf ./lib && yarn run build:cdk && yarn run types",
+    "build": "rm -rf ./dist && rm -rf ./out && rm -rf ./lib && yarn run build:cdk && yarn run build:snapstart && yarn run types",
+    "build:snapstart": "yarn run build:config && node dist/utils/build.js --target=snapstartHandler",
     "types": "tsc --emitDeclarationOnly && tsc-alias",
     "build:cdk": "yarn run build:config && node dist/utils/build.js --target=cdk",
     "build:minify": "yarn run build:config && node dist/utils/build.js",

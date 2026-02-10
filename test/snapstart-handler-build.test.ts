@@ -221,7 +221,7 @@ describe('Property 4: Handler Bundle Exports', () => {
                     return true;
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
@@ -261,7 +261,7 @@ describe('Property 4: Handler Bundle Exports', () => {
                     return true;
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
@@ -295,7 +295,7 @@ describe('Property 4: Handler Bundle Exports', () => {
                     return true;
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 
@@ -346,7 +346,7 @@ describe('Property 4: Handler Bundle Exports', () => {
                     return true;
                 }
             ),
-            { numRuns: 15 }
+            { numRuns: 100 }
         );
     });
 });
