@@ -20,6 +20,7 @@
  * @module snapstart-construct
  */
 
+import * as path from 'path';
 import { Construct } from 'constructs';
 import { CustomResource, Duration } from 'aws-cdk-lib';
 import { Function as LambdaFunction, Runtime, Code, IFunction } from 'aws-cdk-lib/aws-lambda';
@@ -161,12 +162,18 @@ export class SnapStartActivator extends Construct {
    * IAM propagation race conditions.
    */
   private createProviderFunction(timeoutSeconds: number, targetFunction: IFunction): LambdaFunction {
-    const handlerCode = this.generateHandlerCode();
+    // Resolve path to bundled handler directory
+    // __dirname in npm package: node_modules/@lambda-kata/cdk/out/dist/
+    // Handler location: node_modules/@lambda-kata/cdk/out/dist/snapstart-handler.js
+    const handlerDir = path.join(__dirname);
 
     const fn = new LambdaFunction(this, 'Handler', {
       runtime: Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: Code.fromInline(handlerCode),
+      handler: 'snapstart-handler.handler',
+      code: Code.fromAsset(handlerDir, {
+        // Only include the handler file, not the entire dist directory
+        exclude: ['*', '!snapstart-handler.js'],
+      }),
       timeout: Duration.seconds(timeoutSeconds + 60), // Extra time for setup/teardown
       description: 'Lambda Kata SnapStart Activator - Custom Resource Handler',
       memorySize: 256,
@@ -193,205 +200,4 @@ export class SnapStartActivator extends Construct {
     return fn;
   }
 
-  /**
-   * Generates the inline handler code for the Custom Resource.
-   *
-   * This is a self-contained version of the snapstart-activator logic
-   * that can be deployed as inline Lambda code.
-   */
-  private generateHandlerCode(): string {
-    return `
-const { LambdaClient, UpdateFunctionConfigurationCommand, PublishVersionCommand,
-        GetFunctionConfigurationCommand, CreateAliasCommand, UpdateAliasCommand,
-        GetAliasCommand, waitUntilFunctionUpdatedV2, waitUntilFunctionActiveV2 } = require('@aws-sdk/client-lambda');
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-exports.handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
-  
-  const { RequestType, ResourceProperties } = event;
-  const functionName = ResourceProperties.FunctionName;
-  const aliasName = ResourceProperties.AliasName || 'kata';
-  
-  if (RequestType === 'Delete') {
-    console.log('Delete request - no action needed');
-    return { Version: 'N/A', AliasName: aliasName, AliasArn: 'N/A', OptimizationStatus: 'N/A' };
-  }
-  
-  try {
-  const client = new LambdaClient({});
-  const snapshotTimeoutSeconds = parseInt(ResourceProperties.SnapshotTimeoutSeconds || '180', 10);
-  const pollingInterval = 2000;
-  const maxAttempts = Math.ceil((snapshotTimeoutSeconds * 1000) / pollingInterval);
-  const MAX_PUBLISH_RETRIES = 5;
-  const RETRY_DELAY_MS = 15000;
-  const PRE_PUBLISH_DELAY_MS = 3000;
-  
-  console.log('='.repeat(60));
-  console.log('SNAPSTART ACTIVATION CYCLE');
-  console.log('='.repeat(60));
-  
-  // Step 0: Wait for function to be Active
-  console.log('[0/5] Ensuring function is Active...');
-  await waitUntilFunctionActiveV2({ client, maxWaitTime: 60 }, { FunctionName: functionName });
-  console.log('      Function is Active');
-  
-  // Step 1: Enable SnapStart
-  console.log('[1/5] Enabling SnapStart...');
-  await client.send(new UpdateFunctionConfigurationCommand({
-    FunctionName: functionName,
-    SnapStart: { ApplyOn: 'PublishedVersions' }
-  }));
-  
-  // Step 2: Wait for configuration update
-  console.log('[2/5] Waiting for configuration update...');
-  await waitUntilFunctionUpdatedV2({ client, maxWaitTime: 120 }, { FunctionName: functionName });
-  console.log('      Configuration updated');
-  
-  // Pre-publish delay: mitigate eventual consistency
-  console.log('      Waiting ' + (PRE_PUBLISH_DELAY_MS / 1000) + 's for configuration propagation...');
-  await sleep(PRE_PUBLISH_DELAY_MS);
-  
-  // Steps 3+4: Publish version and wait for snapshot (WITH RETRY)
-  let version;
-  let optimizationStatus = 'Unknown';
-  let state = 'Unknown';
-  let lastFailReason = '';
-  
-  for (let publishAttempt = 1; publishAttempt <= MAX_PUBLISH_RETRIES; publishAttempt++) {
-    // Step 3: Publish version
-    console.log('[3/5] Publishing new version (attempt ' + publishAttempt + '/' + MAX_PUBLISH_RETRIES + ')...');
-    
-    // Before re-publish, ensure function is ready
-    if (publishAttempt > 1) {
-      console.log('      Waiting ' + (RETRY_DELAY_MS / 1000) + 's before retry...');
-      await sleep(RETRY_DELAY_MS);
-      console.log('      Ensuring function is Active before re-publish...');
-      await waitUntilFunctionActiveV2({ client, maxWaitTime: 60 }, { FunctionName: functionName });
-      // Force a config update so PublishVersion creates a genuinely new version.
-      // Without this, PublishVersion returns the same (Failed) version number
-      // because Lambda deduplicates identical configurations.
-      console.log('      Re-applying SnapStart config to force new version...');
-      await client.send(new UpdateFunctionConfigurationCommand({
-        FunctionName: functionName,
-        SnapStart: { ApplyOn: 'PublishedVersions' }
-      }));
-      await waitUntilFunctionUpdatedV2({ client, maxWaitTime: 120 }, { FunctionName: functionName });
-      console.log('      Waiting ' + (PRE_PUBLISH_DELAY_MS / 1000) + 's for configuration propagation...');
-      await sleep(PRE_PUBLISH_DELAY_MS);
-    }
-    
-    const publishResponse = await client.send(new PublishVersionCommand({
-      FunctionName: functionName,
-      Description: 'SnapStart enabled - ' + new Date().toISOString() + ' (attempt ' + publishAttempt + ')'
-    }));
-    version = publishResponse.Version;
-    console.log('      Published version:', version);
-    
-    // Step 4: Wait for snapshot
-    console.log('[4/5] Waiting for snapshot creation...');
-    state = 'Unknown';
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      const config = await client.send(new GetFunctionConfigurationCommand({
-        FunctionName: functionName,
-        Qualifier: version
-      }));
-      
-      optimizationStatus = config.SnapStart?.OptimizationStatus || 'Unknown';
-      state = config.State || 'Unknown';
-      
-      if (state === 'Active') {
-        console.log('      Snapshot ready! Status:', optimizationStatus);
-        break;
-      } else if (state === 'Failed') {
-        lastFailReason = config.StateReason || 'Unknown';
-        console.log('      Snapshot creation failed:', lastFailReason);
-        break;
-      }
-      
-      if (i % 10 === 0) console.log('      Creating snapshot... State:', state, '(' + (i * 2) + 's)');
-      await sleep(pollingInterval);
-    }
-    
-    // If snapshot succeeded, break out of retry loop
-    if (state === 'Active') {
-      break;
-    }
-    
-    // Only retry on Failed state — timeout (Pending) should not retry
-    if (state !== 'Failed') {
-      break;
-    }
-    
-    // If failed and we have retries left, log and continue
-    if (publishAttempt < MAX_PUBLISH_RETRIES) {
-      console.log('      Snapshot failed on attempt ' + publishAttempt + ', will retry with new version...');
-      console.log('      Reason:', lastFailReason);
-    }
-  }
-  
-  // After all retries, check final state
-  if (state === 'Failed') {
-    console.log('      All ' + MAX_PUBLISH_RETRIES + ' snapshot attempts failed.');
-    console.log('      Reason:', lastFailReason);
-    console.log('');
-    console.log('      [Lambda Kata] SnapStart optimization failed. Alias will be created pointing');
-    console.log('      to the latest version. Function remains operational without SnapStart.');
-    console.log('      Review CloudWatch logs for initialization errors.');
-  }
-  
-  if (state !== 'Active' && state !== 'Failed') {
-    console.log('      Warning: Snapshot creation timeout. Final state:', state);
-  }
-  
-  // Step 5: Create/update alias
-  console.log('[5/5] Creating/updating alias...');
-  let aliasArn;
-  
-  try {
-    await client.send(new GetAliasCommand({ FunctionName: functionName, Name: aliasName }));
-    const updateResp = await client.send(new UpdateAliasCommand({
-      FunctionName: functionName,
-      Name: aliasName,
-      FunctionVersion: version,
-      Description: 'Lambda Kata SnapStart-enabled version'
-    }));
-    aliasArn = updateResp.AliasArn;
-    console.log('      Updated alias:', aliasArn);
-  } catch (e) {
-    if (e.name === 'ResourceNotFoundException') {
-      const createResp = await client.send(new CreateAliasCommand({
-        FunctionName: functionName,
-        Name: aliasName,
-        FunctionVersion: version,
-        Description: 'Lambda Kata SnapStart-enabled version'
-      }));
-      aliasArn = createResp.AliasArn;
-      console.log('      Created alias:', aliasArn);
-    } else {
-      throw e;
-    }
-  }
-  
-  console.log('='.repeat(60));
-  console.log('SNAPSTART ACTIVATION COMPLETE');
-  console.log('='.repeat(60));
-  
-  return { Version: version, AliasName: aliasName, AliasArn: aliasArn, OptimizationStatus: optimizationStatus };
-  
-  } catch (err) {
-    console.error('SnapStart activation failed:', err.message || err);
-    // On Update requests, return SUCCESS to prevent CloudFormation rollback deadlock.
-    // Returning FAILED from Update during rollback causes UPDATE_ROLLBACK_FAILED.
-    if (RequestType === 'Update') {
-      console.log('Returning SUCCESS for Update to prevent rollback deadlock.');
-      return { Version: 'N/A', AliasName: aliasName, AliasArn: 'N/A', OptimizationStatus: 'Failed' };
-    }
-    throw err;
-  }
-};
-`;
-  }
 }
