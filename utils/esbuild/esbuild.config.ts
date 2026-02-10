@@ -297,27 +297,27 @@ export const builds: { [target: string]: RuntimeEsbuildOptions } = {
     minify: false,  // Keep readable for debugging
   },
   /**
-   * Bin module bundle (for NPM package export)
-   * Target: Node.js 18
-   * Externalizes: AWS SDK v3, CDK libs, Node builtins, build tools
-   * Provides: CloudFormation resolver and other bin utilities for programmatic use
+   * SnapStart Custom Resource Handler bundle
+   * Target: Node.js 18 for Lambda runtime
+   * Externalizes: All @aws-sdk/* packages (available in Lambda runtime)
+   * Entry: src/snapstart-activator.ts (CloudFormation Custom Resource handler)
+   * Output: out/dist/snapstart-handler.js (used by SnapStartActivator construct via Code.fromAsset)
+   *
+   * This handler is bundled at build time and deployed as a Lambda asset,
+   * replacing the previous inline code generation approach.
    */
-  bin: {
-    entryPoints: ['src/bin/index.ts'],
-    outfile: 'out/dist/bin/index.js',
+  snapstartHandler: {
+    entryPoints: ['src/snapstart-activator.ts'],
+    outfile: 'out/dist/snapstart-handler.js',
+    platform: 'node',
     bundle: true,
     treeShaking: true,
-    platform: 'node',
-    label: 'bin',
-    jsx: 'automatic',
-    external: [
-      ...awsSdkV3Externals,
-      ...cdkExternals,
-      ...nodeBuiltinExternals,
-      ...buildToolExternals,
-    ],
     format: 'cjs',
     target: ['node18'],
+    external: [
+      '@aws-sdk/*', // All AWS SDK v3 packages available in Lambda runtime
+    ],
+    label: 'SnapStart Handler',
     minify: true,
   },
   /**
