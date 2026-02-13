@@ -27,6 +27,42 @@ import { LicensingResponse } from './types';
 const DEFAULT_LICENSING_ENDPOINT = 'https://licensing.lambdakata.com/v1';
 
 /**
+ * Supported Node.js versions for licensing requests.
+ * Valid values: "18", "20", "22", "24"
+ */
+export type NodeVersion = '18' | '20' | '22' | '24';
+
+/**
+ * Supported architectures for licensing requests.
+ * Valid values: "x86_64", "arm64"
+ */
+export type LicenseArchitecture = 'x86_64' | 'arm64';
+
+/**
+ * Parameters for license entitlement check.
+ */
+export interface LicenseCheckParams {
+  /**
+   * AWS account ID (12-digit string)
+   */
+  accountId: string;
+
+  /**
+   * Node.js version number.
+   * Valid values: "18", "20", "22", "24"
+   * @default "20"
+   */
+  nodeVersion?: NodeVersion;
+
+  /**
+   * Lambda architecture.
+   * Valid values: "x86_64", "arm64"
+   * @default "x86_64"
+   */
+  architecture?: LicenseArchitecture;
+}
+
+/**
  * Interface for the Lambda Kata licensing service.
  *
  * Implementations of this interface are responsible for validating
@@ -35,9 +71,13 @@ const DEFAULT_LICENSING_ENDPOINT = 'https://licensing.lambdakata.com/v1';
  * @example
  * ```typescript
  * const licensingService = new HttpLicensingService();
- * const response = await licensingService.checkEntitlement('123456789012');
+ * const response = await licensingService.checkEntitlement({
+ *   accountId: '123456789012',
+ *   nodeVersion: '20',
+ *   architecture: 'x86_64'
+ * });
  * if (response.entitled) {
- *   console.log(`Layer ARN: ${response.layerArn}`);
+ *   console.log(`Layer ARN: ${response.layerVersionArn}`);
  * }
  * ```
  */
@@ -45,7 +85,8 @@ export interface LicensingService {
   /**
    * Check if an AWS account is entitled to use Lambda Kata.
    *
-   * @param accountId - The AWS account ID to check (12-digit string)
+   * @param params - License check parameters (accountId, nodeVersion, architecture)
+   *                 For backward compatibility, can also be just accountId string
    * @returns Promise resolving to entitlement status and Layer ARN if entitled
    *
    * @remarks
@@ -53,7 +94,7 @@ export interface LicensingService {
    * - If the account is not entitled, the response will have `entitled: false`
    * - Network errors are handled gracefully and treated as unlicensed (Requirement 6.5)
    */
-  checkEntitlement(accountId: string): Promise<LicensingResponse>;
+  checkEntitlement(params: LicenseCheckParams | string): Promise<LicensingResponse>;
 }
 
 /**
@@ -94,7 +135,7 @@ export class HttpLicensingService implements LicensingService {
    * AWS Marketplace entitlement. If the service is unreachable or returns
    * an error, the account is treated as unlicensed (Requirement 6.5).
    *
-   * @param accountId - The AWS account ID to check (12-digit string)
+   * @param params - License check parameters or accountId string for backward compatibility
    * @returns Promise resolving to entitlement status and Layer ARN if entitled
    *
    * @remarks
@@ -103,7 +144,14 @@ export class HttpLicensingService implements LicensingService {
    * - 3.3: Returns the customer-specific Layer_ARN if entitled
    * - 6.5: Treats unreachable service as unlicensed with appropriate warning
    */
-  async checkEntitlement(accountId: string): Promise<LicensingResponse> {
+  async checkEntitlement(params: LicenseCheckParams | string): Promise<LicensingResponse> {
+    // Normalize params for backward compatibility
+    const normalizedParams: LicenseCheckParams = typeof params === 'string'
+      ? { accountId: params }
+      : params;
+
+    const { accountId, nodeVersion, architecture } = normalizedParams;
+
     // Validate account ID format (12 digits)
     if (!isValidAccountId(accountId)) {
       return {
@@ -113,7 +161,7 @@ export class HttpLicensingService implements LicensingService {
     }
 
     try {
-      const response = await this.makeRequest(accountId);
+      const response = await this.makeRequest(accountId, nodeVersion, architecture);
       return response;
     } catch (error) {
       // Handle network errors gracefully - treat as unlicensed (Requirement 6.5)
@@ -129,11 +177,16 @@ export class HttpLicensingService implements LicensingService {
    * Makes the HTTP request to the licensing service.
    *
    * @param accountId - The AWS account ID to check
+   * @param nodeVersion - Optional Node.js version (defaults to "20")
+   * @param architecture - Optional architecture (defaults to "x86_64")
    * @returns Promise resolving to the licensing response
    * @throws Error if the request fails or times out
    */
-  private async makeRequest(accountId: string): Promise<LicensingResponse> {
-    // const url = `${this.endpoint}/entitlement/${accountId}`;
+  private async makeRequest(
+    accountId: string,
+    nodeVersion?: string,
+    architecture?: string,
+  ): Promise<LicensingResponse> {
     const url = `${this.endpoint}/license/check`;
 
     // Create abort controller for timeout
@@ -150,6 +203,9 @@ export class HttpLicensingService implements LicensingService {
         body: JSON.stringify({
           accountId,
           productCode: 'lambda-kata-runtime',
+          // Include runtime params; server defaults to "20" / "x86_64" if omitted
+          ...(nodeVersion && { nodeVersion }),
+          ...(architecture && { architecture }),
         }),
         signal: controller.signal,
       });

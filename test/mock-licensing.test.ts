@@ -108,6 +108,49 @@ describe('MockLicensingService', () => {
             expect(response.layerArn).toBe(layerArn);
         });
 
+        it('should accept LicenseCheckParams object with runtime parameters', async () => {
+            const accountId = '123456789012';
+            const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
+
+            mockService.setEntitled(accountId, layerArn);
+
+            const response = await mockService.checkEntitlement({
+                accountId,
+                nodeVersion: '22',
+                architecture: 'arm64',
+            });
+
+            expect(response.entitled).toBe(true);
+            expect(response.layerArn).toBe(layerArn);
+            expect(response.nodeVersion).toBe('22');
+            expect(response.architecture).toBe('arm64');
+        });
+
+        it('should use default nodeVersion and architecture when not provided', async () => {
+            const accountId = '123456789012';
+            const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
+
+            mockService.setEntitled(accountId, layerArn);
+
+            const response = await mockService.checkEntitlement({ accountId });
+
+            expect(response.entitled).toBe(true);
+            expect(response.nodeVersion).toBe('20');
+            expect(response.architecture).toBe('x86_64');
+        });
+
+        it('should accept string accountId for backward compatibility', async () => {
+            const accountId = '123456789012';
+            const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
+
+            mockService.setEntitled(accountId, layerArn);
+
+            const response = await mockService.checkEntitlement(accountId);
+
+            expect(response.entitled).toBe(true);
+            expect(response.layerArn).toBe(layerArn);
+        });
+
         it('should include expiresAt when set', async () => {
             const accountId = '123456789012';
             const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
