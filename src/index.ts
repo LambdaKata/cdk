@@ -36,6 +36,7 @@ export { KataProps, LicensingResponse, TransformationConfig } from './types';
 // Licensing service exports
 export {
   LicensingService,
+  LicenseCheckParams,
   HttpLicensingService,
   createLicensingService,
   isValidAccountId,
@@ -76,6 +77,7 @@ export {
   isKataTransformed,
   getKataPromise,
   extractBundlePathFromHandler,
+  extractNodeVersion,
   KataWrapperOptions,
   KataResult,
 } from './kata-wrapper';

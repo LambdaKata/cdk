@@ -86,8 +86,9 @@ class S3CodeWithoutWarning extends Code {
  * Node.js runtime version and architecture combination.
  */
 // const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-nodejs-layers';
-const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-layer-content-dev';
-const NODEJS_LAYER_S3_FOLDER_KEY = 'node-js-layers';
+// lambda-kata-website-product-layer-content-dev-eu-central-1
+const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-product-layer-content-dev';
+const NODEJS_LAYER_S3_FOLDER_KEY = 'nodejs_layers';
 
 /**
  * Mapping of Node.js runtime to S3 key prefix.
@@ -305,8 +306,17 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   // Get the licensing service
   const licensingService = props?.licensingService ?? createLicensingService(props?.licensingEndpoint);
 
-  // Check entitlement
-  const licensingResponse = await licensingService.checkEntitlement(accountId);
+  // Extract runtime parameters from Lambda function
+  const originalRuntime = getOriginalRuntime(lambda);
+  const nodeVersion = extractNodeVersion(originalRuntime);
+  const architecture = getLambdaArchitecture(lambda);
+
+  // Check entitlement with runtime parameters
+  const licensingResponse = await licensingService.checkEntitlement({
+    accountId,
+    nodeVersion,
+    architecture,
+  });
 
   // Handle the licensing response - distinguish 3 cases:
   // 1. entitled: true + layerVersionArn/layerArn → transform
@@ -670,6 +680,33 @@ export function getOriginalRuntime(lambda: NodejsFunction | LambdaFunction): str
   // Access the underlying CloudFormation resource to get the runtime
   const cfnFunction = lambda.node.defaultChild as CfnFunction;
   return cfnFunction.runtime ?? 'nodejs18.x';
+}
+
+/**
+ * Extracts the Node.js major version number from a runtime string.
+ *
+ * @param runtime - The runtime string (e.g., "nodejs20.x")
+ * @returns The major version number as NodeVersion type, or "20" as default
+ *
+ * @example
+ * extractNodeVersion("nodejs20.x") // => "20"
+ * extractNodeVersion("nodejs22.x") // => "22"
+ * extractNodeVersion("python3.12") // => "20" (default for non-Node.js)
+ *
+ * @internal
+ */
+export function extractNodeVersion(runtime: string): '18' | '20' | '22' | '24' {
+  // Match "nodejs" followed by digits
+  const match = runtime.match(/^nodejs(\d+)/);
+  if (match && match[1]) {
+    const version = match[1];
+    // Validate against supported versions
+    if (version === '18' || version === '20' || version === '22' || version === '24') {
+      return version;
+    }
+  }
+  // Default to Node.js 20 if pattern doesn't match or version unsupported
+  return '20';
 }
 
 /**

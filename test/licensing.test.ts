@@ -19,6 +19,7 @@
 
 import {
     LicensingService,
+    LicenseCheckParams,
     HttpLicensingService,
     createLicensingService,
     isValidAccountId,
@@ -50,6 +51,27 @@ describe('LicensingService', () => {
     describe('HttpLicensingService', () => {
         describe('checkEntitlement', () => {
             it('should return not entitled for invalid account ID format', async () => {
+                const service = new HttpLicensingService();
+                const response = await service.checkEntitlement('invalid');
+
+                expect(response.entitled).toBe(false);
+                expect(response.message).toContain('Invalid AWS account ID format');
+            });
+
+            it('should accept LicenseCheckParams object', async () => {
+                const service = new HttpLicensingService();
+                const params: LicenseCheckParams = {
+                    accountId: 'invalid',
+                    nodeVersion: '20',
+                    architecture: 'x86_64',
+                };
+                const response = await service.checkEntitlement(params);
+
+                expect(response.entitled).toBe(false);
+                expect(response.message).toContain('Invalid AWS account ID format');
+            });
+
+            it('should accept string accountId for backward compatibility', async () => {
                 const service = new HttpLicensingService();
                 const response = await service.checkEntitlement('invalid');
 

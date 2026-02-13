@@ -3,7 +3,7 @@
  * Copyright (C) 2025–present Raman Marozau, Work Target Insight Function. All rights reserved.
  */
 
-import { extractBundlePathFromHandler } from '../src/kata-wrapper';
+import { extractBundlePathFromHandler, extractNodeVersion } from '../src/kata-wrapper';
 
 describe('extractBundlePathFromHandler', () => {
     describe('standard handler formats', () => {
@@ -62,6 +62,56 @@ describe('extractBundlePathFromHandler', () => {
 
         it('should handle monorepo handler path', () => {
             expect(extractBundlePathFromHandler('packages/api/dist/handler.main')).toBe('/var/task/packages/api/dist/handler.js');
+        });
+    });
+});
+
+
+describe('extractNodeVersion', () => {
+    describe('supported Node.js runtimes', () => {
+        it('should extract version 18 from nodejs18.x', () => {
+            expect(extractNodeVersion('nodejs18.x')).toBe('18');
+        });
+
+        it('should extract version 20 from nodejs20.x', () => {
+            expect(extractNodeVersion('nodejs20.x')).toBe('20');
+        });
+
+        it('should extract version 22 from nodejs22.x', () => {
+            expect(extractNodeVersion('nodejs22.x')).toBe('22');
+        });
+
+        it('should extract version 24 from nodejs24.x', () => {
+            expect(extractNodeVersion('nodejs24.x')).toBe('24');
+        });
+    });
+
+    describe('non-Node.js runtimes', () => {
+        it('should return default 20 for python runtime', () => {
+            expect(extractNodeVersion('python3.12')).toBe('20');
+        });
+
+        it('should return default 20 for java runtime', () => {
+            expect(extractNodeVersion('java21')).toBe('20');
+        });
+
+        it('should return default 20 for dotnet runtime', () => {
+            expect(extractNodeVersion('dotnet8')).toBe('20');
+        });
+    });
+
+    describe('edge cases', () => {
+        it('should return default 20 for empty string', () => {
+            expect(extractNodeVersion('')).toBe('20');
+        });
+
+        it('should return default 20 for unsupported Node.js version', () => {
+            // Node.js 16 is not in the supported list
+            expect(extractNodeVersion('nodejs16.x')).toBe('20');
+        });
+
+        it('should return default 20 for malformed runtime string', () => {
+            expect(extractNodeVersion('node20')).toBe('20');
         });
     });
 });

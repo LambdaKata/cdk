@@ -19,7 +19,7 @@
  * @module mock-licensing
  */
 
-import { LicensingService } from './licensing';
+import { LicensingService, LicenseCheckParams } from './licensing';
 import { LicensingResponse } from './types';
 
 /**
@@ -223,7 +223,7 @@ export class MockLicensingService implements LicensingService {
    * This mock implementation returns entitlement status based on
    * accounts configured via setEntitled().
    *
-   * @param accountId - The AWS account ID to check (12-digit string)
+   * @param params - License check parameters or accountId string for backward compatibility
    * @returns Promise resolving to entitlement status and Layer ARN if entitled
    *
    * @remarks
@@ -231,7 +231,14 @@ export class MockLicensingService implements LicensingService {
    * - 3.2: Validates the account's entitlement based on configured entitlements
    * - 3.3: Returns the customer-specific Layer_ARN if entitled
    */
-  async checkEntitlement(accountId: string): Promise<LicensingResponse> {
+  async checkEntitlement(params: LicenseCheckParams | string): Promise<LicensingResponse> {
+    // Normalize params for backward compatibility
+    const normalizedParams: LicenseCheckParams = typeof params === 'string'
+      ? { accountId: params }
+      : params;
+
+    const { accountId, nodeVersion, architecture } = normalizedParams;
+
     // Simulate service error if configured
     if (this.simulateServiceError) {
       return {
@@ -246,6 +253,8 @@ export class MockLicensingService implements LicensingService {
         entitled: true,
         // No layerArn - simulates service returning entitled but missing ARN
         message: this.entitledMessage,
+        nodeVersion: nodeVersion ?? '20',
+        architecture: architecture ?? 'x86_64',
       };
     }
 
@@ -260,6 +269,8 @@ export class MockLicensingService implements LicensingService {
         layerArn,
         layerVersionArn: layerArn, // Full ARN with version for AWS Lambda
         message: this.entitledMessage,
+        nodeVersion: nodeVersion ?? '20',
+        architecture: architecture ?? 'x86_64',
       };
 
       // Include expiration if set

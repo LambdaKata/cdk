@@ -69,7 +69,8 @@ export interface LicensingResponse {
    * This is the ARN that should be used when attaching layers to Lambda functions.
    * Only present if the account is entitled.
    *
-   * @example "arn:aws:lambda:eu-central-1:113258654684:layer:lambda-kata-euc:1"
+   * Format: lambda-kata-node{version}-{arch}-{regionCode}
+   * @example "arn:aws:lambda:eu-central-1:113258654684:layer:lambda-kata-node20-x86_64-euc:1"
    */
   layerVersionArn?: string;
 
@@ -83,6 +84,20 @@ export interface LicensingResponse {
    * Only present if the account is entitled.
    */
   expiresAt?: string;
+
+  /**
+   * Node.js version used for the layer.
+   * Echoed back from the request or defaults to "20".
+   * @example "20", "22", "24"
+   */
+  nodeVersion?: string;
+
+  /**
+   * Architecture used for the layer.
+   * Echoed back from the request or defaults to "x86_64".
+   * @example "x86_64", "arm64"
+   */
+  architecture?: string;
 }
 
 /**

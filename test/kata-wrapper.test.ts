@@ -607,7 +607,7 @@ describe('kata-wrapper', () => {
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
           Content: Match.objectLike({
             S3Bucket: Match.stringLikeRegexp('lambda-kata-website-layer-content-dev'),
-            S3Key: 'node-js-layers/nodejs-20-layer-x86_64.zip',
+            S3Key: 'nodejs_layers/nodejs-20-layer-x86_64.zip',
           }),
         });
       });
