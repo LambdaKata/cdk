@@ -86,8 +86,9 @@ class S3CodeWithoutWarning extends Code {
  * Node.js runtime version and architecture combination.
  */
 // const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-nodejs-layers';
-const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-layer-content-dev';
-const NODEJS_LAYER_S3_FOLDER_KEY = 'node-js-layers';
+// lambda-kata-website-product-layer-content-dev-eu-central-1
+const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-product-layer-content-dev';
+const NODEJS_LAYER_S3_FOLDER_KEY = 'nodejs_layers';
 
 /**
  * Mapping of Node.js runtime to S3 key prefix.
