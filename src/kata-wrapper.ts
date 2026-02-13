@@ -306,6 +306,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   const licensingService = props?.licensingService ?? createLicensingService(props?.licensingEndpoint);
 
   // Check entitlement
+  // @todo: complete request with Node.js arnd Architecture
   const licensingResponse = await licensingService.checkEntitlement(accountId);
 
   // Handle the licensing response - distinguish 3 cases:
