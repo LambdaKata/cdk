@@ -44,7 +44,6 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
-import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver';
 import { createKataConfigLayer } from './config-layer';
@@ -181,25 +180,7 @@ export interface KataWrapperOptions extends KataProps {
   skipNodejsLayer?: boolean;
 }
 
-/**
- * Internal options for kata wrapper, including testing hooks.
- * NOT part of public API - used only for internal testing.
- *
- * @internal
- */
-export interface KataWrapperInternalOptions extends KataWrapperOptions {
-  /**
-   * Custom licensing service for testing.
-   * @internal
-   */
-  licensingService?: LicensingService;
 
-  /**
-   * Custom synchronous licensing service for testing.
-   * @internal
-   */
-  syncLicensingService?: NativeLicensingServiceInterface;
-}
 
 /**
  * Result of the kata transformation.
@@ -312,25 +293,30 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   lambda: T,
   accountId: string,
   region: string,
-  props?: KataWrapperInternalOptions,
+  props?: KataWrapperOptions,
 ): Promise<KataResult> {
   // Validate input
   validateLambdaInput(lambda);
-
-  // Get the licensing service - use provided service for testing, otherwise default
-  const licensingService = props?.licensingService ?? createLicensingService();
 
   // Extract runtime parameters from Lambda function
   const originalRuntime = getOriginalRuntime(lambda);
   const nodeVersion = extractNodeVersion(originalRuntime);
   const architecture = getLambdaArchitecture(lambda);
 
-  // Check entitlement with runtime parameters
-  const licensingResponse = await licensingService.checkEntitlement({
-    accountId,
-    nodeVersion,
-    architecture,
-  });
+  // Use native licensing module for entitlement check
+  let licensingResponse: LicensingResponse;
+  try {
+    const nativeService = new NativeLicensingService();
+    licensingResponse = nativeService.checkEntitlementSync(accountId);
+  } catch (nativeError) {
+    const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+    console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+
+    licensingResponse = {
+      entitled: false,
+      message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+    };
+  }
 
   // Handle the licensing response - distinguish 3 cases:
   // 1. entitled: true + layerVersionArn/layerArn → transform
@@ -403,7 +389,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
 function performKataTransformationSync<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   scope: Construct,
-  props?: KataWrapperInternalOptions,
+  props?: KataWrapperOptions,
 ): KataResult {
   // Resolve the account ID SYNCHRONOUSLY
   let accountId: string;
@@ -432,27 +418,20 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
   // Check entitlement SYNCHRONOUSLY using native C-module
   let licensingResponse: LicensingResponse;
 
-  // Internal testing hook: use provided sync licensing service if available
-  const internalProps = props as KataWrapperInternalOptions | undefined;
-  if (internalProps?.syncLicensingService?.checkEntitlementSync) {
-    // Use provided sync licensing service (for testing)
-    licensingResponse = internalProps.syncLicensingService.checkEntitlementSync(accountId);
-  } else {
-    // Use native licensing module - this is the ONLY production path
-    // The native C-module contains all licensing logic (endpoint, security, validation)
-    try {
-      const nativeService = new NativeLicensingService();
-      licensingResponse = nativeService.checkEntitlementSync(accountId);
-    } catch (nativeError) {
-      // Native module not available - fail closed (no HTTP fallback)
-      const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
-      console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+  // Use native licensing module - this is the ONLY path
+  // The native C-module contains all licensing logic (endpoint, security, validation)
+  try {
+    const nativeService = new NativeLicensingService();
+    licensingResponse = nativeService.checkEntitlementSync(accountId);
+  } catch (nativeError) {
+    // Native module not available - fail closed (no HTTP fallback)
+    const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+    console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
 
-      licensingResponse = {
-        entitled: false,
-        message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
-      };
-    }
+    licensingResponse = {
+      entitled: false,
+      message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+    };
   }
 
   // Handle the licensing response - distinguish 3 cases:

@@ -38,8 +38,49 @@ import {
   kataWithAccountId,
 } from '../src/kata-wrapper';
 import { TransformationConfig } from '../src/types';
-import { MockLicensingService } from '../src/mock-licensing';
 import { SnapStartActivator } from '../src/snapstart-construct';
+
+// Mock the native licensing module
+jest.mock('@lambda-kata/licensing', () => ({
+  NativeLicensingService: jest.fn().mockImplementation(() => ({
+    checkEntitlementSync: jest.fn(),
+  })),
+}));
+
+// Import after mock is set up
+import { NativeLicensingService } from '@lambda-kata/licensing';
+
+// Get typed mock for NativeLicensingService
+const mockNativeLicensingService = NativeLicensingService as jest.Mock;
+
+// Helper to configure mock for entitled scenarios
+function mockEntitled(accountId: string, layerArn: string): void {
+  mockNativeLicensingService.mockImplementation(() => ({
+    checkEntitlementSync: jest.fn().mockReturnValue({
+      entitled: true,
+      layerVersionArn: layerArn,
+    }),
+  }));
+}
+
+// Helper to configure mock for not entitled scenarios
+function mockNotEntitled(message?: string): void {
+  mockNativeLicensingService.mockImplementation(() => ({
+    checkEntitlementSync: jest.fn().mockReturnValue({
+      entitled: false,
+      message: message || 'AWS account is not entitled. Subscribe via AWS Marketplace to enable.',
+    }),
+  }));
+}
+
+// Helper to configure mock for service error scenarios
+function mockServiceError(errorMessage: string): void {
+  mockNativeLicensingService.mockImplementation(() => ({
+    checkEntitlementSync: jest.fn().mockImplementation(() => {
+      throw new Error(errorMessage);
+    }),
+  }));
+}
 
 // Mock aws-layer-manager to prevent real AWS API calls in kataWithAccountId tests.
 // The dynamic import() in applyTransformationWithNodeSupport will resolve to this mock.
@@ -378,12 +419,9 @@ describe('kata-wrapper', () => {
         });
         const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setEntitled('123456789012', layerArn);
+        mockEntitled('123456789012', layerArn);
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(true);
 
@@ -434,12 +472,9 @@ describe('kata-wrapper', () => {
         });
         const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setEntitled('123456789012', layerArn);
+        mockEntitled('123456789012', layerArn);
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Req 10.1: SnapStartActivator construct is created
         const snapStartChild = lambda.node.tryFindChild('SnapStartActivator');
@@ -464,12 +499,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        // Account is not entitled (no setEntitled call)
+        mockNotEntitled();
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(false);
 
@@ -829,21 +861,22 @@ describe('kata-wrapper', () => {
   });
 
   describe('kataWithAccountId', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
     it('should transform Lambda when account is entitled', async () => {
       const { stack } = createTestStack('123456789012');
       const lambda = createTestLambda(stack, 'TestFunction');
       const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
 
-      const mockLicensing = new MockLicensingService();
-      mockLicensing.setEntitled('123456789012', layerArn);
+      mockEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-        licensingService: mockLicensing,
-      });
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
       expect(result.transformed).toBe(true);
       expect(result.licensingResponse.entitled).toBe(true);
-      expect(result.licensingResponse.layerArn).toBe(layerArn);
+      expect(result.licensingResponse.layerVersionArn).toBe(layerArn);
       expect(result.accountId).toBe('123456789012');
 
       // Verify transformation was applied
@@ -859,12 +892,9 @@ describe('kata-wrapper', () => {
         handler: 'index.handler',
       });
 
-      const mockLicensing = new MockLicensingService();
-      // Account is not entitled (no setEntitled call)
+      mockNotEntitled();
 
-      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-        licensingService: mockLicensing,
-      });
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
       expect(result.transformed).toBe(false);
       expect(result.licensingResponse.entitled).toBe(false);
@@ -891,6 +921,10 @@ describe('kata-wrapper', () => {
      * IF the Licensing_Service returns an unlicensed status, THEN THE kata_Wrapper SHALL keep the original Node.js runtime unchanged
      */
     describe('Requirement 6.1: Keep original runtime unchanged', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should keep Node.js 18.x runtime unchanged when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
@@ -898,12 +932,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        // Account is not entitled (no setEntitled call)
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
         expect(cfnFunction.runtime).toBe('nodejs18.x');
@@ -916,11 +947,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
         expect(cfnFunction.runtime).toBe('nodejs20.x');
@@ -932,6 +961,10 @@ describe('kata-wrapper', () => {
      * IF the Licensing_Service returns an unlicensed status, THEN THE kata_Wrapper SHALL keep the original handler unchanged
      */
     describe('Requirement 6.2: Keep original handler unchanged', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should keep original handler unchanged when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const originalHandler = 'index.handler';
@@ -940,11 +973,9 @@ describe('kata-wrapper', () => {
           handler: originalHandler,
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
         expect(cfnFunction.handler).toBe(originalHandler);
@@ -958,11 +989,9 @@ describe('kata-wrapper', () => {
           handler: originalHandler,
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
         expect(cfnFunction.handler).toBe(originalHandler);
@@ -974,6 +1003,10 @@ describe('kata-wrapper', () => {
      * IF the Licensing_Service returns an unlicensed status, THEN THE kata_Wrapper SHALL NOT attach any Lambda_Layer
      */
     describe('Requirement 6.3: Do not attach any layers', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should not attach any layers when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
@@ -981,11 +1014,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Verify no layers are attached in the CloudFormation template
         const template = Template.fromStack(stack);
@@ -1001,11 +1032,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Verify no Lambda Kata layer is attached
         const template = Template.fromStack(stack);
@@ -1023,6 +1052,10 @@ describe('kata-wrapper', () => {
      *        "Lambda Kata not enabled: AWS account is not entitled. Subscribe via AWS Marketplace to enable."
      */
     describe('Requirement 6.4: Emit warning message', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should emit warning with default message when unlicensed', async () => {
         const { app, stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
@@ -1030,11 +1063,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Synthesize the stack to capture annotations
         const assembly = app.synth();
@@ -1054,14 +1085,11 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setNotEntitledMessage(
+        mockNotEntitled(
           'Lambda Kata not enabled: AWS account is not entitled. Subscribe via AWS Marketplace to enable.',
         );
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Synthesize the stack to capture annotations
         app.synth();
@@ -1081,12 +1109,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setNotEntitledMessage('Custom licensing error: Account 123456789012 not found');
+        mockNotEntitled('Custom licensing error: Account 123456789012 not found');
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Synthesize the stack to capture annotations
         app.synth();
@@ -1105,6 +1130,10 @@ describe('kata-wrapper', () => {
      * IF the account is NOT entitled, THEN THE kata_Wrapper SHALL NOT apply any transformations
      */
     describe('Requirement 3.5: No transformations applied', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should not add JS_HANDLER_PATH environment variable when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
@@ -1112,11 +1141,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Verify JS_HANDLER_PATH is not added
         const template = Template.fromStack(stack);
@@ -1137,11 +1164,9 @@ describe('kata-wrapper', () => {
           environment: existingEnvVars,
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Verify existing env vars are preserved but Lambda Kata vars are not added
         const template = Template.fromStack(stack);
@@ -1171,11 +1196,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
+        mockNotEntitled();
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(false);
         expect(result.licensingResponse.entitled).toBe(false);
@@ -1186,6 +1209,10 @@ describe('kata-wrapper', () => {
      * **Validates: unlicensedBehavior: 'fail' option**
      */
     describe('unlicensedBehavior: fail option', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should emit warning by default (unlicensedBehavior: warn)', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction');
@@ -1253,12 +1280,10 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setNotEntitledMessage('Account not found in entitlement database');
+        mockNotEntitled('Account not found in entitlement database');
 
         await expect(
           kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-            licensingService: mockLicensing,
             unlicensedBehavior: 'fail',
           }),
         ).rejects.toThrow('Account not found in entitlement database');
@@ -1270,6 +1295,10 @@ describe('kata-wrapper', () => {
      * IF the Licensing_Service is unreachable, THEN THE kata_Wrapper SHALL treat the account as unlicensed
      */
     describe('Requirement 6.5: Service unreachable handling', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should treat account as unlicensed when service is unreachable', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
@@ -1277,12 +1306,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
+        mockServiceError('Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(false);
         expect(result.licensingResponse.entitled).toBe(false);
@@ -1300,12 +1326,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setSimulateServiceError(true, 'Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
+        mockServiceError('Lambda Kata licensing service unreachable. Lambda will use original Node.js runtime.');
 
-        await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         // Synthesize the stack to capture annotations
         app.synth();
@@ -1314,7 +1337,7 @@ describe('kata-wrapper', () => {
         const annotations = Annotations.fromStack(stack);
         annotations.hasWarning(
           '/TestStack/TestFunction',
-          Match.stringLikeRegexp('.*licensing service unreachable.*'),
+          Match.stringLikeRegexp('.*licensing.*unreachable.*'),
         );
       });
     });
@@ -1392,6 +1415,10 @@ describe('kata-wrapper', () => {
   });
 
   describe('Integration: Full transformation flow', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
     it('should correctly transform a Lambda with all requirements', async () => {
       const { stack } = createTestStack('123456789012');
       const originalHandler = 'src/api/handler.processRequest';
@@ -1409,12 +1436,9 @@ describe('kata-wrapper', () => {
         memorySize,
       });
 
-      const mockLicensing = new MockLicensingService();
-      mockLicensing.setEntitled('123456789012', layerArn);
+      mockEntitled('123456789012', layerArn);
 
-      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-        licensingService: mockLicensing,
-      });
+      const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
       expect(result.transformed).toBe(true);
 
@@ -1759,6 +1783,10 @@ describe('kata-wrapper', () => {
      * Integration test for config layer with kataWithAccountId
      */
     describe('Integration: Config layer with licensing', () => {
+      beforeEach(() => {
+        jest.clearAllMocks();
+      });
+
       it('should attach config layer when account is entitled', async () => {
         const { stack } = createTestStack('123456789012');
         const originalHandler = 'bundle.handler';
@@ -1767,12 +1795,9 @@ describe('kata-wrapper', () => {
         });
         const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
 
-        const mockLicensing = new MockLicensingService();
-        mockLicensing.setEntitled('123456789012', layerArn);
+        mockEntitled('123456789012', layerArn);
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(true);
 
@@ -1797,12 +1822,9 @@ describe('kata-wrapper', () => {
           handler: 'index.handler',
         });
 
-        const mockLicensing = new MockLicensingService();
-        // Account is not entitled (no setEntitled call)
+        mockNotEntitled();
 
-        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-          licensingService: mockLicensing,
-        });
+        const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         expect(result.transformed).toBe(false);
 

@@ -16,46 +16,39 @@ import { CfnFunction, Code, Function as LambdaFunction, Runtime } from 'aws-cdk-
 import { Template } from 'aws-cdk-lib/assertions';
 
 import { kata, getKataPromise } from '../src/kata-wrapper';
-import { LicensingResponse } from '../src/types';
 
-/**
- * Mock licensing service interface for testing
- * Implements the same interface as NativeLicensingService
- */
-interface MockLicensingServiceInterface {
-    checkEntitlement(accountId: string): Promise<LicensingResponse>;
-    checkEntitlementSync(accountId: string): LicensingResponse;
+// Mock the native licensing module
+jest.mock('@lambda-kata/licensing', () => ({
+    NativeLicensingService: jest.fn().mockImplementation(() => ({
+        checkEntitlementSync: jest.fn(),
+    })),
+}));
+
+// Import after mock is set up
+import { NativeLicensingService } from '@lambda-kata/licensing';
+
+// Get typed mock for NativeLicensingService
+const mockNativeLicensingService = NativeLicensingService as jest.Mock;
+
+// Helper to configure mock for entitled scenarios
+function mockEntitled(layerArn: string = 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1'): void {
+    mockNativeLicensingService.mockImplementation(() => ({
+        checkEntitlementSync: jest.fn().mockReturnValue({
+            entitled: true,
+            layerVersionArn: layerArn,
+            message: 'Account is entitled',
+        }),
+    }));
 }
 
-/**
- * Mock sync licensing service for testing
- */
-class MockSyncLicensingService implements MockLicensingServiceInterface {
-    private entitled: boolean;
-    private layerArn: string;
-
-    constructor(entitled: boolean, layerArn: string = 'arn:aws:lambda:us-east-1:123456789012:layer:LambdaKata:1') {
-        this.entitled = entitled;
-        this.layerArn = layerArn;
-    }
-
-    async checkEntitlement(accountId: string): Promise<LicensingResponse> {
-        return this.checkEntitlementSync(accountId);
-    }
-
-    checkEntitlementSync(accountId: string): LicensingResponse {
-        if (this.entitled) {
-            return {
-                entitled: true,
-                layerArn: this.layerArn,
-                message: 'Account is entitled',
-            };
-        }
-        return {
+// Helper to configure mock for not entitled scenarios
+function mockNotEntitled(message?: string): void {
+    mockNativeLicensingService.mockImplementation(() => ({
+        checkEntitlementSync: jest.fn().mockReturnValue({
             entitled: false,
-            message: 'Account is not entitled',
-        };
-    }
+            message: message || 'Account is not entitled',
+        }),
+    }));
 }
 
 /**
@@ -70,6 +63,10 @@ function createTestLambda(stack: Stack, id: string): LambdaFunction {
 }
 
 describe('Synchronous kata() transformation', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     describe('Transformation is applied synchronously', () => {
         it('should transform Lambda BEFORE returning from kata()', () => {
             const app = new App({
@@ -80,10 +77,10 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(true);
+            mockEntitled();
 
             // Call kata() - transformation should be applied SYNCHRONOUSLY
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // Verify transformation was applied IMMEDIATELY (no await needed)
             const cfnFunction = lambda.node.defaultChild as CfnFunction;
@@ -100,10 +97,10 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(true);
+            mockEntitled();
 
             // Call kata() synchronously
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // Synthesize template WITHOUT awaiting any promises
             const template = Template.fromStack(stack);
@@ -125,9 +122,9 @@ describe('Synchronous kata() transformation', () => {
 
             const lambda = createTestLambda(stack, 'TestFunction');
             const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:TestLayer:1';
-            const mockService = new MockSyncLicensingService(true, layerArn);
+            mockEntitled(layerArn);
 
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // Verify layers are attached synchronously
             const template = Template.fromStack(stack);
@@ -149,9 +146,9 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(true);
+            mockEntitled();
 
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // Check that result is stored synchronously
             const result = (lambda as unknown as { _kataResult?: { transformed: boolean } })._kataResult;
@@ -170,9 +167,9 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(false);
+            mockNotEntitled();
 
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // Verify Lambda was NOT transformed
             const cfnFunction = lambda.node.defaultChild as CfnFunction;
@@ -189,9 +186,9 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(false);
+            mockNotEntitled();
 
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             const result = (lambda as unknown as { _kataResult?: { transformed: boolean } })._kataResult;
             expect(result).toBeDefined();
@@ -209,9 +206,9 @@ describe('Synchronous kata() transformation', () => {
             });
 
             const lambda = createTestLambda(stack, 'TestFunction');
-            const mockService = new MockSyncLicensingService(true);
+            mockEntitled();
 
-            kata(lambda, { syncLicensingService: mockService });
+            kata(lambda);
 
             // _kataPromise should be a resolved Promise
             const promise = getKataPromise(lambda);
