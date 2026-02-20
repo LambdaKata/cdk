@@ -26,17 +26,10 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
  * ```typescript
  * kata(myFunction, {
  *   unlicensedBehavior: 'fail',
- *   licensingEndpoint: 'https://custom-endpoint.example.com'
  * });
  * ```
  */
 export interface KataProps {
-  /**
-   * Optional: Override the licensing service endpoint
-   * Default: Lambda Kata production licensing endpoint
-   */
-  licensingEndpoint?: string;
-
   /**
    * Optional: Behavior when account is not licensed
    * 'warn' - Keep original Lambda, emit warning (default)
