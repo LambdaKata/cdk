@@ -176,6 +176,7 @@ export function createKataConfigLayer(
 ): LayerVersion {
   // Create temporary directory for layer content
   // Each call creates a unique temp directory to support different handler paths (Requirement 3.5)
+  // @todo: exclude temp dir by local cdk.out builds
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kata-config-'));
   const kataDir = path.join(tempDir, CONFIG_DIR_NAME);
   fs.mkdirSync(kataDir, { recursive: true });
