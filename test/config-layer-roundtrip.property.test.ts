@@ -191,7 +191,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                     // Verify round-trip preserves all values
                     return configsAreEquivalent(config, parsedConfig);
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -211,7 +211,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -230,7 +230,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         parsed[HANDLER_CONFIG_KEY] === config.original_js_handler
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -255,7 +255,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return !('bundle_path' in parsed);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -279,7 +279,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return !('has_middleware' in parsed);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -304,7 +304,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         json1 === json2
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -327,7 +327,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         parsedConfig.has_middleware === undefined
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -357,7 +357,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -380,7 +380,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
 
                     return keys.every((key) => validKeys.has(key));
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

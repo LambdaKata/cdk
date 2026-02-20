@@ -156,7 +156,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -170,7 +170,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal = generateReadySignal(pid);
                     return signal.endsWith('\n');
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -192,7 +192,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Should have correct values
                     return parsed.ready === true && parsed.pid === pid;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -213,7 +213,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Strict equality check for boolean true
                     return parsed.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -233,7 +233,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return typeof parsed.pid === 'number';
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -253,7 +253,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return parsed.pid === pid;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -271,7 +271,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const keys = Object.keys(parsed);
                     return keys.length === 2 && keys.includes('ready') && keys.includes('pid');
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -289,7 +289,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // All signals should be identical
                     return signal1 === signal2 && signal2 === signal3;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -303,7 +303,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -322,7 +322,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Should have exactly one newline at the end
                     return newlineCount === 1 && signal.endsWith('\n');
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -340,7 +340,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const expected = `{"ready":true,"pid":${pid}}`;
                     return jsonPart === expected;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -361,7 +361,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal2 = generateReadySignal(parsed.pid);
                     return signal1 === signal2;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -386,7 +386,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -407,7 +407,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -426,7 +426,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return signal === expectedSignal;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

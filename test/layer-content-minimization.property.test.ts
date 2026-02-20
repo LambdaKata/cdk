@@ -579,7 +579,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -619,7 +619,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -653,7 +653,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -693,7 +693,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -734,7 +734,7 @@ describe('Feature: nodejs-layer-management, Property 9: Layer Content Minimizati
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

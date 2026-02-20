@@ -60,7 +60,6 @@ export {
 // kata wrapper exports
 export {
   kata,
-  kataWithAccountId,
   applyTransformation,
   handleUnlicensed,
   isKataTransformed,

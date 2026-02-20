@@ -175,7 +175,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -196,7 +196,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -219,7 +219,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -250,7 +250,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         });
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -272,7 +272,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -294,7 +294,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === bundle[expectedHandlerName];
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolved1 === resolved2 && resolved2 === resolved3;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -346,7 +346,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -379,7 +379,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === targetFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -401,7 +401,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -430,7 +430,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         });
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

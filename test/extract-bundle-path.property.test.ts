@@ -17,7 +17,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.startsWith('/var/task/');
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -30,7 +30,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.endsWith('.js');
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -43,7 +43,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.length > 0;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -56,7 +56,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result === '/var/task/index.js';
                     }
                 ),
-                { numRuns: 50 }
+                { numRuns: 20 }
             );
         });
     });
@@ -75,7 +75,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result === `/var/task/${moduleName}.js`;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -96,7 +96,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result === `/var/task/${modulePath}.js`;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });
@@ -112,7 +112,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result1 === result2;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

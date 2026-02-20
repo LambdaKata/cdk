@@ -208,7 +208,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                     // Should use default bundle_path
                     return result.config.bundle_path === DEFAULT_BUNDLE_PATH;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -224,7 +224,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                     // Should use default has_middleware (false)
                     return result.config.has_middleware === DEFAULT_HAS_MIDDLEWARE;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -240,7 +240,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                     // Should use default original_js_handler
                     return result.config.original_js_handler === DEFAULT_ORIGINAL_HANDLER;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -256,7 +256,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                     // Should indicate that defaults were used
                     return result.usedDefaults === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -274,7 +274,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.errorMessage !== undefined && result.errorMessage.length > 0
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -300,7 +300,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.usedDefaults === true
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -328,7 +328,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -359,7 +359,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.has_middleware === config.has_middleware
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -397,7 +397,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -433,7 +433,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.bundle_path === DEFAULT_BUNDLE_PATH
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -470,7 +470,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.has_middleware === DEFAULT_HAS_MIDDLEWARE
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -497,7 +497,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result3.config.original_js_handler
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

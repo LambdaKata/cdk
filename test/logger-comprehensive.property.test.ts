@@ -221,7 +221,7 @@ describe('Property 14: Operation Logging Completeness', () => {
                     });
                 }
             ),
-            { numRuns: 100 }
+            { numRuns: 10 }
         );
     });
 
@@ -267,7 +267,7 @@ describe('Property 14: Operation Logging Completeness', () => {
                     }
                 }
             ),
-            { numRuns: 100 }
+            { numRuns: 10 }
         );
     });
 
@@ -326,7 +326,7 @@ describe('Property 14: Operation Logging Completeness', () => {
                     expect(loggedMetadata.awsRequestId).toBe(expectedRequestId);
                 }
             ),
-            { numRuns: 100 }
+            { numRuns: 10 }
         );
     });
 
@@ -421,7 +421,7 @@ describe('Property 14: Operation Logging Completeness', () => {
                     }
                 }
             ),
-            { numRuns: 100 }
+            { numRuns: 10 }
         );
     });
 

@@ -182,7 +182,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          */
         it('should return consistent results for repeated calls with the same parameters', async () => {
             const runtimeName = 'nodejs20.x';
-            const architecture: 'x86_64' = 'x86_64';
+            const architecture = 'x86_64' as const;
 
             const detector = new DockerRuntimeDetector({
                 logger: mockLogger,

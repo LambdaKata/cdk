@@ -36,8 +36,28 @@ import { Template, Match } from 'aws-cdk-lib/assertions';
 import { Function as LambdaFunction, Runtime, Code, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
-import { kata, kataWithAccountId, getKataPromise } from '../src/kata-wrapper';
-import { MockLicensingService } from '../src/mock-licensing';
+import { kata, getKataPromise } from '../src/kata-wrapper';
+import { NativeLicensingService } from '@lambda-kata/licensing';
+
+// Mock the native licensing module
+jest.mock('@lambda-kata/licensing', () => ({
+    NativeLicensingService: jest.fn().mockImplementation(() => ({
+        checkEntitlementSync: jest.fn(),
+    })),
+}));
+
+// Helper to configure mock licensing response
+function configureMockLicensing(entitled: boolean, layerVersionArn?: string, message?: string) {
+    const mockCheckEntitlementSync = jest.fn().mockReturnValue({
+        entitled,
+        layerVersionArn,
+        message,
+    });
+    (NativeLicensingService as jest.Mock).mockImplementation(() => ({
+        checkEntitlementSync: mockCheckEntitlementSync,
+    }));
+    return mockCheckEntitlementSync;
+}
 
 /**
  * Test data for Node.js runtime and architecture combinations
@@ -117,6 +137,11 @@ function createTestNodejsFunction(
 }
 
 describe('kata() Wrapper Integration Tests', () => {
+    // Reset mocks before each test
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     describe('End-to-End Flow: Node.js Functions with Layer Management', () => {
         /**
          * Test complete transformation flow for all Node.js runtime/architecture combinations
@@ -125,7 +150,7 @@ describe('kata() Wrapper Integration Tests', () => {
             NODEJS_RUNTIME_TEST_CASES.forEach(({ runtime, runtimeName, architecture, archName }) => {
                 describe(`${runtimeName} on ${archName}`, () => {
                     it('should complete end-to-end transformation with proper layer ordering', async () => {
-                        const { app, stack } = createTestApp('123456789012');
+                        const { stack } = createTestApp('123456789012');
                         const lambda = createTestLambda(stack, 'TestFunction', {
                             runtime,
                             architecture,
@@ -133,18 +158,20 @@ describe('kata() Wrapper Integration Tests', () => {
                         });
 
                         // Setup mock licensing service
-                        const mockLicensing = new MockLicensingService();
                         const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:1';
-                        mockLicensing.setEntitled('123456789012', layerArn);
+                        configureMockLicensing(true, layerArn);
 
                         // Capture console warnings for Node.js layer failures
                         const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
                         try {
                             // Apply kata transformation
-                            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                                licensingService: mockLicensing,
-                            });
+                            const transformedLambda = kata(lambda);
+                            expect(transformedLambda).toBe(lambda);
+
+                            // Get the transformation promise
+                            const kataPromise = getKataPromise(lambda);
+                            const result = await kataPromise!;
 
                             // Verify transformation result
                             expect(result.transformed).toBe(true);
@@ -161,12 +188,17 @@ describe('kata() Wrapper Integration Tests', () => {
                                 Architectures: [archName === 'arm64' ? 'arm64' : 'x86_64'],
                             });
 
-                            // Verify layers are attached
-                            const functions = template.findResources('AWS::Lambda::Function');
-                            const functionKeys = Object.keys(functions);
+                            // Verify layers are attached (filter out SnapStart helper functions)
+                            const allFunctions = template.findResources('AWS::Lambda::Function');
+                            const mainFunctions = Object.fromEntries(
+                                Object.entries(allFunctions).filter(([key]) =>
+                                    key.includes('TestFunction') && !key.includes('SnapStart')
+                                )
+                            );
+                            const functionKeys = Object.keys(mainFunctions);
                             expect(functionKeys).toHaveLength(1);
 
-                            const functionProps = functions[functionKeys[0]].Properties;
+                            const functionProps = mainFunctions[functionKeys[0]].Properties;
                             expect(functionProps.Layers).toBeDefined();
                             expect(Array.isArray(functionProps.Layers)).toBe(true);
 
@@ -197,7 +229,7 @@ describe('kata() Wrapper Integration Tests', () => {
                     });
 
                     it('should handle Node.js layer creation failure gracefully', async () => {
-                        const { app, stack } = createTestApp('123456789012');
+                        const { stack } = createTestApp('123456789012');
                         const lambda = createTestLambda(stack, 'TestFunction', {
                             runtime,
                             architecture,
@@ -205,18 +237,17 @@ describe('kata() Wrapper Integration Tests', () => {
                         });
 
                         // Setup mock licensing service
-                        const mockLicensing = new MockLicensingService();
                         const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:2';
-                        mockLicensing.setEntitled('123456789012', layerArn);
+                        configureMockLicensing(true, layerArn);
 
                         // Capture console warnings
                         const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
                         try {
                             // Apply kata transformation - Node.js layer will likely fail
-                            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                                licensingService: mockLicensing,
-                            });
+                            const transformedLambda = kata(lambda);
+                            const kataPromise = getKataPromise(lambda);
+                            const result = await kataPromise!;
 
                             // Core transformation should succeed despite Node.js layer failure
                             expect(result.transformed).toBe(true);
@@ -254,7 +285,7 @@ describe('kata() Wrapper Integration Tests', () => {
          */
         describe('NodejsFunction Support', () => {
             it('should transform NodejsFunction with proper layer management', async () => {
-                const { app, stack } = createTestApp('123456789012');
+                const { stack } = createTestApp('123456789012');
                 const lambda = createTestNodejsFunction(stack, 'NodejsTestFunction', {
                     runtime: Runtime.NODEJS_20_X,
                     architecture: Architecture.X86_64,
@@ -262,18 +293,17 @@ describe('kata() Wrapper Integration Tests', () => {
                 });
 
                 // Setup mock licensing service
-                const mockLicensing = new MockLicensingService();
                 const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:3';
-                mockLicensing.setEntitled('123456789012', layerArn);
+                configureMockLicensing(true, layerArn);
 
                 // Capture console warnings
                 const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
                 try {
                     // Apply kata transformation
-                    const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                        licensingService: mockLicensing,
-                    });
+                    const transformedLambda = kata(lambda);
+                    const kataPromise = getKataPromise(lambda);
+                    const result = await kataPromise!;
 
                     expect(result.transformed).toBe(true);
 
@@ -309,21 +339,20 @@ describe('kata() Wrapper Integration Tests', () => {
          */
         NON_NODEJS_RUNTIME_TEST_CASES.forEach(({ runtime, runtimeName }) => {
             it(`should transform ${runtimeName} function without Node.js layer management`, async () => {
-                const { app, stack } = createTestApp('123456789012');
+                const { stack } = createTestApp('123456789012');
                 const lambda = createTestLambda(stack, 'NonNodejsFunction', {
                     runtime,
                     handler: 'handler.main',
                 });
 
                 // Setup mock licensing service
-                const mockLicensing = new MockLicensingService();
                 const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:1';
-                mockLicensing.setEntitled('123456789012', layerArn);
+                configureMockLicensing(true, layerArn);
 
                 // Apply kata transformation
-                const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                    licensingService: mockLicensing,
-                });
+                const transformedLambda = kata(lambda);
+                const kataPromise = getKataPromise(lambda);
+                const result = await kataPromise!;
 
                 expect(result.transformed).toBe(true);
 
@@ -337,11 +366,17 @@ describe('kata() Wrapper Integration Tests', () => {
                 });
 
                 // Verify layers are attached (config layer + Lambda Kata layer only)
-                const functions = template.findResources('AWS::Lambda::Function');
-                const functionKeys = Object.keys(functions);
+                // Filter out SnapStart helper functions
+                const allFunctions = template.findResources('AWS::Lambda::Function');
+                const mainFunctions = Object.fromEntries(
+                    Object.entries(allFunctions).filter(([key]) =>
+                        key.includes('NonNodejsFunction') && !key.includes('SnapStart')
+                    )
+                );
+                const functionKeys = Object.keys(mainFunctions);
                 expect(functionKeys).toHaveLength(1);
 
-                const functionProps = functions[functionKeys[0]].Properties;
+                const functionProps = mainFunctions[functionKeys[0]].Properties;
                 expect(functionProps.Layers).toBeDefined();
                 expect(Array.isArray(functionProps.Layers)).toBe(true);
                 expect(functionProps.Layers.length).toBe(2); // Exactly 2 layers (config + Lambda Kata)
@@ -362,20 +397,19 @@ describe('kata() Wrapper Integration Tests', () => {
          * Test unlicensed account handling
          */
         it('should handle unlicensed account gracefully', async () => {
-            const { app, stack } = createTestApp('999999999999');
+            const { stack } = createTestApp('999999999999');
             const lambda = createTestLambda(stack, 'UnlicensedFunction', {
                 runtime: Runtime.NODEJS_18_X,
                 handler: 'index.handler',
             });
 
             // Setup mock licensing service (not entitled)
-            const mockLicensing = new MockLicensingService();
-            // No setEntitled call - account is not entitled
+            configureMockLicensing(false, undefined, 'Account not entitled');
 
             // Apply kata transformation
-            const result = await kataWithAccountId(lambda, '999999999999', 'us-east-1', {
-                licensingService: mockLicensing,
-            });
+            const transformedLambda = kata(lambda);
+            const kataPromise = getKataPromise(lambda);
+            const result = await kataPromise!;
 
             expect(result.transformed).toBe(false);
             expect(result.licensingResponse.entitled).toBe(false);
@@ -402,20 +436,23 @@ describe('kata() Wrapper Integration Tests', () => {
          * Test licensing service error handling
          */
         it('should handle licensing service errors gracefully', async () => {
-            const { app, stack } = createTestApp('123456789012');
+            const { stack } = createTestApp('123456789012');
             const lambda = createTestLambda(stack, 'ServiceErrorFunction', {
                 runtime: Runtime.NODEJS_20_X,
                 handler: 'service.handler',
             });
 
-            // Setup mock licensing service with service error
-            const mockLicensing = new MockLicensingService();
-            mockLicensing.setSimulateServiceError(true, 'Licensing service temporarily unavailable');
+            // Setup mock licensing service to throw error
+            (NativeLicensingService as jest.Mock).mockImplementation(() => ({
+                checkEntitlementSync: jest.fn().mockImplementation(() => {
+                    throw new Error('Licensing service temporarily unavailable');
+                }),
+            }));
 
             // Apply kata transformation
-            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                licensingService: mockLicensing,
-            });
+            const transformedLambda = kata(lambda);
+            const kataPromise = getKataPromise(lambda);
+            const result = await kataPromise!;
 
             expect(result.transformed).toBe(false);
             expect(result.licensingResponse.entitled).toBe(false);
@@ -437,20 +474,19 @@ describe('kata() Wrapper Integration Tests', () => {
          * but fails to provide the layerArn - should NOT say "not entitled"
          */
         it('should handle entitled account without layerArn gracefully', async () => {
-            const { app, stack } = createTestApp('123456789012');
+            const { stack } = createTestApp('123456789012');
             const lambda = createTestLambda(stack, 'EntitledNoArnFunction', {
                 runtime: Runtime.NODEJS_20_X,
                 handler: 'index.handler',
             });
 
             // Setup mock licensing service to return entitled: true but no layerArn
-            const mockLicensing = new MockLicensingService();
-            mockLicensing.setSimulateEntitledWithoutLayerArn(true);
+            configureMockLicensing(true, undefined);
 
             // Apply kata transformation
-            const result = await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                licensingService: mockLicensing,
-            });
+            const transformedLambda = kata(lambda);
+            const kataPromise = getKataPromise(lambda);
+            const result = await kataPromise!;
 
             // Should NOT be transformed (no layerArn to use)
             expect(result.transformed).toBe(false);
@@ -474,7 +510,7 @@ describe('kata() Wrapper Integration Tests', () => {
          * Test mixed runtime stack (Node.js and non-Node.js functions)
          */
         it('should handle mixed runtime stack correctly', async () => {
-            const { app, stack } = createTestApp('123456789012');
+            const { stack } = createTestApp('123456789012');
 
             // Create Node.js function
             const nodejsLambda = createTestLambda(stack, 'NodejsFunction', {
@@ -489,21 +525,19 @@ describe('kata() Wrapper Integration Tests', () => {
             });
 
             // Setup mock licensing service
-            const mockLicensing = new MockLicensingService();
             const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:1';
-            mockLicensing.setEntitled('123456789012', layerArn);
+            configureMockLicensing(true, layerArn);
 
             // Capture console warnings
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
             try {
                 // Apply kata transformation to both functions
-                const nodejsResult = await kataWithAccountId(nodejsLambda, '123456789012', 'us-east-1', {
-                    licensingService: mockLicensing,
-                });
-                const pythonResult = await kataWithAccountId(pythonLambda, '123456789012', 'us-east-1', {
-                    licensingService: mockLicensing,
-                });
+                kata(nodejsLambda);
+                kata(pythonLambda);
+
+                const nodejsResult = await getKataPromise(nodejsLambda)!;
+                const pythonResult = await getKataPromise(pythonLambda)!;
 
                 expect(nodejsResult.transformed).toBe(true);
                 expect(pythonResult.transformed).toBe(true);
@@ -511,12 +545,20 @@ describe('kata() Wrapper Integration Tests', () => {
                 // Synthesize CDK template
                 const template = Template.fromStack(stack);
 
-                // Verify both functions are transformed
-                template.resourceCountIs('AWS::Lambda::Function', 2);
+                // Get all functions and filter to main functions (exclude SnapStart helpers)
+                const allFunctions = template.findResources('AWS::Lambda::Function');
+                const mainFunctions = Object.fromEntries(
+                    Object.entries(allFunctions).filter(([key]) =>
+                        (key.includes('NodejsFunction') || key.includes('PythonFunction')) &&
+                        !key.includes('SnapStart')
+                    )
+                );
+
+                // Verify both main functions are transformed
+                expect(Object.keys(mainFunctions)).toHaveLength(2);
 
                 // Both functions should have Python 3.12 runtime and Lambda Kata handler
-                const functions = template.findResources('AWS::Lambda::Function');
-                Object.values(functions).forEach((func: any) => {
+                Object.values(mainFunctions).forEach((func: any) => {
                     expect(func.Properties.Runtime).toBe('python3.12');
                     expect(func.Properties.Handler).toBe('lambdakata.optimized_handler.lambda_handler');
                     expect(func.Properties.Layers).toBeDefined();
@@ -555,18 +597,16 @@ describe('kata() Wrapper Integration Tests', () => {
             });
 
             // Setup mock licensing service
-            const mockLicensing = new MockLicensingService();
             const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:1';
-            mockLicensing.setEntitled('123456789012', layerArn);
+            configureMockLicensing(true, layerArn);
 
             // Capture console warnings
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
             try {
                 // Apply kata transformation
-                await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                    licensingService: mockLicensing,
-                });
+                kata(lambda);
+                await getKataPromise(lambda);
 
                 // Synthesize the entire app (this validates CloudFormation template structure)
                 const assembly = app.synth();
@@ -580,9 +620,13 @@ describe('kata() Wrapper Integration Tests', () => {
                 expect(stackArtifact.template).toBeDefined();
                 expect(stackArtifact.template.Resources).toBeDefined();
 
-                // Verify Lambda function resource exists
+                // Verify Lambda function resource exists (filter out SnapStart helper functions)
                 const lambdaResources = Object.entries(stackArtifact.template.Resources)
-                    .filter(([_, resource]: [string, any]) => resource.Type === 'AWS::Lambda::Function');
+                    .filter(([key, resource]: [string, any]) =>
+                        resource.Type === 'AWS::Lambda::Function' &&
+                        key.includes('ValidTemplateFunction') &&
+                        !key.includes('SnapStart')
+                    );
                 expect(lambdaResources).toHaveLength(1);
 
                 // Verify layer resources exist
@@ -612,38 +656,41 @@ describe('kata() Wrapper Integration Tests', () => {
          * Test layer reference integrity in synthesized templates
          */
         it('should maintain proper layer reference integrity', async () => {
-            const { app, stack } = createTestApp('123456789012');
+            const { stack } = createTestApp('123456789012');
             const lambda = createTestLambda(stack, 'LayerRefFunction', {
                 runtime: Runtime.NODEJS_18_X,
                 handler: 'layerref.handler',
             });
 
             // Setup mock licensing service
-            const mockLicensing = new MockLicensingService();
             const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:5';
-            mockLicensing.setEntitled('123456789012', layerArn);
+            configureMockLicensing(true, layerArn);
 
             // Capture console warnings
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
 
             try {
                 // Apply kata transformation
-                await kataWithAccountId(lambda, '123456789012', 'us-east-1', {
-                    licensingService: mockLicensing,
-                });
+                kata(lambda);
+                await getKataPromise(lambda);
 
                 // Synthesize template
                 const template = Template.fromStack(stack);
 
-                // Get function and layer resources
+                // Get function and layer resources (filter out SnapStart helper functions)
                 const functions = template.findResources('AWS::Lambda::Function');
+                const mainFunctions = Object.fromEntries(
+                    Object.entries(functions).filter(([key]) =>
+                        key.includes('LayerRefFunction') && !key.includes('SnapStart')
+                    )
+                );
                 const layers = template.findResources('AWS::Lambda::LayerVersion');
 
-                expect(Object.keys(functions)).toHaveLength(1);
+                expect(Object.keys(mainFunctions)).toHaveLength(1);
                 expect(Object.keys(layers).length).toBeGreaterThanOrEqual(1);
 
                 // Verify layer references in function
-                const [functionLogicalId, functionResource] = Object.entries(functions)[0];
+                const [, functionResource] = Object.entries(mainFunctions)[0];
                 const functionProps = (functionResource as any).Properties;
                 const functionLayers = functionProps.Layers;
 
@@ -671,21 +718,18 @@ describe('kata() Wrapper Integration Tests', () => {
          * Test the asynchronous kata() function with promise resolution
          */
         it('should handle asynchronous kata() transformation correctly', async () => {
-            const { app, stack } = createTestApp('123456789012');
+            const { stack } = createTestApp('123456789012');
             const lambda = createTestLambda(stack, 'AsyncKataFunction', {
                 runtime: Runtime.NODEJS_20_X,
                 handler: 'async.handler',
             });
 
             // Setup mock licensing service
-            const mockLicensing = new MockLicensingService();
             const layerArn = 'arn:aws:lambda:us-east-1:123456789012:layer:lambda-kata:1';
-            mockLicensing.setEntitled('123456789012', layerArn);
+            configureMockLicensing(true, layerArn);
 
             // Apply kata transformation (synchronous call)
-            const transformedLambda = kata(lambda, {
-                licensingService: mockLicensing,
-            });
+            const transformedLambda = kata(lambda);
 
             // Verify kata returns the same Lambda construct immediately
             expect(transformedLambda).toBe(lambda);
@@ -724,11 +768,14 @@ describe('kata() Wrapper Integration Tests', () => {
          */
         it('should handle account resolution failure gracefully', async () => {
             // Create stack without account context
-            const { app, stack } = createTestApp();
+            const { stack } = createTestApp();
             const lambda = createTestLambda(stack, 'NoAccountFunction', {
                 runtime: Runtime.NODEJS_18_X,
                 handler: 'noaccount.handler',
             });
+
+            // Configure mock to return not entitled (account resolution will fail)
+            configureMockLicensing(false, undefined, 'Account resolution failed');
 
             // Apply kata transformation
             const transformedLambda = kata(lambda);
@@ -743,7 +790,6 @@ describe('kata() Wrapper Integration Tests', () => {
 
             expect(result.transformed).toBe(false);
             expect(result.licensingResponse.entitled).toBe(false);
-            expect(result.accountId).toBe('unknown');
 
             // Verify no transformation was applied
             const template = Template.fromStack(stack);

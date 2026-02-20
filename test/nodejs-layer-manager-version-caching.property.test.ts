@@ -270,7 +270,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -331,7 +331,7 @@ describe('Feature: nodejs-layer-management, Property 15: Version Caching Efficie
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 

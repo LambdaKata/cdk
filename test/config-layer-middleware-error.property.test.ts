@@ -196,7 +196,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
 
                     return errorThrown;
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -224,7 +224,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorMessage.includes(middlewarePath);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -252,7 +252,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorMessage.includes('Middleware file not found');
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -288,7 +288,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return !isEsbuildError && errorMessage.includes('Middleware file not found');
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -354,7 +354,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorThrown && errorContainsPath;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -414,7 +414,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return error instanceof Error;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 

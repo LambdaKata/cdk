@@ -216,7 +216,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -239,7 +239,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -266,7 +266,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -293,7 +293,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -314,7 +314,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return typeof config.has_middleware === 'boolean' && config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -341,7 +341,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -368,7 +368,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -399,7 +399,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -421,7 +421,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware !== false;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

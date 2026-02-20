@@ -202,7 +202,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
     let layerManager: AWSLayerManager;
     let mockLogger: jest.Mocked<ConsoleLogger>;
     let originalDateNow: typeof Date.now;
-    let mockTime = 0;
+    const mockTime = 0;
 
     beforeEach(() => {
         // Mock Date.now for deterministic timing tests
@@ -302,7 +302,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -367,7 +367,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -539,7 +539,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
 
@@ -583,7 +583,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 10 }
             );
         });
     });

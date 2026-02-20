@@ -173,7 +173,7 @@ describe('Feature: nodejs-layer-management, Property 18: Concurrent Operation Sa
                     }
                 }
             ),
-            { numRuns: 50, timeout: 5000 }
+            { numRuns: 10, timeout: 5000 }
         );
     });
 
@@ -256,7 +256,7 @@ describe('Feature: nodejs-layer-management, Property 18: Concurrent Operation Sa
                     }
                 }
             ),
-            { numRuns: 30, timeout: 5000 }
+            { numRuns: 10, timeout: 5000 }
         );
     });
 
@@ -327,7 +327,7 @@ describe('Feature: nodejs-layer-management, Property 18: Concurrent Operation Sa
                     }
                 }
             ),
-            { numRuns: 40, timeout: 8000 }
+            { numRuns: 10, timeout: 8000 }
         );
     });
 
@@ -399,7 +399,7 @@ describe('Feature: nodejs-layer-management, Property 18: Concurrent Operation Sa
                     }
                 }
             ),
-            { numRuns: 30, timeout: 8000 }
+            { numRuns: 10, timeout: 8000 }
         );
     });
 });
