@@ -287,6 +287,8 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
  * @param props - Optional configuration for the transformation
  * @returns Promise resolving to the transformation result
  *
+ * @deprecated
+ *
  * @internal
  */
 export async function kataWithAccountId<T extends NodejsFunction | LambdaFunction>(
