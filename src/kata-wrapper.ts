@@ -127,20 +127,6 @@ const UNLICENSED_ERROR = 'Lambda Kata licensing validation failed: AWS account i
  */
 export interface KataWrapperOptions extends KataProps {
   /**
-   * Optional: Custom licensing service for testing.
-   * If not provided, the default HTTP licensing service will be used.
-   * @internal
-   */
-  licensingService?: LicensingService;
-
-  /**
-   * Optional: Custom synchronous licensing service for testing.
-   * Must implement checkEntitlementSync(accountId: string): LicensingResponse
-   * @internal
-   */
-  syncLicensingService?: NativeLicensingServiceInterface;
-
-  /**
    * Custom bundle path.
    * If not specified, uses the default /opt/js_runtime/bundle.js
    */
@@ -185,6 +171,26 @@ export interface KataWrapperOptions extends KataProps {
    * Default: false
    */
   skipNodejsLayer?: boolean;
+}
+
+/**
+ * Internal options for kata wrapper, including testing hooks.
+ * NOT part of public API - used only for internal testing.
+ *
+ * @internal
+ */
+export interface KataWrapperInternalOptions extends KataWrapperOptions {
+  /**
+   * Custom licensing service for testing.
+   * @internal
+   */
+  licensingService?: LicensingService;
+
+  /**
+   * Custom synchronous licensing service for testing.
+   * @internal
+   */
+  syncLicensingService?: NativeLicensingServiceInterface;
 }
 
 /**
@@ -298,13 +304,13 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   lambda: T,
   accountId: string,
   region: string,
-  props?: KataWrapperOptions,
+  props?: KataWrapperInternalOptions,
 ): Promise<KataResult> {
   // Validate input
   validateLambdaInput(lambda);
 
-  // Get the licensing service
-  const licensingService = props?.licensingService ?? createLicensingService(props?.licensingEndpoint);
+  // Get the licensing service - use provided service for testing, otherwise default
+  const licensingService = props?.licensingService ?? createLicensingService();
 
   // Extract runtime parameters from Lambda function
   const originalRuntime = getOriginalRuntime(lambda);
@@ -389,7 +395,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
 function performKataTransformationSync<T extends NodejsFunction | LambdaFunction>(
   lambda: T,
   scope: Construct,
-  props?: KataWrapperOptions,
+  props?: KataWrapperInternalOptions,
 ): KataResult {
   // Resolve the account ID SYNCHRONOUSLY
   let accountId: string;
@@ -418,9 +424,11 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
   // Check entitlement SYNCHRONOUSLY using native C-module
   let licensingResponse: LicensingResponse;
 
-  if (props?.syncLicensingService?.checkEntitlementSync) {
+  // Internal testing hook: use provided sync licensing service if available
+  const internalProps = props as KataWrapperInternalOptions | undefined;
+  if (internalProps?.syncLicensingService?.checkEntitlementSync) {
     // Use provided sync licensing service (for testing)
-    licensingResponse = props.syncLicensingService.checkEntitlementSync(accountId);
+    licensingResponse = internalProps.syncLicensingService.checkEntitlementSync(accountId);
   } else {
     // Use native licensing module - this is the ONLY production path
     // The native C-module contains all licensing logic (endpoint, security, validation)
@@ -1218,7 +1226,7 @@ async function applyTransformationWithNodeSupport(
  */
 export function handleUnlicensed(
   lambda: NodejsFunction | LambdaFunction,
-  props: KataWrapperOptions | undefined,
+  props: KataProps | undefined,
   licensingResponse: LicensingResponse,
 ): void {
   const behavior = props?.unlicensedBehavior ?? 'warn';

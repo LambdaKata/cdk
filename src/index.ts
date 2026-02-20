@@ -33,20 +33,9 @@
 // Type exports
 export { KataProps, LicensingResponse, TransformationConfig } from './types';
 
-// Licensing service exports
-export {
-  LicensingService,
-  LicenseCheckParams,
-  HttpLicensingService,
-  createLicensingService,
-  isValidAccountId,
-} from './licensing';
-
-// Mock licensing service for testing
-export {
-  MockLicensingService,
-  createMockLicensingService,
-} from './mock-licensing';
+// Note: Licensing service internals are NOT exported.
+// Licensing is controlled entirely by Lambda Kata infrastructure.
+// For testing purposes, use internal imports directly.
 
 // Account resolver exports
 export {
