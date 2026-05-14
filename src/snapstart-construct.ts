@@ -23,9 +23,9 @@
 import * as path from 'path';
 import { Construct } from 'constructs';
 import { CustomResource, Duration } from 'aws-cdk-lib';
-import { Function as LambdaFunction, Runtime, Code, IFunction } from 'aws-cdk-lib/aws-lambda';
+import { Code, Function as LambdaFunction, IFunction, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Provider } from 'aws-cdk-lib/custom-resources';
-import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 /**
  * Properties for the {@link SnapStartActivator} construct.
@@ -163,8 +163,8 @@ export class SnapStartActivator extends Construct {
    */
   private createProviderFunction(timeoutSeconds: number, targetFunction: IFunction): LambdaFunction {
     // Resolve path to bundled handler directory
-    // __dirname in npm package: node_modules/@lambda-kata/cdk/out/dist/
-    // Handler location: node_modules/@lambda-kata/cdk/out/dist/snapstart-handler.js
+    // __dirname in npm package: node_modules/@lambdakata/cdk/out/dist/
+    // Handler location: node_modules/@lambdakata/cdk/out/dist/snapstart-handler.js
     const handlerDir = path.join(__dirname);
 
     const fn = new LambdaFunction(this, 'Handler', {

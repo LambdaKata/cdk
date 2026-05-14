@@ -13,7 +13,7 @@
 /**
  * Unit Tests for package exports
  *
- * These tests verify that the @lambda-kata/cdk package exports all required
+ * These tests verify that the @lambdakata/cdk package exports all required
  * items correctly and that they have the expected types.
  *
  * **Validates: Requirement 1.3**

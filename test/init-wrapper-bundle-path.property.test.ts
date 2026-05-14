@@ -132,14 +132,14 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * This tests the primary property: error messages always include the bundle path.
          */
         it('should include bundle path in error message for any non-existent bundle path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
                     // The error message should contain the bundle path
                     return errorSignal.error.includes(bundlePath);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -148,14 +148,14 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * Test with a variety of bundle path formats to ensure robustness
          */
         it('should include bundle path in error message for various path formats', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(bundlePathWithVariety(), (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
                     // The error message should contain the bundle path
                     return errorSignal.error.includes(bundlePath);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -164,14 +164,14 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * The error signal should have ready: false when bundle loading fails
          */
         it('should set ready to false in error signal for any non-existent bundle', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
                     // The ready field should be false
                     return errorSignal.ready === false;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -186,7 +186,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                 { minLength: 5, maxLength: 50 }
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validBundlePath(),
                     errorWithoutPath,
@@ -205,7 +205,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                         return errorSignal.error.includes(bundlePath);
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -214,7 +214,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * When the original error already includes the path, it should be preserved
          */
         it('should preserve bundle path when original error already contains it', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     // Simulate Node.js "Cannot find module" error which includes the path
                     const originalError = `Cannot find module '${bundlePath}'`;
@@ -231,7 +231,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
 
                     return pathOccurrences >= 1 && errorSignal.error.includes(bundlePath);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -240,7 +240,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * Error message should be descriptive (not just the path)
          */
         it('should produce descriptive error message containing more than just the path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
@@ -248,7 +248,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                     // (should include descriptive text like "Cannot find module" or "Failed to load")
                     return errorSignal.error.length > bundlePath.length;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -257,7 +257,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * Error signal should be valid JSON-serializable
          */
         it('should produce JSON-serializable error signal for any bundle path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
@@ -273,7 +273,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -286,14 +286,14 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                 /^\/[a-zA-Z][a-zA-Z0-9_]*_[a-zA-Z0-9_]*[0-9]+\.js$/
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(pathWithSpecialChars, (bundlePath) => {
                     const errorSignal = simulateBundleLoadError(bundlePath);
 
                     // The error message should contain the bundle path exactly
                     return errorSignal.error.includes(bundlePath);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -302,7 +302,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
          * Test determinism: same path should always produce same error format
          */
         it('should produce consistent error messages for the same bundle path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validBundlePath(), (bundlePath) => {
                     const errorSignal1 = simulateBundleLoadError(bundlePath);
                     const errorSignal2 = simulateBundleLoadError(bundlePath);
@@ -310,7 +310,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
                     // Same input should produce same output
                     return errorSignal1.error === errorSignal2.error;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

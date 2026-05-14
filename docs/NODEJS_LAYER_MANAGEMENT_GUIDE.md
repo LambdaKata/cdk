@@ -63,7 +63,7 @@ Primary entry point that coordinates runtime detection and layer management.
 
 ```bash
 # Required dependencies
-npm install @lambda-kata/cdk aws-cdk-lib constructs
+npm install @lambdakata/cdk aws-cdk-lib constructs
 
 # Development dependencies
 npm install --save-dev @types/node typescript jest
@@ -104,7 +104,7 @@ export AWS_DEFAULT_REGION=us-east-1
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 export class MyLambdaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -133,7 +133,7 @@ export class MyLambdaStack extends cdk.Stack {
 
 ```typescript
 // manual-layer-example.ts
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
 
 async function createNodeLayer() {
   try {
@@ -171,8 +171,8 @@ async function createNodeLayer() {
 ### Custom Logger Integration
 
 ```typescript
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
-import { createDefaultLogger } from '@lambda-kata/cdk/logger';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk/logger';
 
 // Create custom logger
 class CustomLogger {
@@ -207,7 +207,7 @@ const result = await ensureNodeRuntimeLayer({
 ```typescript
 // multi-region-stack.ts
 import * as cdk from 'aws-cdk-lib';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 export class MultiRegionStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -241,8 +241,8 @@ This example shows the complete process when no compatible layer exists.
 
 ```typescript
 // workflow-example-1.ts
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
-import { createDefaultLogger } from '@lambda-kata/cdk/logger';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk/logger';
 
 const logger = createDefaultLogger();
 
@@ -429,7 +429,7 @@ This example shows how the system integrates with AWS CDK deployments.
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 export class NodeJsLayerWorkflowStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -515,7 +515,7 @@ import {
   ensureNodeRuntimeLayer, 
   NodeRuntimeLayerError, 
   ErrorCodes 
-} from '@lambda-kata/cdk';
+} from '@lambdakata/cdk';
 
 async function errorHandlingWorkflow() {
   const logger = createDefaultLogger();
@@ -553,7 +553,7 @@ async function errorHandlingWorkflow() {
     logger.info('=== SCENARIO 2: Docker Fallback ===');
     
     // Simulate Docker unavailable by using a detector with fallback enabled
-    const { DockerRuntimeDetector } = await import('@lambda-kata/cdk');
+    const { DockerRuntimeDetector } = await import('@lambdakata/cdk');
     
     const detector = new DockerRuntimeDetector({
       logger,
@@ -605,7 +605,7 @@ async function errorHandlingWorkflow() {
   // Scenario 4: Resource Cleanup on Failure
   logger.info('=== SCENARIO 4: Resource Cleanup ===');
   
-  const { AWSLayerManager } = await import('@lambda-kata/cdk');
+  const { AWSLayerManager } = await import('@lambdakata/cdk');
   const layerManager = new AWSLayerManager({ logger });
   
   try {
@@ -792,7 +792,7 @@ const result = await ensureNodeRuntimeLayer({
 ### Debug Mode
 
 ```typescript
-import { createDefaultLogger } from '@lambda-kata/cdk/logger';
+import { createDefaultLogger } from '@lambdakata/cdk/logger';
 
 const debugLogger = createDefaultLogger();
 debugLogger.setLevel('debug'); // Enable debug logging

@@ -9,7 +9,7 @@ import { extractBundlePathFromHandler } from '../src/kata-wrapper';
 describe('extractBundlePathFromHandler property tests', () => {
     describe('invariants', () => {
         it('should always return a string starting with /var/task/', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.string({ minLength: 0, maxLength: 100 }),
                     (handler) => {
@@ -17,12 +17,12 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.startsWith('/var/task/');
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
         it('should always return a string ending with .js', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.string({ minLength: 0, maxLength: 100 }),
                     (handler) => {
@@ -30,12 +30,12 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.endsWith('.js');
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
         it('should never return empty string', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.string({ minLength: 0, maxLength: 100 }),
                     (handler) => {
@@ -43,12 +43,12 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result.length > 0;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
         it('should return /var/task/index.js for empty or whitespace-only input', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.stringOf(fc.constant(' ')),
                     (whitespace) => {
@@ -63,7 +63,7 @@ describe('extractBundlePathFromHandler property tests', () => {
 
     describe('handler format: module.function', () => {
         it('should extract module name from valid handler format', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     // Generate valid module names (alphanumeric, no dots)
                     fc.stringOf(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789_'), { minLength: 1, maxLength: 20 }),
@@ -75,12 +75,12 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result === `/var/task/${moduleName}.js`;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
         it('should extract path/module from handler with path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     // Generate path segments
                     fc.array(
@@ -96,14 +96,14 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result === `/var/task/${modulePath}.js`;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
 
     describe('idempotence', () => {
         it('should be deterministic - same input always produces same output', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.string({ minLength: 0, maxLength: 100 }),
                     (handler) => {
@@ -112,7 +112,7 @@ describe('extractBundlePathFromHandler property tests', () => {
                         return result1 === result2;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

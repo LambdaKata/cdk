@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the requirements for refactoring the SnapStart Custom Resource Handler in the `@lambda-kata/cdk` library. The current implementation uses a `generateHandlerCode()` method that returns ~120 lines of JavaScript as a string literal passed to `Code.fromInline()`. This approach lacks type-checking, IDE support, and duplicates logic already present in `snapstart-activator.ts`. The refactoring will bundle the existing TypeScript handler at build time and use `Code.fromAsset()` for deployment.
+This document specifies the requirements for refactoring the SnapStart Custom Resource Handler in the `@lambdakata/cdk` library. The current implementation uses a `generateHandlerCode()` method that returns ~120 lines of JavaScript as a string literal passed to `Code.fromInline()`. This approach lacks type-checking, IDE support, and duplicates logic already present in `snapstart-activator.ts`. The refactoring will bundle the existing TypeScript handler at build time and use `Code.fromAsset()` for deployment.
 
 ## Glossary
 
@@ -11,7 +11,7 @@ This document specifies the requirements for refactoring the SnapStart Custom Re
 - **CDK_Construct**: The `SnapStartActivator` class in `snapstart-construct.ts` that creates the Custom Resource infrastructure
 - **Custom_Resource_Provider**: The CDK Provider framework that invokes the SnapStart_Handler during CloudFormation operations
 - **Handler_Bundle**: The standalone JavaScript file (`snapstart-handler.js`) produced by bundling `snapstart-activator.ts`
-- **NPM_Package**: The distributable `@lambda-kata/cdk` package published to npm
+- **NPM_Package**: The distributable `@lambdakata/cdk` package published to npm
 
 ## Requirements
 

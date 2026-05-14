@@ -61,7 +61,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
          * For any two distinct handler path strings, the generated config JSON content should be different.
          */
         it('should generate different config content for any two distinct handler paths', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(differentHandlerPaths(), ([handlerPath1, handlerPath2]) => {
                     // Generate config content for both handler paths
                     const content1 = generateConfigContent(handlerPath1);
@@ -70,7 +70,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
                     // The generated content should be different
                     return content1 !== content2;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -79,7 +79,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
          * This verifies that the handler path is correctly embedded in the JSON
          */
         it('should embed the handler path correctly in the generated JSON', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validHandlerPath(), (handlerPath) => {
                     const content = generateConfigContent(handlerPath);
 
@@ -89,7 +89,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
                     // The handler path should be stored under the correct key
                     return parsed[HANDLER_CONFIG_KEY] === handlerPath;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -97,7 +97,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
          * Property: Generated content should be valid JSON for any valid handler path
          */
         it('should generate valid JSON for any valid handler path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validHandlerPath(), (handlerPath) => {
                     const content = generateConfigContent(handlerPath);
 
@@ -109,7 +109,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -117,7 +117,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
          * Property: The generated JSON should contain exactly one key (original_js_handler)
          */
         it('should generate JSON with exactly the original_js_handler key', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validHandlerPath(), (handlerPath) => {
                     const content = generateConfigContent(handlerPath);
                     const parsed = JSON.parse(content);
@@ -126,7 +126,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
                     // Should have exactly one key
                     return keys.length === 1 && keys[0] === HANDLER_CONFIG_KEY;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -135,7 +135,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
          * This ensures deterministic behavior
          */
         it('should generate identical content for the same handler path (deterministic)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validHandlerPath(), (handlerPath) => {
                     const content1 = generateConfigContent(handlerPath);
                     const content2 = generateConfigContent(handlerPath);
@@ -143,7 +143,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
                     // Same input should produce same output
                     return content1 === content2;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

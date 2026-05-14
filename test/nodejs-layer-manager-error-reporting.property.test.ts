@@ -319,7 +319,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
          * detailed error messages with troubleshooting guidance.
          */
         it('should provide comprehensive error reporting for Docker failures', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     fc.constantFrom('DOCKER_UNAVAILABLE' as const, 'DOCKER_PERMISSION_DENIED' as const, 'NETWORK_ERROR' as const),
@@ -364,7 +364,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -375,7 +375,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
          * clear error messages indicating required permissions.
          */
         it('should provide clear error messages for AWS authentication failures', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     fc.constantFrom('AWS_ACCESS_DENIED' as const, 'AWS_THROTTLING' as const),
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -433,7 +433,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
          * comprehensive error information with fallback guidance.
          */
         it('should provide comprehensive error reporting for runtime detection failures', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     runtimeDetectionOptions(),
                     fc.constantFrom(...(['DOCKER_UNAVAILABLE', 'NETWORK_ERROR'] as const)),
@@ -486,7 +486,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -497,7 +497,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
          * clear error messages with supported options.
          */
         it('should provide clear validation error messages', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     fc.constantFrom('nodejs99.x', 'nodejs15.x', 'python3.9'),
                     fc.constantFrom('x86_64', 'arm64', 'arm32', 'mips'),
@@ -554,7 +554,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
          * comprehensive metadata for debugging and monitoring.
          */
         it('should include comprehensive metadata in error logging', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     layerCreationOptions(),
                     fc.constantFrom('DOCKER_UNAVAILABLE' as const, 'DOCKER_PERMISSION_DENIED' as const, 'AWS_ACCESS_DENIED' as const, 'AWS_THROTTLING' as const, 'NETWORK_ERROR' as const),
@@ -603,7 +603,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

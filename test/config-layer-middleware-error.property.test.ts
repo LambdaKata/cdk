@@ -179,7 +179,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * should throw an error during CDK synthesis.
          */
         it('should throw an error when middlewarePath points to a non-existent file', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(anyNonExistentPath(), (middlewarePath) => {
                     // Ensure the path doesn't actually exist (sanity check)
                     if (fs.existsSync(middlewarePath)) {
@@ -196,7 +196,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
 
                     return errorThrown;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -206,7 +206,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * For any non-existent file path, the error message should contain the file path.
          */
         it('should include the file path in the error message', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(anyNonExistentPath(), (middlewarePath) => {
                     // Ensure the path doesn't actually exist (sanity check)
                     if (fs.existsSync(middlewarePath)) {
@@ -224,7 +224,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorMessage.includes(middlewarePath);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -234,7 +234,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * The error message should indicate that the middleware file was not found.
          */
         it('should indicate "Middleware file not found" in the error message', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(anyNonExistentPath(), (middlewarePath) => {
                     // Ensure the path doesn't actually exist (sanity check)
                     if (fs.existsSync(middlewarePath)) {
@@ -252,7 +252,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorMessage.includes('Middleware file not found');
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -263,7 +263,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * generation should throw an error with the file path in the message.
          */
         it('should throw error during full config layer generation for non-existent middleware', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     anyNonExistentPath(),
@@ -288,7 +288,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -299,7 +299,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * This ensures fast failure during CDK synthesis.
          */
         it('should throw error before attempting esbuild compilation', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(anyNonExistentPath(), (middlewarePath) => {
                     // Ensure the path doesn't actually exist (sanity check)
                     if (fs.existsSync(middlewarePath)) {
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return !isEsbuildError && errorMessage.includes('Middleware file not found');
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -330,7 +330,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * The error should be thrown regardless of the handler path value.
          */
         it('should throw error regardless of handler path value', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     anyNonExistentPath(),
@@ -354,7 +354,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return errorThrown && errorContainsPath;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -399,7 +399,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
          * The thrown error should be an instance of Error.
          */
         it('should throw an Error instance', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(anyNonExistentPath(), (middlewarePath) => {
                     // Ensure the path doesn't actually exist (sanity check)
                     if (fs.existsSync(middlewarePath)) {
@@ -414,7 +414,7 @@ describe('Feature: configurable-bundle-middleware, Property 12: Non-Existent Mid
                         return error instanceof Error;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 

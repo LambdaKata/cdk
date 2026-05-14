@@ -2296,7 +2296,7 @@ export class AWSLayerManager implements LayerManager {
         } catch (fallbackError) {
           return {
             success: false,
-            error: `Fallback verification failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+            error: `Fallback verification failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
           };
         }
       }
@@ -2566,7 +2566,7 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
     } catch (error) {
       throw new Error(
         `Failed to create ZIP archive with both Python and system zip methods: ` +
-        `${error instanceof Error ? error.message : String(error)}`
+        `${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -3016,7 +3016,7 @@ except Exception as e:
 
           reject(new Error(
             `Command timeout after ${AWSLayerManager.DOCKER_TIMEOUT}ms: ${command} ${args.join(' ')}\n` +
-            `stdout: ${stdout.trim()}\nstderr: ${stderr.trim()}`
+            `stdout: ${stdout.trim()}\nstderr: ${stderr.trim()}`,
           ));
         }
       }, AWSLayerManager.DOCKER_TIMEOUT);

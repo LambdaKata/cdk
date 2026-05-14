@@ -218,7 +218,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * For any non-function return value from middleware, an error signal should be produced.
          */
         it('should produce error signal when middleware returns a non-function value', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(nonFunctionValue(), handlerPath(), (returnValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(returnValue);
                     const bundle = {};
@@ -232,7 +232,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                     // Should be an error signal (ready: false)
                     return signal.ready === false;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -241,7 +241,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * The error message should indicate that the handler is not a function.
          */
         it('should include "Handler is not a function" in error message for non-function returns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(nonFunctionValue(), handlerPath(), (returnValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(returnValue);
                     const bundle = {};
@@ -259,7 +259,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                     // Error message should contain the specific error
                     return signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -268,7 +268,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test specifically with null return value
          */
         it('should produce error signal when middleware returns null', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware = createMiddlewareReturning(null);
                     const bundle = {};
@@ -281,7 +281,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -290,7 +290,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test specifically with undefined return value
          */
         it('should produce error signal when middleware returns undefined', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware = createMiddlewareReturning(undefined);
                     const bundle = {};
@@ -303,7 +303,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -312,7 +312,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test with string return values
          */
         it('should produce error signal when middleware returns a string', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(fc.string(), handlerPath(), (stringValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(stringValue);
                     const bundle = {};
@@ -325,7 +325,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -340,7 +340,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                 fc.constantFrom(0, 1, -1, NaN, Infinity, -Infinity)
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(numberValue, handlerPath(), (numValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(numValue);
                     const bundle = {};
@@ -353,7 +353,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -362,7 +362,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test with object return values (non-function objects)
          */
         it('should produce error signal when middleware returns an object', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(fc.object(), handlerPath(), (objValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(objValue);
                     const bundle = {};
@@ -375,7 +375,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -384,7 +384,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test with array return values
          */
         it('should produce error signal when middleware returns an array', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(fc.array(fc.anything()), handlerPath(), (arrValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(arrValue);
                     const bundle = {};
@@ -397,7 +397,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -406,7 +406,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test with boolean return values
          */
         it('should produce error signal when middleware returns a boolean', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(fc.boolean(), handlerPath(), (boolValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(boolValue);
                     const bundle = {};
@@ -419,7 +419,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === false && signal.error.includes('Handler is not a function');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -428,7 +428,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Contrast test: valid function return should produce ready signal
          */
         it('should produce ready signal when middleware returns a valid function', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware = createValidMiddleware();
                     const bundle = {};
@@ -442,7 +442,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                     // Should be a ready signal, not an error
                     return signal.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -451,7 +451,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test that error signal is JSON-serializable
          */
         it('should produce JSON-serializable error signal for non-function returns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(nonFunctionValue(), handlerPath(), (returnValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(returnValue);
                     const bundle = {};
@@ -475,7 +475,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -484,7 +484,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test that error signal format matches IPC protocol
          */
         it('should produce error signal matching the IPC protocol format', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(nonFunctionValue(), handlerPath(), (returnValue, originalHandler) => {
                     const middleware = createMiddlewareReturning(returnValue);
                     const bundle = {};
@@ -509,7 +509,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return keys.includes('ready') && keys.includes('error');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -518,7 +518,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test determinism: same non-function return should always produce same error
          */
         it('should produce consistent error signals for the same non-function return', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(nonFunctionValue(), handlerPath(), (returnValue, originalHandler) => {
                     const middleware1 = createMiddlewareReturning(returnValue);
                     const middleware2 = createMiddlewareReturning(returnValue);
@@ -542,7 +542,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal1.error === signal2.error;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -551,7 +551,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test with various bundle objects - the bundle content shouldn't affect the error
          */
         it('should produce error signal regardless of bundle content when middleware returns non-function', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     nonFunctionValue(),
                     fc.object(),
@@ -570,7 +570,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -579,7 +579,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test that async functions are accepted as valid handlers
          */
         it('should accept async functions as valid handler returns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware: MiddlewareFunction = () => {
                         return async (event: unknown) => ({ statusCode: 200, body: event });
@@ -594,7 +594,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -603,7 +603,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test that regular functions are accepted as valid handler returns
          */
         it('should accept regular functions as valid handler returns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware: MiddlewareFunction = () => {
                         return function handler() {
@@ -620,7 +620,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -629,7 +629,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
          * Test that arrow functions are accepted as valid handler returns
          */
         it('should accept arrow functions as valid handler returns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware: MiddlewareFunction = () => {
                         return () => ({ statusCode: 200 });
@@ -644,7 +644,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
                     return signal.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

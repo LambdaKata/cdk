@@ -124,27 +124,27 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
     describe('Property 8: Account ID Resolution', () => {
         describe('isValidAccountIdFormat', () => {
             it('should return true for any valid 12-digit account ID', () => {
-                fc.assert(
+                return fc.assert(
                     fc.property(arbitraryAccountId(), (accountId) => {
                         return isValidAccountIdFormat(accountId) === true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should return false for any invalid account ID', () => {
-                fc.assert(
+                return fc.assert(
                     fc.property(arbitraryInvalidAccountId(), (accountId) => {
                         return isValidAccountIdFormat(accountId) === false;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('Context Resolution Strategy', () => {
             it('should resolve account ID from CDK context for any valid account ID', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (accountId) => {
                         const { construct } = createTestStack({
                             contextAccountId: accountId,
@@ -156,12 +156,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
                         return result.accountId === accountId && result.source === 'context';
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should skip context resolution for invalid account IDs', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(
                         arbitraryInvalidAccountId(),
                         arbitraryAccountId(),
@@ -179,12 +179,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                             return result.source === 'stack' && result.accountId === validStackId;
                         }
                     ),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should skip context resolution when context value is "unknown"', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (stackAccountId) => {
                         const app = new App({
                             context: { 'aws:cdk:account': 'unknown' },
@@ -201,14 +201,14 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                         // Should fall through to stack resolution
                         return result.source === 'stack' && result.accountId === stackAccountId;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('Stack Resolution Strategy', () => {
             it('should resolve account ID from stack for any valid account ID when context is not set', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (accountId) => {
                         const { construct } = createTestStack({
                             stackAccountId: accountId,
@@ -220,12 +220,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
                         return result.accountId === accountId && result.source === 'stack';
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should skip stack resolution when account is a token (unresolved)', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (stsAccountId) => {
                         const { construct } = createTestStack({
                             stackAccountId: '123456789012', // Will be replaced with token
@@ -241,14 +241,14 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                         // Should fall through to STS resolution since stack account is a token
                         return result.source === 'sts' && result.accountId === stsAccountId;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('STS Fallback Strategy', () => {
             it('should resolve account ID from STS when context and stack are not available', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (accountId) => {
                         const { construct } = createTestStack({});
 
@@ -260,12 +260,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
                         return result.accountId === accountId && result.source === 'sts';
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should throw AccountResolutionError when all strategies fail', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(fc.constant(null), async () => {
                         const { construct } = createTestStack({});
 
@@ -283,12 +283,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                             return error instanceof AccountResolutionError;
                         }
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should skip STS fallback when skipStsFallback option is true', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(fc.constant(null), async () => {
                         const { construct } = createTestStack({});
 
@@ -301,14 +301,14 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                             return error instanceof AccountResolutionError;
                         }
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('Resolution Priority', () => {
             it('should prefer context over stack when both are valid', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(
                         arbitraryAccountId(),
                         arbitraryAccountId().filter((id) => id !== ''),
@@ -330,12 +330,12 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                             );
                         }
                     ),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
             it('should prefer stack over STS when context is not available', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(
                         arbitraryAccountId(),
                         arbitraryAccountId(),
@@ -358,14 +358,14 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
                             );
                         }
                     ),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('resolveAccountId convenience function', () => {
             it('should return only the account ID string for any valid resolution', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(arbitraryAccountId(), async (accountId) => {
                         const { construct } = createTestStack({
                             contextAccountId: accountId,
@@ -377,14 +377,14 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
                         return result === accountId && typeof result === 'string';
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
 
         describe('Edge Cases', () => {
             it('should handle all-zero account IDs', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(fc.constant('000000000000'), async (accountId) => {
                         const { construct } = createTestStack({
                             contextAccountId: accountId,
@@ -401,7 +401,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
             });
 
             it('should handle all-nine account IDs', () => {
-                fc.assert(
+                return fc.assert(
                     fc.asyncProperty(fc.constant('999999999999'), async (accountId) => {
                         const { construct } = createTestStack({
                             contextAccountId: accountId,

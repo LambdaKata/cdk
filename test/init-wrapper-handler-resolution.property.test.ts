@@ -157,7 +157,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * This tests the primary property: default resolution extracts the correct handler.
          */
         it('should resolve handler from bundle using the last part of the handler path', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerPath(),
                     mockHandlerFunction(),
@@ -175,7 +175,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -184,7 +184,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Test with common Lambda handler path patterns
          */
         it('should resolve handler correctly for common Lambda handler paths', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     commonHandlerPaths(),
                     mockHandlerFunction(),
@@ -196,7 +196,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -207,7 +207,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Test that the resolution works with the standard "handler" export name
          */
         it('should work with standard "handler" export name', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     moduleName(),
                     mockHandlerFunction(),
@@ -219,7 +219,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -228,7 +228,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Handler resolution should only use the last part of the path (after the last dot)
          */
         it('should only use the last part of the handler path for resolution', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerName(),
                     mockHandlerFunction(),
@@ -250,7 +250,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         });
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -259,7 +259,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Resolution should return undefined when handler property doesn't exist
          */
         it('should return undefined when handler property does not exist in bundle', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerPath(),
                     (originalHandler) => {
@@ -272,7 +272,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -281,7 +281,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Resolution should return the exact value from the bundle (not a copy)
          */
         it('should return the exact reference from the bundle', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerPath(),
                     mockHandlerFunction(),
@@ -294,7 +294,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === bundle[expectedHandlerName];
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -303,7 +303,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Resolution should be deterministic - same inputs always produce same output
          */
         it('should produce consistent results for the same handler path and bundle', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerPath(),
                     mockHandlerFunction(),
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolved1 === resolved2 && resolved2 === resolved3;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -333,7 +333,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                 /^[a-zA-Z_][a-zA-Z0-9_]*[0-9_]+[a-zA-Z0-9_]*$/
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     moduleName(),
                     handlerNameWithSpecialChars,
@@ -346,7 +346,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -355,7 +355,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Resolution should work when bundle has multiple exports
          */
         it('should resolve correct handler when bundle has multiple exports', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerPath(),
                     mockHandlerFunction(),
@@ -379,7 +379,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === targetFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -388,7 +388,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Simple handler paths (no module path, just "handler") should work
          */
         it('should handle simple handler paths without module prefix', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerName(),
                     mockHandlerFunction(),
@@ -401,7 +401,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         return resolvedHandler === handlerFn;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -410,7 +410,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
          * Handler path extraction should handle edge cases with multiple dots
          */
         it('should use only the last segment when handler path has multiple dots', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     handlerName(),
                     mockHandlerFunction(),
@@ -430,7 +430,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
                         });
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

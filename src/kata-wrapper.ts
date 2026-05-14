@@ -26,8 +26,16 @@
  */
 
 import { Construct } from 'constructs';
-import { Annotations, CfnResource, RemovalPolicy, Stack, Token } from 'aws-cdk-lib';
-import { Architecture, CfnFunction, Code, CodeConfig, Function as LambdaFunction, LayerVersion, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Annotations, CfnResource, Stack, Token } from 'aws-cdk-lib';
+import {
+  Architecture,
+  CfnFunction,
+  Code,
+  CodeConfig,
+  Function as LambdaFunction,
+  LayerVersion,
+  Runtime,
+} from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LogRetention, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -236,7 +244,7 @@ interface _TransformationState {
  *
  * @example
  * ```typescript
- * import { kata } from '@lambda-kata/cdk';
+ * import { kata } from '@lambdakata/cdk';
  * import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
  *
  * const myFunction = new NodejsFunction(this, 'MyFunction', {
@@ -557,7 +565,7 @@ async function __performKataTransformation<T extends NodejsFunction | LambdaFunc
         'Cannot determine deployment region for Node.js layer. ' +
         'Stack region is unresolved (CDK token). ' +
         'Please specify region explicitly in Stack env: ' +
-        'new Stack(app, "MyStack", { env: { region: "us-east-1" } })'
+        'new Stack(app, "MyStack", { env: { region: "us-east-1" } })',
       );
       // Use stack.region anyway - it will be resolved during CloudFormation deployment
       // but AWS SDK calls during synthesis will use default credentials region
@@ -622,6 +630,7 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
  *
  * @deprecated C-lang Lambda Kata makes its own decision for either absolute or relative path
  */
+
 // const LAMBDA_TASK_ROOT = '/var/task';
 
 /**
@@ -665,7 +674,6 @@ export function extractBundlePathFromHandler(handler: string): string {
 
   return `${modulePath}.js`;
 }
-
 
 
 /**
@@ -776,7 +784,7 @@ function createNodejsRuntimeLayer(
   if (!runtimePrefix) {
     throw new Error(
       `Unsupported Node.js runtime: ${originalRuntime}. ` +
-      `Supported runtimes: ${Object.keys(NODEJS_RUNTIME_TO_S3_KEY).join(', ')}`
+      `Supported runtimes: ${Object.keys(NODEJS_RUNTIME_TO_S3_KEY).join(', ')}`,
     );
   }
 
@@ -796,7 +804,7 @@ function createNodejsRuntimeLayer(
     bucketName = NODEJS_LAYER_S3_BUCKET;
     console.warn(
       `[Lambda Kata] Stack region is unresolved. Using global S3 bucket: ${bucketName}. ` +
-      `For better performance, specify region explicitly in Stack env.`
+      `For better performance, specify region explicitly in Stack env.`,
     );
   } else {
     // Use region-specific bucket
@@ -1100,10 +1108,14 @@ async function applyTransformationWithNodeSupport(
         enableS3Support: true,
         awsSdkConfig: { region },
         logger: {
-          debug: () => { },
-          info: () => { },
-          warn: () => { },
-          error: () => { },
+          debug: () => {
+          },
+          info: () => {
+          },
+          warn: () => {
+          },
+          error: () => {
+          },
         },
       });
 
@@ -1123,7 +1135,7 @@ async function applyTransformationWithNodeSupport(
 
         console.log(
           `[Lambda Kata] Node.js layer attached: ${deployResult.layerVersionArn} ` +
-          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB)`
+          `(${(deployResult.layerSize / (1024 * 1024)).toFixed(2)}MB)`,
         );
 
         return; // Success - exit early
@@ -1150,10 +1162,14 @@ async function applyTransformationWithNodeSupport(
             region,
             accountId,
             logger: {
-              debug: () => { },
-              info: () => { },
-              warn: () => { },
-              error: () => { },
+              debug: () => {
+              },
+              info: () => {
+              },
+              warn: () => {
+              },
+              error: () => {
+              },
             },
           });
 
@@ -1177,14 +1193,14 @@ async function applyTransformationWithNodeSupport(
             `2. Docker extraction: ${dockerErrorMsg}\n\n` +
             `The Lambda will be transformed to Lambda Kata runtime, but Node.js binaries may not be available.\n\n` +
             `To fix: Either provide pre-built layer ZIP files (nodejs-layer-${architecture}.zip) ` +
-            `or ensure Docker is available for binary extraction.`
+            `or ensure Docker is available for binary extraction.`,
           );
         }
       } else {
         // ZIP deployment failed for other reasons (not missing files)
         Annotations.of(lambda).addWarning(
           `Failed to deploy Node.js layer from ZIP: ${zipErrorMsg}. ` +
-          `The Lambda will be transformed but Node.js binaries may not be available.`
+          `The Lambda will be transformed but Node.js binaries may not be available.`,
         );
       }
     }

@@ -56,7 +56,7 @@ my-nodejs-lambda-project/
     "diff": "cdk diff"
   },
   "dependencies": {
-    "@lambda-kata/cdk": "^1.0.0",
+    "@lambdakata/cdk": "^1.0.0",
     "aws-cdk-lib": "^2.100.0",
     "constructs": "^10.0.0",
     "aws-sdk": "^2.1400.0"
@@ -193,7 +193,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 interface ApiStackProps extends cdk.StackProps {
   database: dynamodb.Table;
@@ -700,7 +700,7 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as sources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 interface ProcessingStackProps extends cdk.StackProps {
   database: dynamodb.Table;
@@ -1076,8 +1076,8 @@ jobs:
 
 ```typescript
 // test/layer-management.test.ts
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
-import { createDefaultLogger } from '@lambda-kata/cdk/logger';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk/logger';
 
 describe('Node.js Layer Management Integration', () => {
   const logger = createDefaultLogger();

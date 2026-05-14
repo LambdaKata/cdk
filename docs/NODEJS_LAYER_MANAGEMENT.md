@@ -54,7 +54,7 @@ When you use `kata()` with a Node.js Lambda function:
 ```json
 {
   "dependencies": {
-    "@lambda-kata/cdk": "^1.0.0",
+    "@lambdakata/cdk": "^1.0.0",
     "aws-cdk-lib": "^2.0.0",
     "constructs": "^10.0.0"
   },
@@ -202,7 +202,7 @@ phases:
 ### Basic Usage
 
 ```typescript
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Architecture } from 'aws-cdk-lib/aws-lambda';
 
@@ -439,7 +439,7 @@ Code: LAYER_SIZE_EXCEEDED
 #### Enable Debug Logging
 
 ```typescript
-import { createDefaultLogger } from '@lambda-kata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk';
 
 kata(myFunction, {
   logger: createDefaultLogger('debug'),

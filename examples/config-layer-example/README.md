@@ -152,7 +152,7 @@ If `configLayerExists` is `false`:
 
 If `jsHandlerPathNotSet` is `false`:
 - You may be using an older version of the kata() wrapper
-- Check that you're using the latest @lambda-kata/cdk package
+- Check that you're using the latest @lambdakata/cdk package
 - Ensure no other code is setting this environment variable
 
 ### Handler Path Incorrect
@@ -168,7 +168,7 @@ import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {

@@ -25,7 +25,7 @@ function kata<T extends NodejsFunction | LambdaFunction>(
 
 **Example:**
 ```typescript
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 const myFunction = new NodejsFunction(this, 'MyFunction', {
@@ -67,7 +67,7 @@ function ensureNodeRuntimeLayer(
 
 **Example:**
 ```typescript
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
 
 const result = await ensureNodeRuntimeLayer({
   runtimeName: 'nodejs20.x',
@@ -289,7 +289,7 @@ function createDefaultLogger(level?: 'debug' | 'info' | 'warn' | 'error'): Logge
 
 **Example:**
 ```typescript
-import { createDefaultLogger } from '@lambda-kata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk';
 
 const logger = createDefaultLogger('debug');
 kata(myFunction, { logger });
@@ -528,7 +528,7 @@ const app = new App();
 ### Unit Testing with Mocks
 
 ```typescript
-import { kata, getKataPromise } from '@lambda-kata/cdk';
+import { kata, getKataPromise } from '@lambdakata/cdk';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { App, Stack } from 'aws-cdk-lib';
 

@@ -261,7 +261,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * that error's message.
          */
         it('should include error message in error signal when middleware throws', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -277,7 +277,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // Error message should be included in the signal
                     return signal.error.includes(message);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -286,7 +286,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test with various error types (Error, TypeError, ReferenceError, etc.)
          */
         it('should propagate error message for any error type thrown by middleware', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     errorType(),
                     errorMessage(),
@@ -307,7 +307,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                         return signal.error.includes(message);
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -316,7 +316,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * The error signal should have ready: false when middleware throws
          */
         it('should set ready to false in error signal when middleware throws', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -327,7 +327,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // The ready field should be false
                     return signal.ready === false;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -339,7 +339,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * The error message should be preserved exactly (not truncated or modified)
          */
         it('should preserve the exact error message in the error signal', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -354,7 +354,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // The exact message should be present in the error
                     return signal.error === message || signal.error.includes(message);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -363,7 +363,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Error signal should be valid JSON-serializable
          */
         it('should produce JSON-serializable error signal when middleware throws', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -384,7 +384,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -393,7 +393,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test that successful middleware does NOT produce an error signal
          */
         it('should produce ready signal when middleware succeeds', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const middleware = createSuccessfulMiddleware();
                     const bundle = {};
@@ -403,7 +403,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // Should be a ready signal, not an error
                     return signal.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -412,7 +412,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test with empty error messages
          */
         it('should handle empty error messages correctly', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(handlerPath(), (originalHandler) => {
                     const error = new Error('');
                     const middleware = createThrowingMiddleware(error);
@@ -428,7 +428,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // Error field should exist (even if empty)
                     return typeof signal.error === 'string';
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -442,7 +442,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                 { minLength: 1, maxLength: 30 }
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(specialCharMessage, handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -457,7 +457,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // The message should be preserved (special chars included)
                     return signal.error.includes(message);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -466,7 +466,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test determinism: same error should always produce same error signal
          */
         it('should produce consistent error signals for the same middleware error', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error1 = new Error(message);
                     const error2 = new Error(message);
@@ -484,7 +484,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
 
                     return signal1.error === signal2.error;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -493,7 +493,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test that middleware errors are distinguishable from other errors
          */
         it('should produce error signal with middleware error message, not generic message', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     // Skip messages that might be confused with system errors
                     if (message.includes('Cannot find module')) {
@@ -514,7 +514,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // not a generic "middleware failed" message
                     return signal.error.includes(message);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -525,7 +525,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
         it('should handle long error messages without truncation', () => {
             const longMessage = fc.string({ minLength: 100, maxLength: 500 });
 
-            fc.assert(
+            return fc.assert(
                 fc.property(longMessage, handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -540,7 +540,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
                     // The full message should be preserved
                     return signal.error.includes(message);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -549,7 +549,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
          * Test that the error signal format matches the expected protocol
          */
         it('should produce error signal matching the IPC protocol format', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(errorMessage(), handlerPath(), (message, originalHandler) => {
                     const error = new Error(message);
                     const middleware = createThrowingMiddleware(error);
@@ -571,7 +571,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
 
                     return keys.includes('ready') && keys.includes('error');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

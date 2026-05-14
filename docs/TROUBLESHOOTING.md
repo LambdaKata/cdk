@@ -417,7 +417,7 @@ df -h
 ### Enable Debug Logging
 
 ```typescript
-import { createDefaultLogger } from '@lambda-kata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk';
 
 kata(myFunction, {
   logger: createDefaultLogger('debug'),

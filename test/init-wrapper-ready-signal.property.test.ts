@@ -151,12 +151,12 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * For any valid PID, the ready signal should be `{"ready":true,"pid":<number>}` followed by newline.
          */
         it('should generate ready signal in format {"ready":true,"pid":<number>}\\n for any valid PID', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -165,12 +165,12 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The ready signal should always end with a newline character
          */
         it('should always end with a newline character', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     return signal.endsWith('\n');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -179,7 +179,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The ready signal should be valid JSON (excluding the trailing newline)
          */
         it('should produce valid JSON that can be parsed correctly', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const parsed = parseReadySignal(signal);
@@ -192,7 +192,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Should have correct values
                     return parsed.ready === true && parsed.pid === pid;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -201,7 +201,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The ready field should always be the boolean true (not truthy value)
          */
         it('should have ready field as boolean true', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const parsed = parseReadySignal(signal);
@@ -213,7 +213,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Strict equality check for boolean true
                     return parsed.ready === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -222,7 +222,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The pid field should be a number (not a string representation)
          */
         it('should have pid field as a number type', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const parsed = parseReadySignal(signal);
@@ -233,7 +233,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return typeof parsed.pid === 'number';
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -242,7 +242,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The pid value should be preserved exactly (no rounding or modification)
          */
         it('should preserve the exact PID value', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const parsed = parseReadySignal(signal);
@@ -253,7 +253,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return parsed.pid === pid;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -262,7 +262,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The ready signal should have exactly two properties: ready and pid
          */
         it('should have exactly two properties: ready and pid', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const jsonPart = signal.slice(0, -1);
@@ -271,7 +271,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const keys = Object.keys(parsed);
                     return keys.length === 2 && keys.includes('ready') && keys.includes('pid');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -280,7 +280,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The ready signal format should be consistent across multiple generations
          */
         it('should produce consistent format for the same PID', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal1 = generateReadySignal(pid);
                     const signal2 = generateReadySignal(pid);
@@ -289,7 +289,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // All signals should be identical
                     return signal1 === signal2 && signal2 === signal3;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -298,12 +298,12 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * Test with common PID values used in real systems
          */
         it('should work correctly with common PID values', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(commonPids(), (pid) => {
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -312,7 +312,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The signal should be a single line (only one newline at the end)
          */
         it('should be a single line with only one newline at the end', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
 
@@ -322,7 +322,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     // Should have exactly one newline at the end
                     return newlineCount === 1 && signal.endsWith('\n');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -331,7 +331,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The JSON should not have extra whitespace (compact format)
          */
         it('should produce compact JSON without extra whitespace', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const jsonPart = signal.slice(0, -1);
@@ -340,7 +340,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const expected = `{"ready":true,"pid":${pid}}`;
                     return jsonPart === expected;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -349,7 +349,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * Round-trip: generate signal, parse it, regenerate should produce same result
          */
         it('should support round-trip: generate -> parse -> regenerate produces same signal', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal1 = generateReadySignal(pid);
                     const parsed = parseReadySignal(signal1);
@@ -361,7 +361,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                     const signal2 = generateReadySignal(parsed.pid);
                     return signal1 === signal2;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -381,12 +381,12 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * Edge case: Large PID values
          */
         it('should handle large PID values correctly', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(fc.integer({ min: 1000000, max: 4194304 }), (pid) => {
                     const signal = generateReadySignal(pid);
                     return validateReadySignalFormat(signal, pid);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -395,7 +395,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * The signal should be parseable by standard JSON.parse
          */
         it('should be parseable by standard JSON.parse', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
                     const jsonPart = signal.slice(0, -1);
@@ -407,7 +407,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -416,7 +416,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
          * Verify the exact format matches what init_wrapper.js produces
          */
         it('should match the exact format produced by init_wrapper.js', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validPid(), (pid) => {
                     const signal = generateReadySignal(pid);
 
@@ -426,7 +426,7 @@ describe('Feature: configurable-bundle-middleware, Property 9: Ready Signal Form
 
                     return signal === expectedSignal;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

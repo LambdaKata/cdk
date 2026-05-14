@@ -4,12 +4,12 @@
 
 ### Installation
 ```bash
-npm install @lambda-kata/cdk aws-cdk-lib constructs
+npm install @lambdakata/cdk aws-cdk-lib constructs
 ```
 
 ### Basic Usage
 ```typescript
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 import { NodejsFunction, Runtime, Architecture } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 const myFunction = new NodejsFunction(this, 'MyFunction', {
@@ -164,7 +164,7 @@ docker pull public.ecr.aws/lambda/nodejs:22-x86_64
 
 ### Enable Debug Logging
 ```typescript
-import { createDefaultLogger } from '@lambda-kata/cdk';
+import { createDefaultLogger } from '@lambdakata/cdk';
 
 kata(myFunction, {
   logger: createDefaultLogger('debug'),

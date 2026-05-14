@@ -198,7 +198,7 @@ export class HttpLicensingService implements LicensingService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': '@lambda-kata/cdk',
+          'User-Agent': '@lambdakata/cdk',
         },
         body: JSON.stringify({
           accountId,

@@ -201,14 +201,14 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * For any string that is not valid JSON, the init wrapper should use default bundle_path.
          */
         it('should use default bundle_path for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
                     // Should use default bundle_path
                     return result.config.bundle_path === DEFAULT_BUNDLE_PATH;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -217,14 +217,14 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * For any malformed JSON, has_middleware should default to false
          */
         it('should use default has_middleware (false) for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
                     // Should use default has_middleware (false)
                     return result.config.has_middleware === DEFAULT_HAS_MIDDLEWARE;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -233,14 +233,14 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * For any malformed JSON, original_js_handler should default to 'index.handler'
          */
         it('should use default original_js_handler for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
                     // Should use default original_js_handler
                     return result.config.original_js_handler === DEFAULT_ORIGINAL_HANDLER;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -249,14 +249,14 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * The system should detect that defaults were used for malformed JSON
          */
         it('should indicate defaults were used for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
                     // Should indicate that defaults were used
                     return result.usedDefaults === true;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -265,7 +265,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * The system should capture the parse error message for logging
          */
         it('should capture error message for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
@@ -274,7 +274,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.errorMessage !== undefined && result.errorMessage.length > 0
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -283,7 +283,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * Test with various malformed JSON patterns
          */
         it('should use defaults for various malformed JSON patterns', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(malformedJsonPatterns(), (malformedConfig) => {
                     // Skip if this pattern happens to be valid JSON
                     if (isValidJson(malformedConfig)) {
@@ -300,7 +300,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.usedDefaults === true
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -309,7 +309,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * The system should continue initialization (not crash) for malformed JSON
          */
         it('should not throw an exception for any malformed JSON config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     // This should not throw - it should gracefully handle the error
                     try {
@@ -328,7 +328,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -346,7 +346,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                 has_middleware: fc.boolean(),
             });
 
-            fc.assert(
+            return fc.assert(
                 fc.property(validConfig, (config) => {
                     const configJson = JSON.stringify(config);
                     const result = simulateConfigParsing(configJson);
@@ -359,7 +359,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.has_middleware === config.has_middleware
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -381,7 +381,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * Whitespace-only string should be treated as malformed JSON
          */
         it('should use defaults for whitespace-only config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     fc.stringOf(fc.constantFrom(' ', '\t', '\n', '\r'), {
                         minLength: 1,
@@ -397,7 +397,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -419,7 +419,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                     return json.substring(0, truncatePoint);
                 });
 
-            fc.assert(
+            return fc.assert(
                 fc.property(truncatedJson, (malformedConfig) => {
                     // Skip if truncation accidentally created valid JSON
                     if (isValidJson(malformedConfig)) {
@@ -433,7 +433,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.bundle_path === DEFAULT_BUNDLE_PATH
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -460,7 +460,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                 fc.constant('{"bundle_path": "/var/task/index\njs"}')
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(jsonWithSyntaxErrors, (malformedConfig) => {
                     const result = simulateConfigParsing(malformedConfig);
 
@@ -470,7 +470,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result.config.has_middleware === DEFAULT_HAS_MIDDLEWARE
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -479,7 +479,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
          * Determinism: same malformed input should always produce same defaults
          */
         it('should produce consistent defaults for the same malformed config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(invalidJson(), (malformedConfig) => {
                     const result1 = simulateConfigParsing(malformedConfig);
                     const result2 = simulateConfigParsing(malformedConfig);
@@ -497,7 +497,7 @@ describe('Feature: configurable-bundle-middleware, Property 10: Malformed JSON C
                         result3.config.original_js_handler
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

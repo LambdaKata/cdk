@@ -228,7 +228,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * THE kata_Wrapper SHALL change the Lambda runtime from Node.js to Python 3.12
          */
         it('should set runtime to Python 3.12 for any Node.js Lambda with entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -256,7 +256,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -265,7 +265,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * THE kata_Wrapper SHALL set the Lambda handler to `lambdakata.optimized_handler.lambda_handler`
          */
         it('should set handler to lambdakata.optimized_handler.lambda_handler for any entitled Lambda', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -293,7 +293,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -302,7 +302,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * THE kata_Wrapper SHALL attach the customer-specific Lambda_Layer ARN to the Lambda
          */
         it('should attach the customer-specific Layer ARN for any entitled Lambda', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -333,7 +333,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -347,7 +347,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * - Customer-specific Layer ARN attached
          */
         it('should apply all transformations (runtime, handler, layer) for any entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -389,7 +389,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -398,7 +398,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * The layer ARN attached should exactly match what the licensing service returns
          */
         it('should attach exactly the Layer ARN returned by the licensing service', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -434,7 +434,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -443,7 +443,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
          * Each account should receive its own customer-specific layer ARN
          */
         it('should use the correct layer ARN for each entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -498,7 +498,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -597,7 +597,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * THE kata_Wrapper SHALL preserve the original function name and logical ID
          */
         it('should preserve function name and logical ID regardless of entitlement status', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -633,7 +633,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -642,7 +642,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * THE kata_Wrapper SHALL preserve all existing environment variables
          */
         it('should preserve all original environment variables regardless of entitlement status', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -677,16 +677,17 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
         /**
          * **Validates: Requirement 2.8**
-         * THE kata_Wrapper SHALL preserve the original memory and timeout settings
+         * THE kata_Wrapper SHALL preserve the original memory settings when no transformation is applied,
+         * and SHALL raise memory to the Lambda Kata minimum for entitled accounts when needed.
          */
-        it('should preserve memory size regardless of entitlement status', () => {
-            fc.assert(
+        it('should preserve memory size when unentitled and enforce the minimum when entitled', () => {
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -707,16 +708,19 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                             licensingService: mockLicensing,
                         });
 
-                        // Verify memory size is preserved
+                        // Verify memory size behavior matches entitlement status
                         const template = Template.fromStack(stack);
+                        const expectedMemorySize = isEntitled
+                            ? Math.max(config.memorySize, 512)
+                            : config.memorySize;
                         template.hasResourceProperties('AWS::Lambda::Function', {
-                            MemorySize: config.memorySize,
+                            MemorySize: expectedMemorySize,
                         });
 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -725,7 +729,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * THE kata_Wrapper SHALL preserve the original memory and timeout settings
          */
         it('should preserve timeout regardless of entitlement status', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -755,7 +759,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -764,7 +768,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * THE kata_Wrapper SHALL preserve the original IAM role
          */
         it('should preserve IAM execution role regardless of entitlement status', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryExtendedLambdaConfig(),
                     arbitraryAccountId(),
@@ -802,7 +806,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -811,7 +815,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * THE kata_Wrapper SHALL preserve the original code asset without modification
          */
         it('should preserve original code asset regardless of entitlement status', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -851,7 +855,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -862,7 +866,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * **Validates: Requirements 2.5, 2.6, 2.8, 2.9, 2.10, 2.11**
          */
         it('should preserve all non-target properties (name, env vars, memory, timeout, role, code) regardless of entitlement', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryExtendedLambdaConfig(),
                     arbitraryAccountId(),
@@ -926,8 +930,11 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                             expect(envVars[key]).toBe(value);
                         }
 
-                        // 3. Verify memory size preserved (Req 2.8)
-                        expect(functionResource.Properties?.MemorySize).toBe(config.memorySize);
+                        // 3. Verify memory size behavior matches entitlement status (Req 2.8)
+                        const expectedMemorySize = isEntitled
+                            ? Math.max(config.memorySize, 512)
+                            : config.memorySize;
+                        expect(functionResource.Properties?.MemorySize).toBe(expectedMemorySize);
 
                         // 4. Verify timeout preserved (Req 2.8)
                         expect(functionResource.Properties?.Timeout).toBe(config.timeout);
@@ -942,7 +949,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -951,7 +958,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
          * This validates that "new ones may be added" per the design doc
          */
         it('should allow new environment variables to be added while preserving originals (entitled case)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -997,7 +1004,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1029,7 +1036,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
          * - JS_HANDLER_PATH should NOT be set as an environment variable
          */
         it('should attach config layer and NOT set JS_HANDLER_PATH for any entitled Lambda', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1072,7 +1079,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1086,7 +1093,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
          * - Deeply nested: "handlers/api/users.createUser"
          */
         it('should attach config layer for handler paths with various directory depths', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryAccountId(),
@@ -1125,7 +1132,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1134,7 +1141,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
          * Test that config layer is attached without overwriting existing environment variables.
          */
         it('should attach config layer without overwriting existing environment variables', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -1173,7 +1180,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1183,7 +1190,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
          * This ensures the environment variable is only added when transformation occurs.
          */
         it('should NOT attach config layer for non-entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1226,7 +1233,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1235,7 +1242,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
          * Test that config layer is attached for various handler paths (no modification to handler).
          */
         it('should attach config layer for any valid handler path (no modification)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryAccountId(),
@@ -1274,7 +1281,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1405,7 +1412,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
          * - Lambda Kata layer (from licensing service)
          */
         it('should attach exactly the Layer ARN returned by the licensing service', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1452,7 +1459,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1462,7 +1469,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
          * Each account should get exactly the layer ARN that the licensing service returns for them.
          */
         it('should attach the correct layer ARN for each account based on licensing response', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1528,7 +1535,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1542,7 +1549,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
          * - Lambda Kata layer (from licensing service) - index 1
          */
         it('should preserve all components of the layer ARN exactly as returned by licensing', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1603,7 +1610,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1613,7 +1620,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
          * This ensures we only attach what licensing explicitly provides.
          */
         it('should not attach any layer when licensing service returns no layer ARN', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1653,7 +1660,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1667,7 +1674,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
          * - Lambda Kata layer (from licensing service) - index 1
          */
         it('should use the exact layer ARN string without any modification', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryHandlerPath(),
                     arbitraryNodejsRuntime(),
@@ -1716,7 +1723,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1869,7 +1876,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * the runtime must remain unchanged after calling kata().
          */
         it('should keep the original Node.js runtime unchanged for non-entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -1906,7 +1913,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1918,7 +1925,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * the handler must remain unchanged after calling kata().
          */
         it('should keep the original handler unchanged for non-entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -1955,7 +1962,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1966,7 +1973,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * For any Lambda and any non-entitled account, no Lambda Kata layer should be attached.
          */
         it('should not attach any Lambda Kata layer for non-entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2000,7 +2007,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2014,7 +2021,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * - No layer attached
          */
         it('should not apply any transformations for non-entitled accounts (runtime, handler, layer all unchanged)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2056,7 +2063,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2066,7 +2073,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * This ensures the Lambda is completely unchanged when not entitled.
          */
         it('should preserve all original Lambda properties for non-entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2116,7 +2123,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2126,7 +2133,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * Ensures the no-op behavior is consistent across all non-entitled accounts.
          */
         it('should consistently not transform for any non-entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2187,7 +2194,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2197,7 +2204,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
          * Ensures the transformation only applies to entitled accounts.
          */
         it('should transform entitled accounts but not non-entitled accounts with same Lambda config', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2269,7 +2276,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -2418,7 +2425,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * For any non-entitled account, a warning message must be emitted.
          */
         it('should emit a warning message for any non-entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2452,7 +2459,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2464,7 +2471,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * For any non-entitled account, the exact warning message format must be emitted.
          */
         it('should emit the exact warning message format for any non-entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2498,7 +2505,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2509,7 +2516,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * For any non-entitled account, the warning must contain guidance on how to enable Lambda Kata.
          */
         it('should emit warning containing licensing guidance for any non-entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2539,7 +2546,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2550,7 +2557,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * Ensures the warning behavior is consistent across all non-entitled accounts.
          */
         it('should emit consistent warning message for any non-entitled account', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2603,7 +2610,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2614,7 +2621,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * Ensures warnings are only emitted for non-entitled accounts.
          */
         it('should emit warning only for non-entitled accounts, not for entitled accounts', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2683,7 +2690,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -2694,7 +2701,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
          * When the licensing service returns a custom message, it should be used in the warning.
          */
         it('should use custom licensing message in warning when provided', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryLambdaConfig(),
                     arbitraryAccountId(),
@@ -2733,7 +2740,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

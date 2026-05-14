@@ -19,7 +19,7 @@
  * @module mock-licensing
  */
 
-import { LicensingService, LicenseCheckParams } from './licensing';
+import { LicenseCheckParams, LicensingService } from './licensing';
 import { LicensingResponse } from './types';
 
 /**

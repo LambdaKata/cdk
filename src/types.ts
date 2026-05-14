@@ -11,7 +11,7 @@
  */
 
 /**
- * Type definitions for @lambda-kata/cdk
+ * Type definitions for @lambdakata/cdk
  *
  * These interfaces define the core data structures used by the kata() wrapper
  * for transforming Node.js Lambda functions to use the Lambda Kata runtime.

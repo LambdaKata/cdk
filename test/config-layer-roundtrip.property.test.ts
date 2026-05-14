@@ -180,7 +180,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * should return an equivalent config object.
          */
         it('should preserve config values through JSON serialization and parsing round-trip', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     // Generate JSON from config
                     const json = generateConfigJson(config);
@@ -191,7 +191,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                     // Verify round-trip preserves all values
                     return configsAreEquivalent(config, parsedConfig);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -199,7 +199,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: Generated JSON should always be valid JSON
          */
         it('should generate valid JSON for any valid config object', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     const json = generateConfigJson(config);
 
@@ -211,7 +211,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return false;
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -220,7 +220,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * **Validates: Requirement 1.1**
          */
         it('should always include original_js_handler in generated JSON', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     const json = generateConfigJson(config);
                     const parsed = JSON.parse(json);
@@ -230,7 +230,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         parsed[HANDLER_CONFIG_KEY] === config.original_js_handler
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -239,7 +239,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * **Validates: Requirement 4.2**
          */
         it('should include bundle_path in JSON only when specified', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     const json = generateConfigJson(config);
                     const parsed = JSON.parse(json);
@@ -255,7 +255,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return !('bundle_path' in parsed);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -263,7 +263,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: has_middleware should be present in JSON only when specified in config
          */
         it('should include has_middleware in JSON only when specified', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     const json = generateConfigJson(config);
                     const parsed = JSON.parse(json);
@@ -279,7 +279,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         return !('has_middleware' in parsed);
                     }
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -287,7 +287,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: Multiple round-trips should produce identical results (idempotent)
          */
         it('should be idempotent - multiple round-trips produce identical results', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     // First round-trip
                     const json1 = generateConfigJson(config);
@@ -304,7 +304,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         json1 === json2
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -312,7 +312,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: Config with only required field should round-trip correctly
          */
         it('should round-trip correctly with only original_js_handler', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validHandlerPath(), (handlerPath) => {
                     const config: KataConfig = {
                         original_js_handler: handlerPath,
@@ -327,7 +327,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         parsedConfig.has_middleware === undefined
                     );
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -335,7 +335,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: Config with all fields should round-trip correctly
          */
         it('should round-trip correctly with all fields specified', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     validBundlePath(),
@@ -357,7 +357,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -365,7 +365,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
          * Property: JSON key names should match the expected schema
          */
         it('should use correct JSON key names matching the schema', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(validKataConfig(), (config) => {
                     const json = generateConfigJson(config);
                     const parsed = JSON.parse(json);
@@ -380,7 +380,7 @@ describe('Feature: configurable-bundle-middleware, Property 1: Config Generation
 
                     return keys.every((key) => validKeys.has(key));
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

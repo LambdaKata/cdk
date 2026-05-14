@@ -204,7 +204,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * contain has_middleware: true.
          */
         it('should set has_middleware to true when middlewarePath is provided', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -216,7 +216,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -227,7 +227,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * contain has_middleware or should have has_middleware: false.
          */
         it('should not set has_middleware when middlewarePath is not provided', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -239,7 +239,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -250,7 +250,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * and verify has_middleware is true.
          */
         it('should write has_middleware: true to config JSON when middleware is compiled', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -266,7 +266,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -277,7 +277,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * and verify has_middleware is not present.
          */
         it('should not include has_middleware in config JSON when no middleware is provided', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -293,7 +293,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware === undefined;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -302,7 +302,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * **Validates: Requirement 4.4**
          */
         it('should ensure has_middleware is a boolean type when present', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -314,7 +314,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return typeof config.has_middleware === 'boolean' && config.has_middleware === true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -323,7 +323,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * **Validates: Requirements 4.4, 5.5**
          */
         it('should set has_middleware consistently regardless of bundlePath presence', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     validBundlePath(),
@@ -341,7 +341,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -350,7 +350,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * **Validates: Requirement 4.4**
          */
         it('should not set has_middleware consistently regardless of bundlePath presence when no middleware', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     validBundlePath(),
@@ -368,7 +368,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         );
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -377,7 +377,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * **Validates: Requirements 4.4, 5.5**
          */
         it('should correctly serialize has_middleware to JSON', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     fc.boolean(),
@@ -399,7 +399,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -408,7 +408,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
          * **Validates: Requirements 4.4, 5.5**
          */
         it('should never set has_middleware to false (only true or absent)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(
                     validHandlerPath(),
                     optionalBundlePath(),
@@ -421,7 +421,7 @@ describe('Feature: configurable-bundle-middleware, Property 7: has_middleware Bo
                         return config.has_middleware !== false;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

@@ -20,7 +20,7 @@ aws sts get-caller-identity
 
 ```bash
 # Install the package
-npm install @lambda-kata/cdk aws-cdk-lib constructs
+npm install @lambdakata/cdk aws-cdk-lib constructs
 
 # Install development dependencies
 npm install --save-dev @types/node typescript
@@ -32,7 +32,7 @@ npm install --save-dev @types/node typescript
 
 ```typescript
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { kata } from '@lambda-kata/cdk';
+import { kata } from '@lambdakata/cdk';
 
 // Just wrap your Lambda function with kata()
 const myFunction = kata(new lambda.Function(this, 'MyFunction', {
@@ -48,7 +48,7 @@ const myFunction = kata(new lambda.Function(this, 'MyFunction', {
 ### Option 2: Manual control
 
 ```typescript
-import { ensureNodeRuntimeLayer } from '@lambda-kata/cdk';
+import { ensureNodeRuntimeLayer } from '@lambdakata/cdk';
 
 const result = await ensureNodeRuntimeLayer({
   runtimeName: 'nodejs20.x',

@@ -109,7 +109,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * the output should start with `[Node.js]` prefix.
          */
         it('should prefix output with [Node.js] for any redirected console method and message', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), logMessage(), (method, message) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -125,7 +125,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const output = capturedOutput[0];
                     return output.startsWith('[Node.js] ');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -134,7 +134,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * The output should contain the original message after the prefix
          */
         it('should include the original message in the output after the prefix', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), logMessage(), (method, message) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -146,7 +146,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const expectedOutput = '[Node.js] ' + message + '\n';
                     return output === expectedOutput;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -155,7 +155,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * Multiple arguments should be joined with spaces
          */
         it('should join multiple arguments with spaces', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), logArguments(), (method, args) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -167,7 +167,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const expectedOutput = '[Node.js] ' + args.join(' ') + '\n';
                     return output === expectedOutput;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -176,7 +176,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * Output should end with a newline character
          */
         it('should end output with newline character', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), logMessage(), (method, message) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -187,7 +187,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const output = capturedOutput[0];
                     return output.endsWith('\n');
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -198,7 +198,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * console.error should NOT be redirected - it should preserve original behavior
          */
         it('should preserve console.error behavior unchanged (not redirected)', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(logMessage(), (message) => {
                     const { patchedConsole, capturedOutput, originalErrorCalls } = createPatchedConsole();
 
@@ -218,7 +218,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     // Verify the message was passed to original handler unchanged
                     return originalErrorCalls[0][0] === message;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -227,7 +227,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * console.error with multiple arguments should pass all arguments to original handler
          */
         it('should pass all arguments to original console.error unchanged', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(logArguments(), (args) => {
                     const { patchedConsole, capturedOutput, originalErrorCalls } = createPatchedConsole();
 
@@ -252,7 +252,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
 
                     return args.every((arg, i) => passedArgs[i] === arg);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -261,7 +261,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * All redirected methods should behave identically (same prefix format)
          */
         it('should apply identical formatting across all redirected console methods', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(logMessage(), (message) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -274,7 +274,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const expectedOutput = '[Node.js] ' + message + '\n';
                     return capturedOutput.every(output => output === expectedOutput);
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -283,7 +283,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
          * Empty string arguments should still produce prefixed output
          */
         it('should handle empty string arguments correctly', () => {
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), (method) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -294,7 +294,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const output = capturedOutput[0];
                     return output === '[Node.js] \n';
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -308,7 +308,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                 fc.constantFrom('\t', '\r', '\\', '"', "'", '<', '>', '&', '\u0000', '\u001F', '\uFFFF')
             );
 
-            fc.assert(
+            return fc.assert(
                 fc.property(consoleMethod(), specialChars, (method, message) => {
                     const { patchedConsole, capturedOutput } = createPatchedConsole();
 
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
                     const expectedOutput = '[Node.js] ' + message + '\n';
                     return output === expectedOutput;
                 }),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

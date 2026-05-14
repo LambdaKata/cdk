@@ -95,8 +95,8 @@ Location: `src/snapstart-construct.ts`
 ```typescript
 private createProviderFunction(timeoutSeconds: number, targetFunction: IFunction): LambdaFunction {
   // Resolve path to bundled handler directory
-  // __dirname in npm package: node_modules/@lambda-kata/cdk/out/dist/
-  // Handler location: node_modules/@lambda-kata/cdk/out/dist/snapstart-handler.js
+  // __dirname in npm package: node_modules/@lambdakata/cdk/out/dist/
+  // Handler location: node_modules/@lambdakata/cdk/out/dist/snapstart-handler.js
   const handlerDir = path.join(__dirname);
   
   const fn = new LambdaFunction(this, 'Handler', {

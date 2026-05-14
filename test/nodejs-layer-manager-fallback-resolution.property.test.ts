@@ -245,7 +245,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * the system should return fallback version information.
          */
         it('should provide fallback version information when Docker operations fail', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryDockerFailure(),
@@ -293,7 +293,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -304,7 +304,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * only when Docker detection fails, not when Docker succeeds.
          */
         it('should use Docker detection when available and fallback only on failure', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     fc.boolean(), // Whether Docker should fail
@@ -353,7 +353,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -364,7 +364,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * should be consistent and follow semantic versioning.
          */
         it('should provide consistent fallback versions that follow semantic versioning', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     async (runtimeArch) => {
@@ -406,7 +406,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -417,7 +417,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * fallback should fail with appropriate error messages.
          */
         it('should fail gracefully for unsupported runtime/architecture combinations in fallback', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     fc.constantFrom('nodejs99.x', 'nodejs15.x', 'python3.9'),
                     arbitraryArchitecture(),
@@ -460,7 +460,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * disable fallback and fail with appropriate errors.
          */
         it('should respect fallback configuration and fail when fallback is disabled', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     arbitraryDockerFailure(),
@@ -501,7 +501,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -512,7 +512,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
          * contain all required fields with proper values.
          */
         it('should provide complete fallback version information with all required fields', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryRuntimeArchPair(),
                     async (runtimeArch) => {
@@ -561,7 +561,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

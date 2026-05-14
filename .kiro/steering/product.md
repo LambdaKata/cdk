@@ -1,6 +1,6 @@
 # Product Overview
 
-**@lambda-kata/cdk** is an AWS CDK integration library for Lambda Kata, enabling Node.js Lambda functions to run via the Lambda Kata runtime.
+**@lambdakata/cdk** is an AWS CDK integration library for Lambda Kata, enabling Node.js Lambda functions to run via the Lambda Kata runtime.
 
 ## Core Functionality
 

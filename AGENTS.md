@@ -17,7 +17,7 @@ You must:
 ## 1. Project overview
 
 **Purpose of this repo:**
-- `@lambda-kata/cdk` is an AWS CDK integration library that transforms Node.js Lambda functions to run via the Lambda Kata runtime
+- `@lambdakata/cdk` is an AWS CDK integration library that transforms Node.js Lambda functions to run via the Lambda Kata runtime
 - Provides the `kata()` wrapper function that modifies Lambda constructs at CDK synthesis time
 - Validates AWS Marketplace licensing entitlements before applying transformations
 - Creates configuration layers containing handler path information for the Lambda Kata runtime

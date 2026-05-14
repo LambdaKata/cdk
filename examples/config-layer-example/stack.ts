@@ -60,8 +60,8 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 
-// Import the kata wrapper from the @lambda-kata/cdk package
-import { kata } from '@lambda-kata/cdk';
+// Import the kata wrapper from the @lambdakata/cdk package
+import { kata } from '@lambdakata/cdk';
 
 /**
  * Example CDK Stack demonstrating the config layer approach.

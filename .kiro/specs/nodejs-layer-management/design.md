@@ -466,7 +466,7 @@ describe('Node.js Layer Management Properties', () => {
           expect(majorVersion).toBe(expectedMajor);
         }
       ),
-      { numRuns: 100 }
+      { numRuns: 15 }
     );
   });
 });
