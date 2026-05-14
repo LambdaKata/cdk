@@ -1,6 +1,26 @@
-# @lambda-kata/cdk
+<h1 align="center" style="font-weight:500">
+  Lambda Kata for AWS CDK integration
+</h1>
 
-AWS CDK integration for Lambda Kata - Transform Node.js Lambda functions to run via the Lambda Kata runtime.
+<p align="center">
+  Transform Node.js Lambda functions to run via the Lambda Kata runtime.
+</p>
+
+<p align="center">
+<a href="https://github.com/lambda-kata/cdk"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem"></a>
+  <a href="https://www.npmjs.com/package/@lambda-kata/cdk"><img src="https://img.shields.io/badge/npm-@lambda--kata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package"></a>
+  <a href="https://www.npmjs.com/package/@lambda-kata/cdk"><img src="https://img.shields.io/badge/version-0.1.3--rc.97-brightgreen?style=for-the-badge&logo=semver" alt="Version"></a>
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 18+"></a>
+  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.3%2B-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.3+"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&logo=opensourceinitiative" alt="License Apache-2.0"></a>
+  <a href="https://jestjs.io"><img src="https://img.shields.io/badge/tests-Jest%20%7C%20fast--check-brightgreen?style=for-the-badge&logo=jest" alt="Tests"></a>
+  <a href="https://esbuild.github.io"><img src="https://img.shields.io/badge/build-esbuild%20%2B%20tsc-FFCF00?style=for-the-badge&logo=esbuild" alt="Build"></a>
+  <a href="https://www.typescriptlang.org/docs/handbook/modules/theory.html#commonjs"><img src="https://img.shields.io/badge/module-CommonJS-lightgrey?style=for-the-badge&logo=node.js" alt="CommonJS module format"></a>
+  <a href="https://www.ecma-international.org/publications-and-standards/standards/ecma-262/"><img src="https://img.shields.io/badge/target-ES2022-5C6BC0?style=for-the-badge&logo=javascript" alt="ECMAScript 2022 target"></a>
+</p>
+
+
 
 ## Installation
 
