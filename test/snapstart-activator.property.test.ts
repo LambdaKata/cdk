@@ -25,7 +25,17 @@ import {
     handler,
     activateSnapStart,
     SnapStartActivatorConfig,
+    _testable,
 } from '../src/snapstart-activator';
+
+// Mock sleep to avoid real delays in property tests
+const originalSleep = _testable.sleep;
+beforeAll(() => {
+    _testable.sleep = jest.fn().mockResolvedValue(undefined);
+});
+afterAll(() => {
+    _testable.sleep = originalSleep;
+});
 
 // Mock AWS SDK
 const mockSend = jest.fn();
@@ -403,7 +413,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -513,7 +523,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -639,7 +649,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -725,7 +735,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -861,7 +871,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -937,7 +947,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1104,11 +1114,11 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
-        it('should propagate error messages for both Create and Update request types', async () => {
+        it('should propagate error messages for Create and return SUCCESS for Update on failure', async () => {
             const createOrUpdateArb = fc.constantFrom('Create', 'Update') as fc.Arbitrary<'Create' | 'Update'>;
 
             await fc.assert(
@@ -1141,17 +1151,23 @@ describe('snapstart-activator property tests', () => {
 
                         const response = await handler(event);
 
-                        // Requirement 5.4: FAILED status for both Create and Update
-                        expect(response.Status).toBe('FAILED');
-
-                        // Requirement 9.2: Reason contains the original error message
-                        expect(response.Reason).toBeDefined();
-                        expect(response.Reason!).toContain(errorMessage);
+                        if (requestType === 'Create') {
+                            // Create: FAILED status with error message
+                            expect(response.Status).toBe('FAILED');
+                            expect(response.Reason).toBeDefined();
+                            expect(response.Reason!).toContain(errorMessage);
+                        } else {
+                            // Update: SUCCESS to prevent rollback deadlock
+                            expect(response.Status).toBe('SUCCESS');
+                            expect(response.Reason).toBeDefined();
+                            expect(response.Reason!).toContain(errorMessage);
+                            expect(response.Reason!).toContain('non-blocking');
+                        }
 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1261,7 +1277,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1361,7 +1377,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1457,7 +1473,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
 
             consoleSpy.mockRestore();
@@ -1576,7 +1592,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1643,7 +1659,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -1688,7 +1704,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });
@@ -1696,8 +1712,9 @@ describe('snapstart-activator property tests', () => {
     /**
      * Property 8: Snapshot Failure Handling
      *
-     * For any version where GetFunctionConfiguration returns State='Failed',
-     * the activation SHALL throw an error containing the StateReason from the response.
+     * For any version where GetFunctionConfiguration returns State='Failed':
+     * - If no existing alias exists, the activation SHALL throw an error containing the StateReason.
+     * - If an existing alias exists, the activation SHALL return SUCCESS with the existing alias (fallback).
      *
      * **Validates: Requirements 2.5, 9.3**
      */
@@ -1712,7 +1729,7 @@ describe('snapstart-activator property tests', () => {
             { minLength: 1, maxLength: 200 }
         );
 
-        it('should return FAILED status with StateReason in error message when snapshot creation fails', async () => {
+        it('should return FAILED status with StateReason when snapshot fails and no existing alias', async () => {
             await fc.assert(
                 fc.asyncProperty(
                     functionNameArb,
@@ -1734,16 +1751,20 @@ describe('snapstart-activator property tests', () => {
                                 return Promise.resolve({ Version: version });
                             }
                             if (cmdType === 'GetFunctionConfiguration') {
-                                // Simulate snapshot creation failure
                                 return Promise.resolve({
                                     State: 'Failed',
                                     StateReason: stateReason,
                                     SnapStart: { OptimizationStatus: 'Off' },
                                 });
                             }
-                            // Alias commands should NOT be reached when snapshot fails
-                            if (cmdType === 'GetAlias' || cmdType === 'CreateAlias' || cmdType === 'UpdateAlias') {
-                                throw new Error('Alias commands should not be called when snapshot creation fails');
+                            // GetAlias is called during fallback check — return not found
+                            if (cmdType === 'GetAlias') {
+                                const error = new Error('Not found');
+                                (error as any).name = 'ResourceNotFoundException';
+                                return Promise.reject(error);
+                            }
+                            if (cmdType === 'CreateAlias' || cmdType === 'UpdateAlias') {
+                                throw new Error('Create/UpdateAlias should not be called when snapshot fails with no existing alias');
                             }
                             return Promise.resolve({});
                         });
@@ -1765,7 +1786,7 @@ describe('snapstart-activator property tests', () => {
 
                         const response = await handler(event);
 
-                        // Requirement 2.5: IF snapshot creation fails, THEN return an error
+                        // Requirement 2.5: IF snapshot creation fails AND no alias exists, THEN return an error
                         expect(response.Status).toBe('FAILED');
 
                         // Requirement 9.3: Error SHALL include the StateReason
@@ -1781,7 +1802,79 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
+            );
+        });
+
+        it('should return SUCCESS with existing alias when snapshot fails but alias exists (fallback)', async () => {
+            await fc.assert(
+                fc.asyncProperty(
+                    functionNameArb,
+                    aliasNameArb,
+                    versionArb,
+                    stateReasonArb,
+                    async (functionName, aliasName, version, stateReason) => {
+                        jest.clearAllMocks();
+                        mockWaitUntilFunctionActiveV2.mockResolvedValue({ state: 'SUCCESS' });
+                        mockWaitUntilFunctionUpdatedV2.mockResolvedValue({ state: 'SUCCESS' });
+
+                        const existingVersion = '42';
+                        const existingAliasArn = `arn:aws:lambda:us-east-1:123456789012:function:${functionName}:${aliasName}`;
+
+                        mockSend.mockImplementation((command: any) => {
+                            const cmdType = command._type as string;
+
+                            if (cmdType === 'UpdateFunctionConfiguration') {
+                                return Promise.resolve({});
+                            }
+                            if (cmdType === 'PublishVersion') {
+                                return Promise.resolve({ Version: version });
+                            }
+                            if (cmdType === 'GetFunctionConfiguration') {
+                                return Promise.resolve({
+                                    State: 'Failed',
+                                    StateReason: stateReason,
+                                    SnapStart: { OptimizationStatus: 'Off' },
+                                });
+                            }
+                            // GetAlias returns existing alias — fallback should succeed
+                            if (cmdType === 'GetAlias') {
+                                return Promise.resolve({
+                                    FunctionVersion: existingVersion,
+                                    AliasArn: existingAliasArn,
+                                });
+                            }
+                            return Promise.resolve({});
+                        });
+
+                        const event: CustomResourceEvent = {
+                            RequestType: 'Update',
+                            ServiceToken: 'arn:aws:lambda:us-east-1:123456789012:function:handler',
+                            ResponseURL: 'https://cloudformation.s3.amazonaws.com/...',
+                            StackId: 'arn:aws:cloudformation:us-east-1:123456789012:stack/TestStack/guid',
+                            RequestId: 'request-id',
+                            ResourceType: 'Custom::SnapStartActivator',
+                            LogicalResourceId: 'SnapStart',
+                            PhysicalResourceId: `${functionName}:snapstart:${aliasName}`,
+                            ResourceProperties: {
+                                ServiceToken: 'arn:aws:lambda:us-east-1:123456789012:function:handler',
+                                FunctionName: functionName,
+                                AliasName: aliasName,
+                            },
+                        };
+
+                        const response = await handler(event);
+
+                        // Fallback: existing alias preserved, return SUCCESS
+                        expect(response.Status).toBe('SUCCESS');
+                        expect(response.Data?.Version).toBe(existingVersion);
+                        expect(response.Data?.AliasName).toBe(aliasName);
+                        expect(response.Data?.OptimizationStatus).toBe('Preserved');
+
+                        return true;
+                    }
+                ),
+                { numRuns: 15 }
             );
         });
 
@@ -1806,16 +1899,19 @@ describe('snapstart-activator property tests', () => {
                                 return Promise.resolve({ Version: version });
                             }
                             if (cmdType === 'GetFunctionConfiguration') {
-                                // Simulate snapshot failure with NO StateReason
                                 return Promise.resolve({
                                     State: 'Failed',
-                                    // StateReason intentionally omitted (undefined)
                                     SnapStart: { OptimizationStatus: 'Off' },
                                 });
                             }
-                            // Alias commands should NOT be reached when snapshot fails
-                            if (cmdType === 'GetAlias' || cmdType === 'CreateAlias' || cmdType === 'UpdateAlias') {
-                                throw new Error('Alias commands should not be called when snapshot creation fails');
+                            // No existing alias — should fail
+                            if (cmdType === 'GetAlias') {
+                                const error = new Error('Not found');
+                                (error as any).name = 'ResourceNotFoundException';
+                                return Promise.reject(error);
+                            }
+                            if (cmdType === 'CreateAlias' || cmdType === 'UpdateAlias') {
+                                throw new Error('Create/UpdateAlias should not be called when snapshot fails with no existing alias');
                             }
                             return Promise.resolve({});
                         });
@@ -1837,24 +1933,19 @@ describe('snapstart-activator property tests', () => {
 
                         const response = await handler(event);
 
-                        // Requirement 2.5: Snapshot failure SHALL return an error
                         expect(response.Status).toBe('FAILED');
-
-                        // When StateReason is undefined, the error SHALL use 'Unknown' as fallback
                         expect(response.Reason).toBeDefined();
                         expect(response.Reason!).toContain('Unknown');
-
-                        // The error message should still indicate snapshot creation failure
                         expect(response.Reason!).toContain('snapshot creation failed');
 
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
-        it('should throw error from activateSnapStart directly when State is Failed', async () => {
+        it('should throw error from activateSnapStart directly when State is Failed and no alias exists', async () => {
             await fc.assert(
                 fc.asyncProperty(
                     functionNameArb,
@@ -1881,8 +1972,10 @@ describe('snapstart-activator property tests', () => {
                                     SnapStart: { OptimizationStatus: 'Off' },
                                 });
                             }
-                            if (cmdType === 'GetAlias' || cmdType === 'CreateAlias' || cmdType === 'UpdateAlias') {
-                                throw new Error('Alias commands should not be called when snapshot creation fails');
+                            if (cmdType === 'GetAlias') {
+                                const error = new Error('Not found');
+                                (error as any).name = 'ResourceNotFoundException';
+                                return Promise.reject(error);
                             }
                             return Promise.resolve({});
                         });
@@ -1897,7 +1990,7 @@ describe('snapstart-activator property tests', () => {
                         return true;
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
     });

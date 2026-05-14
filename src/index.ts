@@ -11,14 +11,14 @@
  */
 
 /**
- * @lambda-kata/cdk - AWS CDK integration for Lambda Kata
+ * @lambdakata/cdk - AWS CDK integration for Lambda Kata
  *
  * This package provides CDK constructs to transform Node.js Lambda functions
  * to run via the Lambda Kata runtime.
  *
  * @example
  * ```typescript
- * import { kata } from '@lambda-kata/cdk';
+ * import { kata } from '@lambdakata/cdk';
  * import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
  *
  * const myFunction = new NodejsFunction(this, 'MyFunction', {

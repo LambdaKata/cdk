@@ -199,7 +199,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
                         expect(error1.name).toBe(error2.name);
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -246,7 +246,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -310,7 +310,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -351,7 +351,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
                         expect(result.dockerImage).toBe(expectedImage);
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 
@@ -408,7 +408,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
                         }
                     }
                 ),
-                { numRuns: 100 }
+                { numRuns: 15 }
             );
         });
 

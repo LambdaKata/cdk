@@ -82,8 +82,8 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 
-// Import the kata wrapper from the @lambda-kata/cdk package
-// In a real project, you would install this via: npm install @lambda-kata/cdk
+// Import the kata wrapper from the @lambdakata/cdk package
+// In a real project, you would install this via: npm install @lambdakata/cdk
 import { kata } from '../src';
 
 /**

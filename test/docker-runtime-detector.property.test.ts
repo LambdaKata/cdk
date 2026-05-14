@@ -134,7 +134,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * Uses fallback mode to ensure test reliability and avoid Docker mock complexity
          */
         it('should resolve any supported runtime to a valid semantic version matching the runtime family', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -215,7 +215,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * that still match the runtime family and semantic version format
          */
         it('should provide valid fallback versions when Docker operations fail', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -258,7 +258,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * Error handling property: Unsupported runtimes should throw appropriate errors
          */
         it('should throw NodeRuntimeLayerError for any unsupported runtime', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitraryUnsupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -289,7 +289,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * Error handling property: Unsupported architectures should throw appropriate errors
          */
         it('should throw NodeRuntimeLayerError for any unsupported architecture', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitraryUnsupportedArchitecture(),
@@ -321,7 +321,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * for all supported runtime/architecture combinations
          */
         it('should generate correct Docker image names for all supported combinations', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -390,7 +390,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * following the pattern `public.ecr.aws/lambda/nodejs:{majorVersion}-{architecture}`
          */
         it('should use official AWS Lambda Docker images with correct naming pattern for any supported runtime and architecture', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -469,7 +469,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * regardless of the specific runtime/architecture combination
          */
         it('should always use the official AWS ECR registry pattern for Docker images', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),
@@ -513,7 +513,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
          * from runtime name and included in Docker image tag
          */
         it('should correctly extract major version from runtime name for Docker image tag', () => {
-            fc.assert(
+            return fc.assert(
                 fc.asyncProperty(
                     arbitrarySupportedRuntime(),
                     arbitrarySupportedArchitecture(),

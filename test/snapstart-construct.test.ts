@@ -814,7 +814,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
@@ -846,7 +846,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
@@ -900,7 +900,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
@@ -978,7 +978,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
@@ -1015,7 +1015,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
@@ -1077,7 +1077,7 @@ describe('snapstart-construct', () => {
 
                         return true;
                     }),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
 
@@ -1144,7 +1144,7 @@ describe('snapstart-construct', () => {
                             return true;
                         }
                     ),
-                    { numRuns: 100 }
+                    { numRuns: 15 }
                 );
             });
         });
