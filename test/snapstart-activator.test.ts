@@ -739,7 +739,7 @@ describe('snapstart-activator', () => {
                 expect(response.Reason).toContain('test-function');
             });
 
-            it('should return SUCCESS with alias when snapshot creation fails', async () => {
+            it('should return FAILED when snapshot creation fails (cannot create alias on Failed version)', async () => {
                 const stateReason = 'Runtime.ImportModuleError: Unable to import module';
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'UpdateFunctionConfiguration') {
@@ -755,29 +755,18 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
-                    if (command._type === 'GetAlias') {
-                        const error = new Error('Not found');
-                        (error as any).name = 'ResourceNotFoundException';
-                        return Promise.reject(error);
-                    }
-                    if (command._type === 'CreateAlias') {
-                        return Promise.resolve({
-                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
-                        });
-                    }
                     return Promise.resolve({});
                 });
 
                 const response = await handler(baseEvent);
 
-                // Should succeed and create alias even when snapshot fails
-                expect(response.Status).toBe('SUCCESS');
-                expect(response.Data?.Version).toBe('1');
-                expect(response.Data?.AliasName).toBe('kata');
-                expect(response.Data?.OptimizationStatus).toBe('Off');
+                // Should fail because AWS Lambda does not allow creating aliases on Failed versions
+                expect(response.Status).toBe('FAILED');
+                expect(response.Reason).toContain('SnapStart activation failed');
+                expect(response.Reason).toContain('Cannot create alias on a Failed version');
             });
 
-            it('should return SUCCESS and update existing alias when snapshot fails', async () => {
+            it('should return FAILED when all snapshot attempts fail', async () => {
                 mockSend.mockImplementation((command: any) => {
                     if (command._type === 'UpdateFunctionConfiguration') {
                         return Promise.resolve({});
@@ -792,26 +781,14 @@ describe('snapstart-activator', () => {
                             SnapStart: { OptimizationStatus: 'Off' },
                         });
                     }
-                    if (command._type === 'GetAlias') {
-                        return Promise.resolve({
-                            FunctionVersion: '5',
-                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
-                        });
-                    }
-                    if (command._type === 'UpdateAlias') {
-                        return Promise.resolve({
-                            AliasArn: 'arn:aws:lambda:us-east-1:123456789012:function:test-function:kata',
-                        });
-                    }
                     return Promise.resolve({});
                 });
 
                 const response = await handler(baseEvent);
 
-                // Should succeed and update alias to new version even when snapshot fails
-                expect(response.Status).toBe('SUCCESS');
-                expect(response.Data?.Version).toBe('6');
-                expect(response.Data?.OptimizationStatus).toBe('Off');
+                // Should fail because AWS Lambda does not allow creating aliases on Failed versions
+                expect(response.Status).toBe('FAILED');
+                expect(response.Reason).toContain('SnapStart activation failed');
             });
         });
     });
