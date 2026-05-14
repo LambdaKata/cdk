@@ -459,7 +459,7 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
         handlerResolver: props?.handlerResolver,
       });
 
-      console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
+      console.log(`[Lambda Kata] Reduced cold starts (account: ${accountId}, region: ${deploymentRegion})`);
 
       return {
         transformed: true,
