@@ -20,6 +20,7 @@
     "docs": "yarn run docs:md && yarn run docs:html",
     "docs:md": "typedoc --options ./docs/docs.config/typedoc.md.json",
     "docs:html": "typedoc --options ./docs/docs.config/typedoc.html.json",
+    "prepublishOnly": "yarn build",
     "npm:publish": "yarn run build && npm publish --access public"
   },
   "files": [
