@@ -37,13 +37,13 @@ import {
   PublishLayerVersionCommand,
 } from '@aws-sdk/client-lambda';
 import {
-  BucketLocationConstraint,
   CreateBucketCommand,
   DeleteBucketCommand,
   DeleteObjectCommand,
   PutObjectCommand,
   S3Client,
   S3ClientConfig,
+  BucketLocationConstraint,
 } from '@aws-sdk/client-s3';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
@@ -59,10 +59,10 @@ import {
   LayerRequirements,
   LayerSearchOptions,
   Logger,
-  MultiArchitectureDeploymentResult,
+  NodeRuntimeLayerError,
   NodejsLayerDeploymentOptions,
   NodejsLayerDeploymentResult,
-  NodeRuntimeLayerError,
+  MultiArchitectureDeploymentResult,
 } from './nodejs-layer-manager';
 import { createDefaultLogger, OperationTimer } from './logger';
 
@@ -377,7 +377,7 @@ export class AWSLayerManager implements LayerManager {
    * These are AWS service limits that cannot be exceeded.
    */
   private static readonly MAX_LAYER_SIZE_UNZIPPED = 250 * 1024 * 1024; // 250MB
-  private static readonly MAX_LAYER_SIZE_ZIPPED = 250 * 1024 * 1024;    // 50MB
+  private static readonly MAX_LAYER_SIZE_ZIPPED = 50 * 1024 * 1024;    // 50MB
 
   /**
    * Docker operation timeout in milliseconds.
@@ -466,10 +466,17 @@ export class AWSLayerManager implements LayerManager {
             return layerInfo;
           }
         } catch (error) {
+          const layerInfoError = error instanceof Error ? error : new Error(String(error));
+          const errorMessage = layerInfoError.message.toLowerCase();
+
+          if (this.isRetryableError(layerInfoError) || !errorMessage.includes('not found') && !errorMessage.includes('unable to parse')) {
+            throw layerInfoError;
+          }
+
           this.logger.warn('Failed to get layer info, skipping layer', {
             layerName: layer.LayerName,
             version: layer.LatestMatchingVersion?.Version,
-            error: error instanceof Error ? error.message : String(error),
+            error: layerInfoError.message,
           });
           continue;
         }
@@ -1362,7 +1369,6 @@ export class AWSLayerManager implements LayerManager {
         }
 
         return null;
-        return true;
       });
 
       timer.complete({
@@ -1455,10 +1461,8 @@ export class AWSLayerManager implements LayerManager {
     }
 
     // Fall back to parsing layer name
-    // Supports both formats:
-    // - Old: lambda-kata-nodejs-nodejs20.x-x86_64 (with dot)
-    // - New: lambda-kata-nodejs-nodejs20-x-x86_64 (with dash)
-    const nameMatch = layerName.match(/lambda-kata-nodejs-nodejs(\d+)[.-]x-(\w+)/);
+    // Expected format: lambda-kata-nodejs-nodejs20.x-x86_64
+    const nameMatch = layerName.match(/lambda-kata-nodejs-nodejs(\d+)\.x-(\w+)/);
     if (nameMatch) {
       const majorVersion = nameMatch[1];
       const architecture = nameMatch[2];
@@ -1558,6 +1562,7 @@ export class AWSLayerManager implements LayerManager {
       'NetworkingError',
       'ConnectionError',
       'ECONNRESET',
+      'ECONNREFUSED',
       'ENOTFOUND',
       'ETIMEDOUT',
 
@@ -1817,11 +1822,11 @@ export class AWSLayerManager implements LayerManager {
       });
 
       // CRITICAL: Check if extracted binary is already too large
-      if (binaryStats.size > 100 * 1024 * 1024) { // 100MB threshold for warning
+      if (binaryStats.size > 80 * 1024 * 1024) { // 80MB threshold
         this.logger.warn('Extracted Node.js binary is very large, applying aggressive optimization', {
           originalSize: binaryStats.size,
           originalSizeMB: (binaryStats.size / (1024 * 1024)).toFixed(2),
-          threshold: '100MB',
+          threshold: '80MB',
           dockerImage,
         });
       }
@@ -1843,7 +1848,7 @@ export class AWSLayerManager implements LayerManager {
         // Use shell redirection for gzip output
         await this.executeCommand('sh', [
           '-c',
-          `gzip -9 -c "${optimizedBinaryPath}" > "${compressedPath}"`,
+          `gzip -9 -c "${optimizedBinaryPath}" > "${compressedPath}"`
         ]);
 
         const compressedStats = await fs.stat(compressedPath);
@@ -1900,21 +1905,21 @@ export class AWSLayerManager implements LayerManager {
    * 2. UPX compression if still >50MB (50-70% additional reduction)
    * 3. System Node.js replacement if still >60MB
    * 4. Verify binary functionality after each stage
-   * 5. Fallback to original if within 250MB limit
+   * 5. Fallback to original if within 80MB limit
    *
    * @param originalBinaryPath - Path to the original Node.js binary
    * @param tempDir - Temporary directory for optimization work
    * @returns Promise resolving to path of optimized binary
-   * @throws Error if optimization fails and original exceeds 250MB limit
+   * @throws Error if optimization fails and original exceeds 80MB limit
    */
   private async optimizeNodeBinary(originalBinaryPath: string, tempDir: string): Promise<string> {
     const timer = new OperationTimer(this.logger, 'Node.js binary optimization', {
       originalBinaryPath,
     });
 
-    const LAMBDA_LAYER_LIMIT = 250 * 1024 * 1024; // 250MB hard limit (AWS Lambda Layer limit)
-    const UPX_THRESHOLD = 50 * 1024 * 1024;       // 50MB threshold for UPX
-    const SYSTEM_THRESHOLD = 60 * 1024 * 1024;    // 60MB threshold for system replacement
+    const LAMBDA_LAYER_LIMIT = 80 * 1024 * 1024; // 80MB hard limit
+    const UPX_THRESHOLD = 50 * 1024 * 1024;      // 50MB threshold for UPX
+    const SYSTEM_THRESHOLD = 60 * 1024 * 1024;   // 60MB threshold for system replacement
 
     try {
       const originalStats = await fs.stat(originalBinaryPath);
@@ -1923,7 +1928,7 @@ export class AWSLayerManager implements LayerManager {
         originalSize: originalStats.size,
         originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
         targetSizeMB: '15-25MB',
-        hardLimitMB: '250MB',
+        hardLimitMB: '80MB',
       });
 
       // STAGE 1: Strip optimization
@@ -1960,17 +1965,8 @@ export class AWSLayerManager implements LayerManager {
         }
       }
 
-      // Final verification and size check (with graceful fallback)
-      const verificationResult = await this.verifyNodeBinaryWithFallback(currentBinaryPath);
-
-      if (!verificationResult.success) {
-        this.logger.warn('Binary verification failed, but continuing with deployment', {
-          binaryPath: currentBinaryPath,
-          error: verificationResult.error,
-          binarySize: currentStats.size,
-          binarySizeMB: (currentStats.size / (1024 * 1024)).toFixed(2),
-        });
-      }
+      // Final verification and size check
+      await this.verifyNodeBinary(currentBinaryPath);
 
       const finalReduction = originalStats.size - currentStats.size;
       const reductionPercent = ((finalReduction / originalStats.size) * 100).toFixed(1);
@@ -1983,15 +1979,14 @@ export class AWSLayerManager implements LayerManager {
         originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
         optimizedSizeMB: (currentStats.size / (1024 * 1024)).toFixed(2),
         withinLimits: currentStats.size <= LAMBDA_LAYER_LIMIT,
-        verified: verificationResult.success,
       });
 
       // Enforce hard limit
       if (currentStats.size > LAMBDA_LAYER_LIMIT) {
         throw new Error(
-          `Optimized binary size (${(currentStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds AWS Lambda layer limit (250MB). ` +
+          `Optimized binary size (${(currentStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds AWS Lambda layer limit (80MB). ` +
           `Original: ${(originalStats.size / (1024 * 1024)).toFixed(2)}MB, Reduction: ${reductionPercent}%. ` +
-          `Consider using a different Node.js version or architecture.`,
+          `Consider using a different Node.js version or architecture.`
         );
       }
 
@@ -2010,26 +2005,25 @@ export class AWSLayerManager implements LayerManager {
       // Check if original binary is within limits as fallback
       const originalStats = await fs.stat(originalBinaryPath);
       if (originalStats.size <= LAMBDA_LAYER_LIMIT) {
-        this.logger.warn('Optimization failed but original binary is within limits, using unoptimized binary', {
+        this.logger.warn('Optimization failed but original binary is within limits', {
           error: error instanceof Error ? error.message : String(error),
           originalSizeMB: (originalStats.size / (1024 * 1024)).toFixed(2),
-          limitMB: '250MB',
-          recommendation: 'Consider installing strip/upx tools for better optimization',
+          limitMB: '80MB',
         });
         return originalBinaryPath;
       }
 
       // Both optimization and fallback failed
       throw new Error(
-        `Binary optimization failed and original binary (${(originalStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds 250MB limit. ` +
-        `Error: ${error instanceof Error ? error.message : String(error)}`,
+        `Binary optimization failed and original binary (${(originalStats.size / (1024 * 1024)).toFixed(2)}MB) exceeds 80MB limit. ` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
 
   /**
    * Attempts strip-based optimization with progressive aggressiveness.
-   *
+   * 
    * @param originalBinaryPath - Path to original binary
    * @param tempDir - Working directory
    * @returns Path to stripped binary or original if stripping fails
@@ -2087,7 +2081,7 @@ export class AWSLayerManager implements LayerManager {
 
   /**
    * Attempts UPX compression optimization.
-   *
+   * 
    * @param binaryPath - Path to binary to compress
    * @param tempDir - Working directory
    * @returns Path to compressed binary or null if UPX unavailable/fails
@@ -2118,15 +2112,8 @@ export class AWSLayerManager implements LayerManager {
         afterSizeMB: (afterStats.size / (1024 * 1024)).toFixed(2),
       });
 
-      // Verify compressed binary functionality (with fallback)
-      const verificationResult = await this.verifyNodeBinaryWithFallback(upxPath);
-
-      if (!verificationResult.success) {
-        this.logger.warn('UPX compressed binary failed verification, discarding', {
-          error: verificationResult.error,
-        });
-        return null;
-      }
+      // Verify compressed binary functionality
+      await this.verifyNodeBinary(upxPath);
 
       return upxPath;
 
@@ -2140,7 +2127,7 @@ export class AWSLayerManager implements LayerManager {
 
   /**
    * Attempts to use system Node.js binary as replacement.
-   *
+   * 
    * @param tempDir - Working directory
    * @returns Path to system Node.js copy or null if unavailable/unsuitable
    */
@@ -2173,15 +2160,8 @@ export class AWSLayerManager implements LayerManager {
         await fs.copyFile(systemNodePath, systemCopyPath);
         await fs.chmod(systemCopyPath, 0o755);
 
-        // Verify functionality (with fallback)
-        const verificationResult = await this.verifyNodeBinaryWithFallback(systemCopyPath);
-
-        if (!verificationResult.success) {
-          this.logger.warn('System Node.js binary failed verification', {
-            error: verificationResult.error,
-          });
-          return null;
-        }
+        // Verify functionality
+        await this.verifyNodeBinary(systemCopyPath);
 
         this.logger.info('System Node.js binary suitable as replacement', {
           systemVersion,
@@ -2245,68 +2225,6 @@ export class AWSLayerManager implements LayerManager {
   }
 
   /**
-   * Verifies Node.js binary with graceful fallback for spawn errors.
-   *
-   * This method attempts full verification but falls back to basic checks
-   * if spawn fails (e.g., error -8). This prevents blocking deployment for
-   * binaries that are valid but fail verification due to system issues.
-   *
-   * @param binaryPath - Path to the Node.js binary to verify
-   * @returns Promise resolving to verification result with success flag and optional error
-   */
-  private async verifyNodeBinaryWithFallback(binaryPath: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      // Attempt full verification
-      await this.verifyNodeBinary(binaryPath);
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // Check if this is a spawn error (error -8 or similar)
-      if (errorMessage.includes('spawn') || errorMessage.includes('error -8')) {
-        this.logger.warn('Binary verification failed with spawn error, performing fallback checks', {
-          binaryPath,
-          error: errorMessage,
-        });
-
-        try {
-          // Fallback: Check if binary exists and has reasonable size
-          const stats = await fs.stat(binaryPath);
-
-          if (!stats.isFile()) {
-            return { success: false, error: 'Binary is not a file' };
-          }
-
-          if (stats.size < 1024 * 1024) { // Less than 1MB is suspicious
-            return { success: false, error: `Binary too small: ${stats.size} bytes` };
-          }
-
-          if (stats.size > 250 * 1024 * 1024) { // More than 250MB exceeds limit
-            return { success: false, error: `Binary too large: ${(stats.size / (1024 * 1024)).toFixed(2)}MB` };
-          }
-
-          // Binary exists and has reasonable size - accept it
-          this.logger.info('Binary passed fallback verification (size check)', {
-            binaryPath,
-            size: stats.size,
-            sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
-          });
-
-          return { success: true };
-        } catch (fallbackError) {
-          return {
-            success: false,
-            error: `Fallback verification failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-          };
-        }
-      }
-
-      // Non-spawn error - return failure
-      return { success: false, error: errorMessage };
-    }
-  }
-
-  /**
    * Creates the proper Lambda Layer directory structure.
    *
    * Lambda Layers for Node.js binary should use minimal structure:
@@ -2340,13 +2258,13 @@ export class AWSLayerManager implements LayerManager {
       // Decompress using shell redirection
       await this.executeCommand('sh', [
         '-c',
-        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`,
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
       ]);
 
       // Alternative: use shell redirection
       await this.executeCommand('sh', [
         '-c',
-        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`,
+        `gunzip -c "${nodeBinaryPath}" > "${targetBinaryPath}"`
       ]);
 
       // Ensure the binary is executable
@@ -2405,7 +2323,7 @@ export class AWSLayerManager implements LayerManager {
       // Calculate original directory size for optimization metrics
       const originalSize = await this.calculateDirectorySize(layerDir);
 
-      // Use Python's zipfile module with streaming for large files
+      // Use Python's zipfile module with maximum compression
       await this.executeCommand('python3', [
         '-c',
         `
@@ -2417,27 +2335,28 @@ import time
 def create_optimized_zip(source_dir, zip_path):
     start_time = time.time()
     total_original_size = 0
+    total_compressed_size = 0
     file_count = 0
     
-    # Use maximum compression level with streaming
+    # Use maximum compression level
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
         for root, dirs, files in os.walk(source_dir):
             for file in files:
                 file_path = os.path.join(root, file)
                 arc_name = os.path.relpath(file_path, source_dir)
                 
-                # Get file size for metrics
+                # Get file info and preserve permissions
+                file_info = zipfile.ZipInfo(arc_name)
                 stat_info = os.stat(file_path)
-                total_original_size += stat_info.st_size
+                file_info.external_attr = stat_info.st_mode << 16
                 
-                # Use write() instead of writestr() for streaming large files
-                # This avoids loading entire file into memory
-                zipf.write(file_path, arc_name, compress_type=zipfile.ZIP_DEFLATED)
+                # Read and compress file content
+                with open(file_path, 'rb') as f:
+                    file_data = f.read()
+                    total_original_size += len(file_data)
+                    
+                zipf.writestr(file_info, file_data)
                 file_count += 1
-                
-                # Print progress for large files
-                if stat_info.st_size > 10 * 1024 * 1024:  # >10MB
-                    print(f"Compressed: {arc_name} ({stat_info.st_size / (1024*1024):.1f}MB)", file=sys.stderr)
     
     # Calculate final compressed size
     final_size = os.path.getsize(zip_path)
@@ -2527,10 +2446,7 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
   }
 
   /**
-   * Fallback ZIP creation using system zip command with streaming.
-   *
-   * This method uses the system 'zip' command which handles large files
-   * efficiently without loading them into memory.
+   * Fallback ZIP creation using system zip command.
    *
    * @param layerDir - Directory containing the layer contents
    * @param zipFilePath - Target ZIP file path
@@ -2538,36 +2454,29 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
    * @throws Error if ZIP creation fails
    */
   private async createZipFallback(layerDir: string, zipFilePath: string): Promise<string> {
-    this.logger.info('Using fallback ZIP creation with system zip command', {
+    this.logger.debug('Using fallback ZIP creation', {
       layerDir,
       zipFilePath,
     });
 
     try {
-      // Use system zip command with maximum compression
-      // -r: recursive, -9: maximum compression, -q: quiet
+      // Use system zip command if available
       await this.executeCommand('zip', [
         '-r',
-        '-9', // Maximum compression
-        '-q', // Quiet mode
         zipFilePath,
         '.',
       ], { cwd: layerDir });
 
       const stats = await fs.stat(zipFilePath);
-      this.logger.info('Created ZIP archive with fallback method', {
+      this.logger.debug('Created ZIP archive with fallback method', {
         zipFilePath,
         size: stats.size,
-        sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
       });
 
       return zipFilePath;
 
     } catch (error) {
-      throw new Error(
-        `Failed to create ZIP archive with both Python and system zip methods: ` +
-        `${error instanceof Error ? error.message : String(error)}`,
-      );
+      throw new Error(`Failed to create ZIP archive with both primary and fallback methods: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -2590,15 +2499,16 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
     try {
       const totalSize = await this.calculateDirectorySize(layerDir);
 
-      // AWS Lambda Layer limits
-      const conservativeLimit = 50 * 1024 * 1024;  // 50MB uncompressed (optimal for optimized binaries)
-      const awsAbsoluteLimit = 250 * 1024 * 1024;  // 250MB absolute AWS limit for uncompressed layers
+      // Strict limits for Node.js binaries after optimization
+      // Optimized Node.js binary should be ~15-25MB, allowing minimal overhead
+      const conservativeLimit = 50 * 1024 * 1024;  // 50MB uncompressed (was 100MB)
+      const aggressiveLimit = 80 * 1024 * 1024;    // 80MB absolute limit (was 150MB)
 
-      if (totalSize > awsAbsoluteLimit) {
-        timer.fail(new Error('Layer content exceeds AWS absolute limit'), { totalSize, awsAbsoluteLimit });
+      if (totalSize > aggressiveLimit) {
+        timer.fail(new Error('Layer content exceeds absolute limit'), { totalSize, aggressiveLimit });
         throw new NodeRuntimeLayerError(
-          `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds AWS Lambda layer limit (250MB). ` +
-          'This indicates Node.js binary optimization failed completely. ' +
+          `Layer content size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds absolute limit (${Math.round(aggressiveLimit / 1024 / 1024)}MB). ` +
+          'This indicates Node.js binary optimization failed. ' +
           'Expected optimized Node.js binary size: 15-25MB. ' +
           'Current size suggests debug symbols were not stripped properly. ' +
           'Please verify strip command is available and Docker image is correct.',
@@ -2607,13 +2517,13 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
       }
 
       if (totalSize > conservativeLimit) {
-        this.logger.warn('Layer content size exceeds optimal size but within AWS limits', {
+        this.logger.warn('Layer content size exceeds conservative limit but within absolute limit', {
           totalSize,
           totalSizeMB: Math.round(totalSize / 1024 / 1024),
           conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
-          awsAbsoluteLimitMB: Math.round(awsAbsoluteLimit / 1024 / 1024),
+          aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
           warning: 'Binary optimization may not be optimal - expected ~15-25MB for optimized Node.js binary',
-          recommendation: 'Check if strip command worked correctly. Layer will still deploy but may be slower.',
+          recommendation: 'Check if strip command worked correctly',
         });
       }
 
@@ -2627,7 +2537,7 @@ create_optimized_zip('${layerDir}', '${zipFilePath}')
         totalSize,
         totalSizeMB: Math.round(totalSize / 1024 / 1024),
         conservativeLimitMB: Math.round(conservativeLimit / 1024 / 1024),
-        awsAbsoluteLimitMB: Math.round(awsAbsoluteLimit / 1024 / 1024),
+        aggressiveLimitMB: Math.round(aggressiveLimit / 1024 / 1024),
         status: totalSize > conservativeLimit ? 'large_but_acceptable' : 'optimal_size',
       });
 
@@ -2940,9 +2850,6 @@ except Exception as e:
   /**
    * Executes a system command with timeout and error handling.
    *
-   * Enhanced with EPIPE error handling to prevent broken pipe errors
-   * when child process terminates unexpectedly.
-   *
    * @param command - Command to execute
    * @param args - Command arguments
    * @param options - Execution options including working directory
@@ -2953,124 +2860,57 @@ except Exception as e:
     this.logger.debug('Executing command', { command, args, options });
 
     return new Promise((resolve, reject) => {
-      const childProcess = spawn(command, args, {
+      const process = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: options?.cwd,
       });
 
       let stdout = '';
       let stderr = '';
-      let processExited = false;
-      let timeoutHandle: NodeJS.Timeout | null = null;
 
-      // Handle EPIPE errors on stdout/stderr streams
-      const handleStreamError = (streamName: string) => (error: Error) => {
-        // EPIPE is expected when process exits early - don't treat as fatal
-        if ((error as any).code === 'EPIPE') {
-          this.logger.debug(`${streamName} stream closed (EPIPE) - process likely exited`, {
-            command,
-            processExited,
-          });
-          return; // Ignore EPIPE - wait for 'close' event
-        }
+      process.stdout?.on('data', (data) => {
+        stdout += data.toString();
+      });
 
-        // Other stream errors are unexpected
-        this.logger.warn(`${streamName} stream error`, {
-          command,
-          error: error.message,
-          code: (error as any).code,
-        });
-      };
+      process.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
 
-      // Attach error handlers to prevent unhandled EPIPE
-      if (childProcess.stdout) {
-        childProcess.stdout.on('error', handleStreamError('stdout'));
-        childProcess.stdout.on('data', (data) => {
-          if (!processExited) {
-            stdout += data.toString();
-          }
-        });
-      }
-
-      if (childProcess.stderr) {
-        childProcess.stderr.on('error', handleStreamError('stderr'));
-        childProcess.stderr.on('data', (data) => {
-          if (!processExited) {
-            stderr += data.toString();
-          }
-        });
-      }
-
-      // Set timeout for long-running commands
-      timeoutHandle = setTimeout(() => {
-        if (!processExited) {
-          processExited = true;
-          childProcess.kill('SIGTERM');
-
-          // Give process 2 seconds to terminate gracefully
-          setTimeout(() => {
-            if (!childProcess.killed) {
-              childProcess.kill('SIGKILL');
-            }
-          }, 2000);
-
-          reject(new Error(
-            `Command timeout after ${AWSLayerManager.DOCKER_TIMEOUT}ms: ${command} ${args.join(' ')}\n` +
-            `stdout: ${stdout.trim()}\nstderr: ${stderr.trim()}`,
-          ));
-        }
+      const timeout = setTimeout(() => {
+        process.kill('SIGTERM');
+        reject(new Error(`Command timeout after ${AWSLayerManager.DOCKER_TIMEOUT}ms: ${command} ${args.join(' ')}`));
       }, AWSLayerManager.DOCKER_TIMEOUT);
 
-      // Handle process completion
-      childProcess.on('close', (code, signal) => {
-        if (processExited) return; // Already handled by timeout or error
-        processExited = true;
-
-        if (timeoutHandle) {
-          clearTimeout(timeoutHandle);
-        }
+      process.on('close', (code) => {
+        clearTimeout(timeout);
 
         if (code === 0) {
           this.logger.debug('Command executed successfully', {
             command,
             args,
-            stdoutLength: stdout.length,
-            stderrLength: stderr.length,
+            stdout: stdout.trim(),
           });
           resolve();
         } else {
-          const errorMessage = stderr.trim() || stdout.trim() ||
-            `Command failed with exit code ${code}${signal ? ` (signal: ${signal})` : ''}`;
-
+          const errorMessage = stderr.trim() || stdout.trim() || `Command failed with exit code ${code}`;
           this.logger.error('Command execution failed', {
             command,
             args,
             exitCode: code,
-            signal,
-            stderr: stderr.trim().substring(0, 500), // Limit log size
-            stdout: stdout.trim().substring(0, 500),
+            stderr: stderr.trim(),
+            stdout: stdout.trim(),
           });
-
           reject(new Error(errorMessage));
         }
       });
 
-      // Handle process spawn errors
-      childProcess.on('error', (error) => {
-        if (processExited) return;
-        processExited = true;
-
-        if (timeoutHandle) {
-          clearTimeout(timeoutHandle);
-        }
-
+      process.on('error', (error) => {
+        clearTimeout(timeout);
         this.logger.error('Command process error', {
           command,
           args,
           error: error.message,
-          code: (error as any).code,
         });
-
         reject(error);
       });
     });

@@ -66,7 +66,7 @@ const target: Maybe<keyof typeof builds> = targetArg?.split('=')[1] as keyof typ
 // const isProd: boolean = process.env.NODE_ENV === 'production';
 
 const stageFilters = {
-  keys: (key: string) => !['app', 'cdk', 'react'].includes(key),
+  keys: (key: string) => !['cdk', 'snapstartHandler'].includes(key),
 };
 
 const versionBuilds = {

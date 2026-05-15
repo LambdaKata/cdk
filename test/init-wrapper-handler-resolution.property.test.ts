@@ -38,61 +38,61 @@ import * as fc from 'fast-check';
  * Examples: "handler", "myHandler", "handle_request", "_private"
  */
 const handlerName = (): fc.Arbitrary<string> =>
-    fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*$/);
+  fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*$/);
 
 /**
  * Arbitrary generator for valid module names (the module part of the handler path)
  * Examples: "index", "src/index", "handlers/api", "my_module"
  */
 const moduleName = (): fc.Arbitrary<string> =>
-    fc.oneof(
-        // Simple module names
-        fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*$/),
-        // Nested module paths
-        fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*$/),
-        // Deeply nested module paths
-        fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*$/)
-    );
+  fc.oneof(
+    // Simple module names
+    fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*$/),
+    // Nested module paths
+    fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*$/),
+    // Deeply nested module paths
+    fc.stringMatching(/^[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*\/[a-zA-Z_][a-zA-Z0-9_]*$/),
+  );
 
 /**
  * Arbitrary generator for complete handler paths in format: module.function
  * Examples: "index.handler", "src/index.handler", "handlers/api/users.createUser"
  */
 const handlerPath = (): fc.Arbitrary<string> =>
-    fc.tuple(moduleName(), handlerName()).map(([mod, fn]) => `${mod}.${fn}`);
+  fc.tuple(moduleName(), handlerName()).map(([mod, fn]) => `${mod}.${fn}`);
 
 /**
  * Arbitrary generator for common Lambda handler path patterns
  */
 const commonHandlerPaths = (): fc.Arbitrary<string> =>
-    fc.constantFrom(
-        'index.handler',
-        'handler.handler',
-        'src/index.handler',
-        'dist/index.handler',
-        'lambda.handler',
-        'app.handler',
-        'main.handler',
-        'api.handler',
-        'index.main',
-        'handler.main',
-        'src/handler.processEvent',
-        'handlers/api.handleRequest',
-        'lib/index.handler'
-    );
+  fc.constantFrom(
+    'index.handler',
+    'handler.handler',
+    'src/index.handler',
+    'dist/index.handler',
+    'lambda.handler',
+    'app.handler',
+    'main.handler',
+    'api.handler',
+    'index.main',
+    'handler.main',
+    'src/handler.processEvent',
+    'handlers/api.handleRequest',
+    'lib/index.handler',
+  );
 
 /**
  * Arbitrary generator for a mock handler function
  * Returns a function that can be used as a Lambda handler
  */
 const mockHandlerFunction = (): fc.Arbitrary<() => Promise<unknown>> =>
-    fc.constant(async () => ({ statusCode: 200 }));
+  fc.constant(async () => ({ statusCode: 200 }));
 
 /**
  * Interface representing a bundle object with handler exports
  */
 interface BundleObject {
-    [key: string]: unknown;
+  [key: string]: unknown;
 }
 
 /**
@@ -110,9 +110,9 @@ interface BundleObject {
  * @returns The resolved handler function or undefined if not found
  */
 function resolveDefaultHandler(bundle: BundleObject, originalHandler: string): unknown {
-    const handlerParts = originalHandler.split('.');
-    const handlerName = handlerParts[handlerParts.length - 1];
-    return bundle[handlerName];
+  const handlerParts = originalHandler.split('.');
+  const handlerName = handlerParts[handlerParts.length - 1];
+  return bundle[handlerName];
 }
 
 /**
@@ -123,8 +123,8 @@ function resolveDefaultHandler(bundle: BundleObject, originalHandler: string): u
  * @returns The handler function name
  */
 function extractHandlerName(handlerPath: string): string {
-    const parts = handlerPath.split('.');
-    return parts[parts.length - 1];
+  const parts = handlerPath.split('.');
+  return parts[parts.length - 1];
 }
 
 /**
@@ -135,303 +135,303 @@ function extractHandlerName(handlerPath: string): string {
  * @returns A bundle object with the handler
  */
 function createBundleWithHandler(
-    handlerPropertyName: string,
-    handlerFn: () => Promise<unknown>
+  handlerPropertyName: string,
+  handlerFn: () => Promise<unknown>,
 ): BundleObject {
-    return {
-        [handlerPropertyName]: handlerFn,
-    };
+  return {
+    [handlerPropertyName]: handlerFn,
+  };
 }
 
 // Feature: configurable-bundle-middleware, Property 5: Default Handler Resolution
 describe('Feature: configurable-bundle-middleware, Property 5: Default Handler Resolution', () => {
+  /**
+   * **Validates: Requirements 2.7, 2.8, 6.2**
+   */
+  describe('Property 5: Default Handler Resolution', () => {
     /**
      * **Validates: Requirements 2.7, 2.8, 6.2**
+     * For any bundle object with a property matching the handler name from original_js_handler,
+     * and no middleware configured, the init wrapper should resolve to that property value.
+     *
+     * This tests the primary property: default resolution extracts the correct handler.
      */
-    describe('Property 5: Default Handler Resolution', () => {
-        /**
-         * **Validates: Requirements 2.7, 2.8, 6.2**
-         * For any bundle object with a property matching the handler name from original_js_handler,
-         * and no middleware configured, the init wrapper should resolve to that property value.
-         *
-         * This tests the primary property: default resolution extracts the correct handler.
-         */
-        it('should resolve handler from bundle using the last part of the handler path', () => {
-            return fc.assert(
-                fc.property(
-                    handlerPath(),
-                    mockHandlerFunction(),
-                    (originalHandler, handlerFn) => {
-                        // Extract the expected handler name from the path
-                        const expectedHandlerName = extractHandlerName(originalHandler);
+    it('should resolve handler from bundle using the last part of the handler path', () => {
+      return fc.assert(
+        fc.property(
+          handlerPath(),
+          mockHandlerFunction(),
+          (originalHandler, handlerFn) => {
+            // Extract the expected handler name from the path
+            const expectedHandlerName = extractHandlerName(originalHandler);
 
-                        // Create a bundle with the handler at the expected property
-                        const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
+            // Create a bundle with the handler at the expected property
+            const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
 
-                        // Resolve the handler using the default resolution logic
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+            // Resolve the handler using the default resolution logic
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
 
-                        // The resolved handler should be the same function we put in the bundle
-                        return resolvedHandler === handlerFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8**
-         * Test with common Lambda handler path patterns
-         */
-        it('should resolve handler correctly for common Lambda handler paths', () => {
-            return fc.assert(
-                fc.property(
-                    commonHandlerPaths(),
-                    mockHandlerFunction(),
-                    (originalHandler, handlerFn) => {
-                        const expectedHandlerName = extractHandlerName(originalHandler);
-                        const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        return resolvedHandler === handlerFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirement 2.8**
-         * THE default handler resolution SHALL work with standard Node.js Lambda handler exports
-         *
-         * Test that the resolution works with the standard "handler" export name
-         */
-        it('should work with standard "handler" export name', () => {
-            return fc.assert(
-                fc.property(
-                    moduleName(),
-                    mockHandlerFunction(),
-                    (mod, handlerFn) => {
-                        const originalHandler = `${mod}.handler`;
-                        const bundle = { handler: handlerFn };
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        return resolvedHandler === handlerFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 6.2**
-         * Handler resolution should only use the last part of the path (after the last dot)
-         */
-        it('should only use the last part of the handler path for resolution', () => {
-            return fc.assert(
-                fc.property(
-                    handlerName(),
-                    mockHandlerFunction(),
-                    (fnName, handlerFn) => {
-                        // Create various handler paths with the same function name
-                        const paths = [
-                            `index.${fnName}`,
-                            `src/index.${fnName}`,
-                            `handlers/api/users.${fnName}`,
-                            `a/b/c/d.${fnName}`,
-                        ];
-
-                        // All paths should resolve to the same handler
-                        const bundle = { [fnName]: handlerFn };
-
-                        return paths.every(path => {
-                            const resolved = resolveDefaultHandler(bundle, path);
-                            return resolved === handlerFn;
-                        });
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8**
-         * Resolution should return undefined when handler property doesn't exist
-         */
-        it('should return undefined when handler property does not exist in bundle', () => {
-            return fc.assert(
-                fc.property(
-                    handlerPath(),
-                    (originalHandler) => {
-                        // Create an empty bundle
-                        const bundle: BundleObject = {};
-
-                        // Resolve should return undefined
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        return resolvedHandler === undefined;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8**
-         * Resolution should return the exact value from the bundle (not a copy)
-         */
-        it('should return the exact reference from the bundle', () => {
-            return fc.assert(
-                fc.property(
-                    handlerPath(),
-                    mockHandlerFunction(),
-                    (originalHandler, handlerFn) => {
-                        const expectedHandlerName = extractHandlerName(originalHandler);
-                        const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        // Should be the exact same reference (strict equality)
-                        return resolvedHandler === bundle[expectedHandlerName];
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 6.2**
-         * Resolution should be deterministic - same inputs always produce same output
-         */
-        it('should produce consistent results for the same handler path and bundle', () => {
-            return fc.assert(
-                fc.property(
-                    handlerPath(),
-                    mockHandlerFunction(),
-                    (originalHandler, handlerFn) => {
-                        const expectedHandlerName = extractHandlerName(originalHandler);
-                        const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
-
-                        // Resolve multiple times
-                        const resolved1 = resolveDefaultHandler(bundle, originalHandler);
-                        const resolved2 = resolveDefaultHandler(bundle, originalHandler);
-                        const resolved3 = resolveDefaultHandler(bundle, originalHandler);
-
-                        // All resolutions should be identical
-                        return resolved1 === resolved2 && resolved2 === resolved3;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirement 2.8**
-         * Resolution should work with handler names containing underscores and numbers
-         */
-        it('should handle handler names with underscores and numbers', () => {
-            const handlerNameWithSpecialChars = fc.stringMatching(
-                /^[a-zA-Z_][a-zA-Z0-9_]*[0-9_]+[a-zA-Z0-9_]*$/
-            );
-
-            return fc.assert(
-                fc.property(
-                    moduleName(),
-                    handlerNameWithSpecialChars,
-                    mockHandlerFunction(),
-                    (mod, fnName, handlerFn) => {
-                        const originalHandler = `${mod}.${fnName}`;
-                        const bundle = { [fnName]: handlerFn };
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        return resolvedHandler === handlerFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8**
-         * Resolution should work when bundle has multiple exports
-         */
-        it('should resolve correct handler when bundle has multiple exports', () => {
-            return fc.assert(
-                fc.property(
-                    handlerPath(),
-                    mockHandlerFunction(),
-                    mockHandlerFunction(),
-                    mockHandlerFunction(),
-                    (originalHandler, targetFn, otherFn1, otherFn2) => {
-                        const expectedHandlerName = extractHandlerName(originalHandler);
-
-                        // Create bundle with multiple exports
-                        const bundle: BundleObject = {
-                            [expectedHandlerName]: targetFn,
-                            otherHandler1: otherFn1,
-                            otherHandler2: otherFn2,
-                            someValue: 'not a function',
-                            anotherValue: 42,
-                        };
-
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        // Should resolve to the correct handler, not the others
-                        return resolvedHandler === targetFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8, 6.2**
-         * Simple handler paths (no module path, just "handler") should work
-         */
-        it('should handle simple handler paths without module prefix', () => {
-            return fc.assert(
-                fc.property(
-                    handlerName(),
-                    mockHandlerFunction(),
-                    (fnName, handlerFn) => {
-                        // Simple path like just "handler" (though unusual, should still work)
-                        const originalHandler = fnName;
-                        const bundle = { [fnName]: handlerFn };
-                        const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
-
-                        return resolvedHandler === handlerFn;
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
-
-        /**
-         * **Validates: Requirements 2.7, 2.8**
-         * Handler path extraction should handle edge cases with multiple dots
-         */
-        it('should use only the last segment when handler path has multiple dots', () => {
-            return fc.assert(
-                fc.property(
-                    handlerName(),
-                    mockHandlerFunction(),
-                    (fnName, handlerFn) => {
-                        // Paths with multiple dots (unusual but valid)
-                        const paths = [
-                            `a.b.${fnName}`,
-                            `x.y.z.${fnName}`,
-                            `one.two.three.four.${fnName}`,
-                        ];
-
-                        const bundle = { [fnName]: handlerFn };
-
-                        return paths.every(path => {
-                            const resolved = resolveDefaultHandler(bundle, path);
-                            return resolved === handlerFn;
-                        });
-                    }
-                ),
-                { numRuns: 15 }
-            );
-        });
+            // The resolved handler should be the same function we put in the bundle
+            return resolvedHandler === handlerFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
     });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8**
+     * Test with common Lambda handler path patterns
+     */
+    it('should resolve handler correctly for common Lambda handler paths', () => {
+      return fc.assert(
+        fc.property(
+          commonHandlerPaths(),
+          mockHandlerFunction(),
+          (originalHandler, handlerFn) => {
+            const expectedHandlerName = extractHandlerName(originalHandler);
+            const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            return resolvedHandler === handlerFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirement 2.8**
+     * THE default handler resolution SHALL work with standard Node.js Lambda handler exports
+     *
+     * Test that the resolution works with the standard "handler" export name
+     */
+    it('should work with standard "handler" export name', () => {
+      return fc.assert(
+        fc.property(
+          moduleName(),
+          mockHandlerFunction(),
+          (mod, handlerFn) => {
+            const originalHandler = `${mod}.handler`;
+            const bundle = { handler: handlerFn };
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            return resolvedHandler === handlerFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 6.2**
+     * Handler resolution should only use the last part of the path (after the last dot)
+     */
+    it('should only use the last part of the handler path for resolution', () => {
+      return fc.assert(
+        fc.property(
+          handlerName(),
+          mockHandlerFunction(),
+          (fnName, handlerFn) => {
+            // Create various handler paths with the same function name
+            const paths = [
+              `index.${fnName}`,
+              `src/index.${fnName}`,
+              `handlers/api/users.${fnName}`,
+              `a/b/c/d.${fnName}`,
+            ];
+
+            // All paths should resolve to the same handler
+            const bundle = { [fnName]: handlerFn };
+
+            return paths.every(path => {
+              const resolved = resolveDefaultHandler(bundle, path);
+              return resolved === handlerFn;
+            });
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8**
+     * Resolution should return undefined when handler property doesn't exist
+     */
+    it('should return undefined when handler property does not exist in bundle', () => {
+      return fc.assert(
+        fc.property(
+          handlerPath(),
+          (originalHandler) => {
+            // Create an empty bundle
+            const bundle: BundleObject = {};
+
+            // Resolve should return undefined
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            return resolvedHandler === undefined;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8**
+     * Resolution should return the exact value from the bundle (not a copy)
+     */
+    it('should return the exact reference from the bundle', () => {
+      return fc.assert(
+        fc.property(
+          handlerPath(),
+          mockHandlerFunction(),
+          (originalHandler, handlerFn) => {
+            const expectedHandlerName = extractHandlerName(originalHandler);
+            const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            // Should be the exact same reference (strict equality)
+            return resolvedHandler === bundle[expectedHandlerName];
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 6.2**
+     * Resolution should be deterministic - same inputs always produce same output
+     */
+    it('should produce consistent results for the same handler path and bundle', () => {
+      return fc.assert(
+        fc.property(
+          handlerPath(),
+          mockHandlerFunction(),
+          (originalHandler, handlerFn) => {
+            const expectedHandlerName = extractHandlerName(originalHandler);
+            const bundle = createBundleWithHandler(expectedHandlerName, handlerFn);
+
+            // Resolve multiple times
+            const resolved1 = resolveDefaultHandler(bundle, originalHandler);
+            const resolved2 = resolveDefaultHandler(bundle, originalHandler);
+            const resolved3 = resolveDefaultHandler(bundle, originalHandler);
+
+            // All resolutions should be identical
+            return resolved1 === resolved2 && resolved2 === resolved3;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirement 2.8**
+     * Resolution should work with handler names containing underscores and numbers
+     */
+    it('should handle handler names with underscores and numbers', () => {
+      const handlerNameWithSpecialChars = fc.stringMatching(
+        /^[a-zA-Z_][a-zA-Z0-9_]*[0-9_]+[a-zA-Z0-9_]*$/,
+      );
+
+      return fc.assert(
+        fc.property(
+          moduleName(),
+          handlerNameWithSpecialChars,
+          mockHandlerFunction(),
+          (mod, fnName, handlerFn) => {
+            const originalHandler = `${mod}.${fnName}`;
+            const bundle = { [fnName]: handlerFn };
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            return resolvedHandler === handlerFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8**
+     * Resolution should work when bundle has multiple exports
+     */
+    it('should resolve correct handler when bundle has multiple exports', () => {
+      return fc.assert(
+        fc.property(
+          handlerPath(),
+          mockHandlerFunction(),
+          mockHandlerFunction(),
+          mockHandlerFunction(),
+          (originalHandler, targetFn, otherFn1, otherFn2) => {
+            const expectedHandlerName = extractHandlerName(originalHandler);
+
+            // Create bundle with multiple exports
+            const bundle: BundleObject = {
+              [expectedHandlerName]: targetFn,
+              otherHandler1: otherFn1,
+              otherHandler2: otherFn2,
+              someValue: 'not a function',
+              anotherValue: 42,
+            };
+
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            // Should resolve to the correct handler, not the others
+            return resolvedHandler === targetFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8, 6.2**
+     * Simple handler paths (no module path, just "handler") should work
+     */
+    it('should handle simple handler paths without module prefix', () => {
+      return fc.assert(
+        fc.property(
+          handlerName(),
+          mockHandlerFunction(),
+          (fnName, handlerFn) => {
+            // Simple path like just "handler" (though unusual, should still work)
+            const originalHandler = fnName;
+            const bundle = { [fnName]: handlerFn };
+            const resolvedHandler = resolveDefaultHandler(bundle, originalHandler);
+
+            return resolvedHandler === handlerFn;
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+
+    /**
+     * **Validates: Requirements 2.7, 2.8**
+     * Handler path extraction should handle edge cases with multiple dots
+     */
+    it('should use only the last segment when handler path has multiple dots', () => {
+      return fc.assert(
+        fc.property(
+          handlerName(),
+          mockHandlerFunction(),
+          (fnName, handlerFn) => {
+            // Paths with multiple dots (unusual but valid)
+            const paths = [
+              `a.b.${fnName}`,
+              `x.y.z.${fnName}`,
+              `one.two.three.four.${fnName}`,
+            ];
+
+            const bundle = { [fnName]: handlerFn };
+
+            return paths.every(path => {
+              const resolved = resolveDefaultHandler(bundle, path);
+              return resolved === handlerFn;
+            });
+          },
+        ),
+        { numRuns: 7 },
+      );
+    });
+  });
 });

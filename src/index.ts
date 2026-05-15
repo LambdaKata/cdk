@@ -95,6 +95,10 @@ export {
     NodeRuntimeLayerError,
     VersionCacheEntry,
     LayerMetadata,
+    // New deployment functionality exports
+    NodejsLayerDeploymentOptions,
+    NodejsLayerDeploymentResult,
+    MultiArchitectureDeploymentResult,
 } from './nodejs-layer-manager';
 
 // Docker Runtime Detector exports

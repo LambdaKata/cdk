@@ -44,7 +44,6 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 
 import { KataProps, LicensingResponse, TransformationConfig } from './types';
-import { createLicensingService, LicensingService } from './licensing';
 import { resolveAccountId } from './account-resolver';
 import { resolveAccountIdSync, resolveRegionSync } from './sync-account-resolver';
 import { createKataConfigLayer } from './config-layer';
@@ -135,20 +134,6 @@ const UNLICENSED_ERROR = 'Lambda Kata licensing validation failed: AWS account i
  */
 export interface KataWrapperOptions extends KataProps {
   /**
-   * Optional: Custom licensing service for testing.
-   * If not provided, the default HTTP licensing service will be used.
-   * @internal
-   */
-  licensingService?: LicensingService;
-
-  /**
-   * Optional: Custom synchronous licensing service for testing.
-   * Must implement checkEntitlementSync(accountId: string): LicensingResponse
-   * @internal
-   */
-  syncLicensingService?: NativeLicensingServiceInterface;
-
-  /**
    * Custom bundle path.
    * If not specified, uses the default /opt/js_runtime/bundle.js
    */
@@ -194,6 +179,8 @@ export interface KataWrapperOptions extends KataProps {
    */
   skipNodejsLayer?: boolean;
 }
+
+
 
 /**
  * Result of the kata transformation.
@@ -300,6 +287,8 @@ export function kata<T extends NodejsFunction | LambdaFunction>(
  * @param props - Optional configuration for the transformation
  * @returns Promise resolving to the transformation result
  *
+ * @deprecated
+ *
  * @internal
  */
 export async function kataWithAccountId<T extends NodejsFunction | LambdaFunction>(
@@ -311,20 +300,25 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
   // Validate input
   validateLambdaInput(lambda);
 
-  // Get the licensing service
-  const licensingService = props?.licensingService ?? createLicensingService(props?.licensingEndpoint);
-
   // Extract runtime parameters from Lambda function
   const originalRuntime = getOriginalRuntime(lambda);
   const nodeVersion = extractNodeVersion(originalRuntime);
   const architecture = getLambdaArchitecture(lambda);
 
-  // Check entitlement with runtime parameters
-  const licensingResponse = await licensingService.checkEntitlement({
-    accountId,
-    nodeVersion,
-    architecture,
-  });
+  // Use native licensing module for entitlement check
+  let licensingResponse: LicensingResponse;
+  try {
+    const nativeService = new NativeLicensingService();
+    licensingResponse = nativeService.checkEntitlementSync(accountId);
+  } catch (nativeError) {
+    const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+    console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+
+    licensingResponse = {
+      entitled: false,
+      message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+    };
+  }
 
   // Handle the licensing response - distinguish 3 cases:
   // 1. entitled: true + layerVersionArn/layerArn → transform
@@ -426,25 +420,20 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
   // Check entitlement SYNCHRONOUSLY using native C-module
   let licensingResponse: LicensingResponse;
 
-  if (props?.syncLicensingService?.checkEntitlementSync) {
-    // Use provided sync licensing service (for testing)
-    licensingResponse = props.syncLicensingService.checkEntitlementSync(accountId);
-  } else {
-    // Use native licensing module - this is the ONLY production path
-    // The native C-module contains all licensing logic (endpoint, security, validation)
-    try {
-      const nativeService = new NativeLicensingService();
-      licensingResponse = nativeService.checkEntitlementSync(accountId);
-    } catch (nativeError) {
-      // Native module not available - fail closed (no HTTP fallback)
-      const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
-      console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
+  // Use native licensing module - this is the ONLY path
+  // The native C-module contains all licensing logic (endpoint, security, validation)
+  try {
+    const nativeService = new NativeLicensingService();
+    licensingResponse = nativeService.checkEntitlementSync(accountId);
+  } catch (nativeError) {
+    // Native module not available - fail closed (no HTTP fallback)
+    const errorMessage = nativeError instanceof Error ? nativeError.message : 'Unknown error';
+    console.error(`[Lambda Kata] Native licensing module error: ${errorMessage}`);
 
-      licensingResponse = {
-        entitled: false,
-        message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
-      };
-    }
+    licensingResponse = {
+      entitled: false,
+      message: `Native licensing module unavailable: ${errorMessage}. Please ensure the native module is built.`,
+    };
   }
 
   // Handle the licensing response - distinguish 3 cases:
@@ -470,7 +459,7 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
         handlerResolver: props?.handlerResolver,
       });
 
-      console.log(`[Lambda Kata] Transformed Lambda to use Lambda Kata runtime (account: ${accountId}, region: ${deploymentRegion})`);
+      console.log(`[Lambda Kata] Reduced cold starts (account: ${accountId}, region: ${deploymentRegion})`);
 
       return {
         transformed: true,
@@ -652,7 +641,7 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
  */
 export function extractBundlePathFromHandler(handler: string): string {
   if (!handler || handler.trim() === '') {
-    return `index.js`;
+    return `/var/task/index.js`;
   }
 
   // Handler format: "<module>.<function>" or "<path/module>.<function>"
@@ -795,21 +784,9 @@ function createNodejsRuntimeLayer(
   const stack = Stack.of(lambda);
   const region = stack.region;
 
-  // Use region-specific bucket for lower latency and to avoid cross-region issues
-  // Format: lambda-kata-website-layer-content-dev-{region}
-  // Fallback to global bucket if region is unresolved (CDK token)
-  let bucketName: string;
-  if (Token.isUnresolved(region)) {
-    // Region is a CDK token - use global bucket
-    bucketName = NODEJS_LAYER_S3_BUCKET;
-    console.warn(
-      `[Lambda Kata] Stack region is unresolved. Using global S3 bucket: ${bucketName}. ` +
-      `For better performance, specify region explicitly in Stack env.`,
-    );
-  } else {
-    // Use region-specific bucket
-    bucketName = `${NODEJS_LAYER_S3_BUCKET}-${region}`;
-  }
+  // Use the canonical public bucket name. The layer keys are region-agnostic
+  // and the bucket reference itself must remain stable for CDK synthesis.
+  const bucketName = NODEJS_LAYER_S3_BUCKET;
 
   // @note: debug logs
   // console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
@@ -1234,7 +1211,7 @@ async function applyTransformationWithNodeSupport(
  */
 export function handleUnlicensed(
   lambda: NodejsFunction | LambdaFunction,
-  props: KataWrapperOptions | undefined,
+  props: KataProps | undefined,
   licensingResponse: LicensingResponse,
 ): void {
   const behavior = props?.unlicensedBehavior ?? 'warn';

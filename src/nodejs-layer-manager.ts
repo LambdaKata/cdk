@@ -328,6 +328,29 @@ export interface LayerManager {
     createNodeLayer(options: LayerCreationOptions): Promise<LayerInfo>;
 
     /**
+     * Deploys a pre-built Node.js Lambda Layer from ZIP file.
+     *
+     * This method bypasses Docker binary extraction and deploys existing
+     * layer ZIP files directly to AWS Lambda. Handles large layers via S3.
+     *
+     * @param options - Deployment configuration
+     * @returns Promise resolving to deployment result
+     * @throws NodeRuntimeLayerError if deployment fails
+     */
+    deployNodejsLayer(options: NodejsLayerDeploymentOptions): Promise<NodejsLayerDeploymentResult>;
+
+    /**
+     * Deploys Node.js layers for all supported architectures.
+     *
+     * Attempts to deploy layers for both arm64 and x86_64 architectures,
+     * continuing on individual failures to maximize successful deployments.
+     *
+     * @param options - Base deployment configuration (architecture will be overridden)
+     * @returns Promise resolving to multi-architecture deployment results
+     */
+    deployAllArchitectures(options: Omit<NodejsLayerDeploymentOptions, 'architecture'>): Promise<MultiArchitectureDeploymentResult>;
+
+    /**
      * Validates whether a layer meets the specified requirements.
      *
      * @param layer - The layer to validate
@@ -496,4 +519,129 @@ export interface LayerMetadata {
      * Optional license information.
      */
     licenseInfo?: string;
+}
+
+/**
+ * Configuration options for deploying pre-built Node.js Lambda Layers.
+ *
+ * Used to deploy existing layer ZIP files instead of creating layers from Docker images.
+ * This bypasses the binary extraction process that can fail with large Node.js binaries.
+ */
+export interface NodejsLayerDeploymentOptions {
+    /**
+     * The AWS region where the layer should be deployed.
+     */
+    region: string;
+
+    /**
+     * Optional AWS profile name for authentication.
+     * If not provided, uses default AWS credentials.
+     */
+    profile?: string;
+
+    /**
+     * The target architecture for deployment.
+     * If not specified, defaults to 'arm64'.
+     */
+    architecture?: 'arm64' | 'x86_64';
+
+    /**
+     * Base directory to search for layer ZIP files.
+     * Defaults to current working directory.
+     */
+    baseDirectory?: string;
+
+    /**
+     * Custom layer name override.
+     * If not provided, uses standard naming: nodejs-18-{architecture}
+     */
+    layerName?: string;
+
+    /**
+     * Custom layer description.
+     * If not provided, generates standard description.
+     */
+    description?: string;
+}
+
+/**
+ * Result of Node.js layer deployment operation.
+ *
+ * Contains information about the deployed layer and deployment metadata.
+ */
+export interface NodejsLayerDeploymentResult {
+    /**
+     * The full ARN of the deployed layer version.
+     */
+    layerVersionArn: string;
+
+    /**
+     * The base ARN of the layer (without version).
+     */
+    layerArn: string;
+
+    /**
+     * The name of the deployed layer.
+     */
+    layerName: string;
+
+    /**
+     * The version number of the deployed layer.
+     */
+    version: number;
+
+    /**
+     * The architecture of the deployed layer.
+     */
+    architecture: 'arm64' | 'x86_64';
+
+    /**
+     * The size of the deployed layer ZIP file in bytes.
+     */
+    layerSize: number;
+
+    /**
+     * The path to the ZIP file that was deployed.
+     */
+    zipFilePath: string;
+
+    /**
+     * Whether the layer was uploaded via S3 (true) or direct upload (false).
+     */
+    uploadedViaS3: boolean;
+}
+
+/**
+ * Result of deploying layers for all architectures.
+ *
+ * Contains deployment results for each architecture attempted.
+ */
+export interface MultiArchitectureDeploymentResult {
+    /**
+     * Deployment results by architecture.
+     * Key is architecture name, value is result or null if deployment failed.
+     */
+    results: Record<'arm64' | 'x86_64', NodejsLayerDeploymentResult | null>;
+
+    /**
+     * Overall success status.
+     * True if at least one architecture deployed successfully.
+     */
+    success: boolean;
+
+    /**
+     * Summary of successful deployments.
+     */
+    successful: Array<{
+        architecture: 'arm64' | 'x86_64';
+        layerVersionArn: string;
+    }>;
+
+    /**
+     * Summary of failed deployments.
+     */
+    failed: Array<{
+        architecture: 'arm64' | 'x86_64';
+        error: string;
+    }>;
 }
