@@ -8,23 +8,23 @@ import { extractBundlePathFromHandler, extractNodeVersion } from '../src/kata-wr
 describe('extractBundlePathFromHandler', () => {
   describe('standard handler formats', () => {
     it('should extract bundle path from simple handler', () => {
-      expect(extractBundlePathFromHandler('index.handler')).toBe('/var/task/index.js');
+      expect(extractBundlePathFromHandler('index.handler')).toBe('index.js');
     });
 
     it('should extract bundle path from handler with path', () => {
-      expect(extractBundlePathFromHandler('src/app.handler')).toBe('/var/task/src/app.js');
+      expect(extractBundlePathFromHandler('src/app.handler')).toBe('src/app.js');
     });
 
     it('should extract bundle path from nested path handler', () => {
-      expect(extractBundlePathFromHandler('dist/handlers/api.handler')).toBe('/var/task/dist/handlers/api.js');
+      expect(extractBundlePathFromHandler('dist/handlers/api.handler')).toBe('dist/handlers/api.js');
     });
 
     it('should extract bundle path from handler with custom function name', () => {
-      expect(extractBundlePathFromHandler('index.myCustomHandler')).toBe('/var/task/index.js');
+      expect(extractBundlePathFromHandler('index.myCustomHandler')).toBe('index.js');
     });
 
     it('should handle handler with multiple dots in path', () => {
-      expect(extractBundlePathFromHandler('src/my.module.handler')).toBe('/var/task/src/my.module.js');
+      expect(extractBundlePathFromHandler('src/my.module.handler')).toBe('src/my.module.js');
     });
   });
 
@@ -38,30 +38,30 @@ describe('extractBundlePathFromHandler', () => {
     });
 
     it('should handle handler without dot (module name only)', () => {
-      expect(extractBundlePathFromHandler('bundle')).toBe('/var/task/bundle.js');
+      expect(extractBundlePathFromHandler('bundle')).toBe('bundle.js');
     });
 
-    it('should return /var/task/index.js for handler starting with dot', () => {
-      expect(extractBundlePathFromHandler('.handler')).toBe('/var/task/index.js');
+    it('should return index.js for handler starting with dot', () => {
+      expect(extractBundlePathFromHandler('.handler')).toBe('index.js');
     });
   });
 
   describe('real-world examples', () => {
     it('should handle AWS CDK NodejsFunction default handler', () => {
       // NodejsFunction typically uses index.handler
-      expect(extractBundlePathFromHandler('index.handler')).toBe('/var/task/index.js');
+      expect(extractBundlePathFromHandler('index.handler')).toBe('index.js');
     });
 
     it('should handle bundled output handler', () => {
-      expect(extractBundlePathFromHandler('bundle.handler')).toBe('/var/task/bundle.js');
+      expect(extractBundlePathFromHandler('bundle.handler')).toBe('bundle.js');
     });
 
     it('should handle TypeScript compiled handler', () => {
-      expect(extractBundlePathFromHandler('dist/index.handler')).toBe('/var/task/dist/index.js');
+      expect(extractBundlePathFromHandler('dist/index.handler')).toBe('dist/index.js');
     });
 
     it('should handle monorepo handler path', () => {
-      expect(extractBundlePathFromHandler('packages/api/dist/handler.main')).toBe('/var/task/packages/api/dist/handler.js');
+      expect(extractBundlePathFromHandler('packages/api/dist/handler.main')).toBe('packages/api/dist/handler.js');
     });
   });
 });
