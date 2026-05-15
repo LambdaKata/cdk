@@ -230,11 +230,10 @@ jobs:
       - name: Check all jobs
         run: |
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
-          if [[ "${{ needs.typecheck.result }}" != "success" ]] || \
-          if [[ "${{ needs.validate
-          .result }}" != "success" ]] || \
+             [[ "${{ needs.typecheck.result }}" != "success" ]] || \
+             [[ "${{ needs.validate.result }}" != "success" ]] || \
              [[ "${{ needs.build.result }}" != "success" ]] || \
-             [[ "${{ needs.test-unit.result }}" != "success" ]] || \
+             [[ "${{ needs.test-unit.result }}" != "success" ]]; then
             echo "::error::One or more CI jobs failed"
             exit 1
           fi
