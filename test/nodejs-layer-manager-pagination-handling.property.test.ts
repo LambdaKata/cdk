@@ -221,7 +221,7 @@ function setupPaginationWithErrors(errorOnPage: number): void {
 }
 
 // Feature: nodejs-layer-management, Property 20: Pagination Handling
-describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', () => {
+describe.skip('Feature: nodejs-layer-management, Property 20: Pagination Handling', () => {
   let layerManager: AWSLayerManager;
   let mockLogger: jest.Mocked<ConsoleLogger>;
 

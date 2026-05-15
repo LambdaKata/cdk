@@ -218,6 +218,8 @@ describe('Node.js Layer Management Type Definitions', () => {
     it('should have properly typed LayerManager interface', () => {
       const mockManager: LayerManager = {
         findExistingLayer: jest.fn().mockResolvedValue(null),
+        deployNodejsLayer: jest.fn().mockResolvedValue(null),
+        deployAllArchitectures: jest.fn().mockResolvedValue(null),
         createNodeLayer: jest.fn().mockResolvedValue({
           arn: 'arn:aws:lambda:us-east-1:123456789012:layer:test:1',
           name: 'test-layer',

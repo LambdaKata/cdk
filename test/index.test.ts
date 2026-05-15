@@ -66,11 +66,9 @@ describe('Package Exports', () => {
       // Type exports are verified at compile time
       // This test ensures the type is importable and usable
       const props: LambdaKataCdk.KataProps = {
-        licensingEndpoint: 'https://example.com',
         unlicensedBehavior: 'warn',
       };
       expect(props).toBeDefined();
-      expect(props.licensingEndpoint).toBe('https://example.com');
       expect(props.unlicensedBehavior).toBe('warn');
     });
 
