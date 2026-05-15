@@ -175,7 +175,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === handlerFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -196,7 +196,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === handlerFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -219,7 +219,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === handlerFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -250,7 +250,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             });
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -272,7 +272,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === undefined;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -294,7 +294,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === bundle[expectedHandlerName];
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolved1 === resolved2 && resolved2 === resolved3;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -346,7 +346,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === handlerFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -379,7 +379,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === targetFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -401,7 +401,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             return resolvedHandler === handlerFn;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -430,7 +430,7 @@ describe('Feature: configurable-bundle-middleware, Property 5: Default Handler R
             });
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

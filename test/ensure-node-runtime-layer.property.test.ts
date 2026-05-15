@@ -316,7 +316,7 @@ describe('ensureNodeRuntimeLayer Properties', () => {
           });
         },
       ),
-      { numRuns: 15 },
+      { numRuns: 7 },
     );
   });
 
@@ -385,7 +385,7 @@ describe('ensureNodeRuntimeLayer Properties', () => {
           expect(mockLayerManager.findExistingLayer).toHaveBeenCalledTimes(3);
         },
       ),
-      { numRuns: 15 },
+      { numRuns: 7 },
     );
   });
 

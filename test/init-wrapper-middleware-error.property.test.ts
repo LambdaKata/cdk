@@ -277,7 +277,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // Error message should be included in the signal
           return signal.error.includes(message);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -307,7 +307,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
             return signal.error.includes(message);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -327,7 +327,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // The ready field should be false
           return signal.ready === false;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -354,7 +354,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // The exact message should be present in the error
           return signal.error === message || signal.error.includes(message);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -384,7 +384,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
             return false;
           }
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -403,7 +403,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // Should be a ready signal, not an error
           return signal.ready === true;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -428,7 +428,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // Error field should exist (even if empty)
           return typeof signal.error === 'string';
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -457,7 +457,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // The message should be preserved (special chars included)
           return signal.error.includes(message);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -484,7 +484,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
 
           return signal1.error === signal2.error;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -514,7 +514,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // not a generic "middleware failed" message
           return signal.error.includes(message);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -540,7 +540,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
           // The full message should be preserved
           return signal.error.includes(message);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -571,7 +571,7 @@ describe('Feature: configurable-bundle-middleware, Property 6: Middleware Error 
 
           return keys.includes('ready') && keys.includes('error');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

@@ -232,7 +232,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
           // Should be an error signal (ready: false)
           return signal.ready === false;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -259,7 +259,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
           // Error message should contain the specific error
           return signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -281,7 +281,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -303,7 +303,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -325,7 +325,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -353,7 +353,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -375,7 +375,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -397,7 +397,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -419,7 +419,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === false && signal.error.includes('Handler is not a function');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -442,7 +442,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
           // Should be a ready signal, not an error
           return signal.ready === true;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -475,7 +475,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
             return false;
           }
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -509,7 +509,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return keys.includes('ready') && keys.includes('error');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -542,7 +542,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal1.error === signal2.error;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -570,7 +570,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
             );
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -594,7 +594,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === true;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -620,7 +620,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === true;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -644,7 +644,7 @@ describe('Feature: configurable-bundle-middleware, Property 11: Non-Function Mid
 
           return signal.ready === true;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

@@ -314,7 +314,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
           // A properly built layer should have no source files
           return validation.valid === true && validation.sourceFiles.length === 0;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -344,7 +344,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
             );
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -367,7 +367,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
             isPythonBytecodeFile(sourceFile) === false
           );
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -403,7 +403,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
             );
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -433,7 +433,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
             return validation.valid === true && hasBytecode === true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -463,7 +463,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

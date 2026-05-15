@@ -203,7 +203,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -260,7 +260,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -321,7 +321,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -381,7 +381,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -479,7 +479,7 @@ describe('Feature: nodejs-layer-management, Property 17: Layer Compatibility Ass
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

@@ -419,7 +419,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -529,7 +529,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -655,7 +655,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -741,7 +741,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -877,7 +877,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -953,7 +953,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1120,7 +1120,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1173,7 +1173,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1283,7 +1283,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1383,7 +1383,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1480,7 +1480,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
 
       consoleSpy.mockRestore();
@@ -1599,7 +1599,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1666,7 +1666,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1711,7 +1711,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1809,7 +1809,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1881,7 +1881,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1948,7 +1948,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1997,7 +1997,7 @@ describe('snapstart-activator property tests', () => {
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

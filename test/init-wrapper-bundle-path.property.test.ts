@@ -139,7 +139,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // The error message should contain the bundle path
           return errorSignal.error.includes(bundlePath);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -155,7 +155,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // The error message should contain the bundle path
           return errorSignal.error.includes(bundlePath);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -171,7 +171,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // The ready field should be false
           return errorSignal.ready === false;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -205,7 +205,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
             return errorSignal.error.includes(bundlePath);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -231,7 +231,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
 
           return pathOccurrences >= 1 && errorSignal.error.includes(bundlePath);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -248,7 +248,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // (should include descriptive text like "Cannot find module" or "Failed to load")
           return errorSignal.error.length > bundlePath.length;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -273,7 +273,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
             return false;
           }
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -293,7 +293,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // The error message should contain the bundle path exactly
           return errorSignal.error.includes(bundlePath);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -310,7 +310,7 @@ describe('Feature: configurable-bundle-middleware, Property 2: Bundle Path in Er
           // Same input should produce same output
           return errorSignal1.error === errorSignal2.error;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

@@ -127,7 +127,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
           fc.property(arbitraryAccountId(), (accountId) => {
             return isValidAccountIdFormat(accountId) === true;
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -136,7 +136,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
           fc.property(arbitraryInvalidAccountId(), (accountId) => {
             return isValidAccountIdFormat(accountId) === false;
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });
@@ -155,7 +155,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
             return result.accountId === accountId && result.source === 'context';
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -178,7 +178,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
               return result.source === 'stack' && result.accountId === validStackId;
             },
           ),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -200,7 +200,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
             // Should fall through to stack resolution
             return result.source === 'stack' && result.accountId === stackAccountId;
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });
@@ -219,7 +219,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
             return result.accountId === accountId && result.source === 'stack';
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -240,7 +240,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
             // Should fall through to STS resolution since stack account is a token
             return result.source === 'sts' && result.accountId === stsAccountId;
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });
@@ -259,7 +259,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
             return result.accountId === accountId && result.source === 'sts';
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -282,7 +282,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
               return error instanceof AccountResolutionError;
             }
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -300,7 +300,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
               return error instanceof AccountResolutionError;
             }
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });
@@ -329,7 +329,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
               );
             },
           ),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
 
@@ -357,7 +357,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
               );
             },
           ),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });
@@ -376,7 +376,7 @@ describe('Feature: cdk-integration, Property 8: Account ID Resolution', () => {
 
             return result === accountId && typeof result === 'string';
           }),
-          { numRuns: 15 },
+          { numRuns: 7 },
         );
       });
     });

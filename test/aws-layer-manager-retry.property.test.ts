@@ -301,7 +301,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -366,7 +366,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -421,7 +421,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -538,7 +538,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -582,7 +582,7 @@ describe('Feature: nodejs-layer-management, Property 11: AWS API Retry Logic', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

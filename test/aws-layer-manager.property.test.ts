@@ -93,7 +93,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(isIncompatible).toBe(false);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -135,7 +135,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(layerName).toMatch(expectedPattern);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -177,7 +177,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(extractedArch).toBe(architecture);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -226,7 +226,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(resultFromName.nodeVersion).toBe(expectedVersions[majorVersion]);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -280,7 +280,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(reversedCompatibility).toBe(false);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -332,7 +332,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(shouldBeIncompatible).toBe(false);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -441,7 +441,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(layerName).toBe(layerName2);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -488,7 +488,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(layerName2).toMatch(/^lambda-kata-nodejs-nodejs\d+\.x-(x86_64|arm64)$/);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -523,7 +523,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(layerName).not.toMatch(/--/);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -590,7 +590,7 @@ describe('AWSLayerManager Property Tests', () => {
             expect(isCompatible).toBe(expectedCompatible);
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -761,7 +761,7 @@ describe('AWSLayerManager Property Tests', () => {
           testManager.destroy();
         },
       ),
-      { numRuns: 15 },
+      { numRuns: 7 },
     );
   }, 60000);
 

@@ -641,7 +641,7 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
  */
 export function extractBundlePathFromHandler(handler: string): string {
   if (!handler || handler.trim() === '') {
-    return `index.js`;
+    return `/var/task/index.js`;
   }
 
   // Handler format: "<module>.<function>" or "<path/module>.<function>"

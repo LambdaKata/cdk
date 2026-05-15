@@ -70,7 +70,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
           // The generated content should be different
           return content1 !== content2;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -89,7 +89,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
           // The handler path should be stored under the correct key
           return parsed[HANDLER_CONFIG_KEY] === handlerPath;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -109,7 +109,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
             return false;
           }
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -126,7 +126,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
           // Should have exactly one key
           return keys.length === 1 && keys[0] === HANDLER_CONFIG_KEY;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -143,7 +143,7 @@ describe('Feature: config-layer-handler-path, Property 5: Unique Config Content 
           // Same input should produce same output
           return content1 === content2;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

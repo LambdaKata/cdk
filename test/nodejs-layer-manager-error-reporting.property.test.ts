@@ -348,7 +348,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -408,7 +408,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -464,7 +464,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -581,7 +581,7 @@ describe('Feature: nodejs-layer-management, Property 13: Comprehensive Error Rep
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

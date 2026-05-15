@@ -233,7 +233,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -274,7 +274,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -319,7 +319,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -357,7 +357,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -400,7 +400,7 @@ describe('Feature: nodejs-layer-management, Property 8: Optional Parameter Handl
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

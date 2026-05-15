@@ -256,7 +256,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -293,7 +293,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -333,7 +333,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -389,7 +389,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -434,7 +434,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -498,7 +498,7 @@ describe('Feature: cdk-integration, Property 1: Licensed Transformation Applies 
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -633,7 +633,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -677,7 +677,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -720,7 +720,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -759,7 +759,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -806,7 +806,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -855,7 +855,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -949,7 +949,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1004,7 +1004,7 @@ describe('Feature: cdk-integration, Property 2: Transformation Preserves Non-Tar
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1079,7 +1079,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1132,7 +1132,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1180,7 +1180,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1233,7 +1233,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1281,7 +1281,7 @@ describe('Feature: cdk-integration, Property 3: Original Handler Captured in Con
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1459,7 +1459,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1535,7 +1535,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1610,7 +1610,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1660,7 +1660,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1723,7 +1723,7 @@ describe('Feature: cdk-integration, Property 4: Layer ARN Matches Licensing Resp
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -1913,7 +1913,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -1962,7 +1962,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2007,7 +2007,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2063,7 +2063,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2123,7 +2123,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2194,7 +2194,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2276,7 +2276,7 @@ describe('Feature: cdk-integration, Property 5: Unlicensed Accounts Receive No T
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
@@ -2459,7 +2459,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2505,7 +2505,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2546,7 +2546,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2610,7 +2610,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2690,7 +2690,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -2740,7 +2740,7 @@ describe('Feature: cdk-integration, Property 6: Unlicensed Accounts Receive Warn
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

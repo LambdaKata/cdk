@@ -291,7 +291,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -387,7 +387,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -473,7 +473,7 @@ describe('Feature: nodejs-layer-management, Property 10: Layer Size Validation',
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

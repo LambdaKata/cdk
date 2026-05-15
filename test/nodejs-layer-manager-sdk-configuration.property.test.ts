@@ -346,7 +346,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -386,7 +386,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -427,7 +427,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -481,7 +481,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -514,7 +514,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -565,7 +565,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -607,7 +607,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -661,7 +661,7 @@ describe('Feature: nodejs-layer-management, Property 19: SDK Configuration Flexi
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

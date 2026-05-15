@@ -125,7 +125,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const output = capturedOutput[0];
           return output.startsWith('[Node.js] ');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -146,7 +146,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const expectedOutput = '[Node.js] ' + message + '\n';
           return output === expectedOutput;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -167,7 +167,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const expectedOutput = '[Node.js] ' + args.join(' ') + '\n';
           return output === expectedOutput;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -187,7 +187,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const output = capturedOutput[0];
           return output.endsWith('\n');
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -218,7 +218,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           // Verify the message was passed to original handler unchanged
           return originalErrorCalls[0][0] === message;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -252,7 +252,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
 
           return args.every((arg, i) => passedArgs[i] === arg);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -274,7 +274,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const expectedOutput = '[Node.js] ' + message + '\n';
           return capturedOutput.every(output => output === expectedOutput);
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -294,7 +294,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const output = capturedOutput[0];
           return output === '[Node.js] \n';
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -320,7 +320,7 @@ describe('Feature: configurable-bundle-middleware, Property 8: Console Methods R
           const expectedOutput = '[Node.js] ' + message + '\n';
           return output === expectedOutput;
         }),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

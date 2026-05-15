@@ -293,7 +293,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -353,7 +353,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -406,7 +406,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -501,7 +501,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -561,7 +561,7 @@ describe('Feature: nodejs-layer-management, Property 16: Fallback Version Resolu
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

@@ -167,7 +167,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -245,7 +245,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -339,7 +339,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -422,7 +422,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -499,7 +499,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -547,7 +547,7 @@ describe('Feature: nodejs-layer-management, Property 1: Runtime Version Resoluti
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });

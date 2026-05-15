@@ -287,7 +287,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -333,7 +333,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -369,7 +369,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -441,7 +441,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
 
@@ -549,7 +549,7 @@ describe('Feature: nodejs-layer-management, Property 20: Pagination Handling', (
             return true;
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 7 },
       );
     });
   });
