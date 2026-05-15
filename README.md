@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/lambdakata/cdk"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem"></a>
+  <a href="https://aws.amazon.com/marketplace/pp/prodview-dce6qhwrlygwo"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem"></a>
   <a href="https://www.npmjs.com/package/@lambdakata/cdk"><img src="https://img.shields.io/badge/npm-@lambdakata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package"></a>
   <a href="https://www.npmjs.com/package/@lambdakata/cdk"><img src="https://img.shields.io/badge/version-0.1.3--rc.97-brightgreen?style=for-the-badge&logo=semver" alt="Version"></a>
   <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2"></a>
