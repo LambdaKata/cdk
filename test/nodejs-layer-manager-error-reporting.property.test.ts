@@ -497,7 +497,7 @@ describe.skip('Feature: nodejs-layer-management, Property 13: Comprehensive Erro
               expect(errorMessage).toContain('Unsupported runtime');
               expect(errorMessage).toContain(invalidRuntime);
               expect(errorMessage).toContain('Supported runtimes');
-              expect(errorMessage).toMatch(/nodejs18\.x.*nodejs20\.x.*nodejs22\.x/);
+              expect(errorMessage).toMatch(/nodejs20\.x.*nodejs22\.x/);
             }
 
             // Test invalid architecture

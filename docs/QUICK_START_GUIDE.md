@@ -163,8 +163,6 @@ graph LR
 
 | Runtime | Architecture | Status |
 |---------|-------------|--------|
-| nodejs18.x | x86_64 | ✅ Supported |
-| nodejs18.x | arm64 | ✅ Supported |
 | nodejs20.x | x86_64 | ✅ Supported |
 | nodejs20.x | arm64 | ✅ Supported |
 | nodejs22.x | x86_64 | ✅ Supported |

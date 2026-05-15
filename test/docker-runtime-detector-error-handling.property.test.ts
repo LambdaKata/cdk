@@ -182,7 +182,7 @@ describe('DockerRuntimeDetector Error Handling Property Tests', () => {
 
               // Error message should contain supported runtimes for troubleshooting
               expect(nodeError.message).toContain('Supported runtimes');
-              expect(nodeError.message).toMatch(/nodejs18\.x|nodejs20\.x|nodejs22\.x/);
+              expect(nodeError.message).toMatch(/nodejs20\.x|nodejs22\.x/);
             }
 
             // Property: Error behavior should be deterministic
