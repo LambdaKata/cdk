@@ -35,6 +35,7 @@
     "aws",
     "cdk",
     "lambda",
+    "lambdakata",
     "lambda-kata",
     "nodejs",
     "python",
@@ -44,7 +45,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lambda-kata/cdk.git"
+    "url": "https://github.com/lambdakata/cdk.git"
   },
   "engines": {
     "node": ">=18.0.0"
