@@ -8,6 +8,7 @@
     "build": "rm -rf ./dist && rm -rf ./out && rm -rf ./lib && yarn run build:cdk && yarn run build:snapstart && yarn run types",
     "build:snapstart": "yarn run build:config && node dist/utils/build.js --target=snapstartHandler",
     "types": "tsc --emitDeclarationOnly && tsc-alias",
+    "typecheck": "tsc --noEmit",
     "build:cdk": "yarn run build:config && node dist/utils/build.js --target=cdk",
     "build:minify": "yarn run build:config && node dist/utils/build.js",
     "build:config": "esbuild --bundle --platform=node utils/esbuild/esbuild.build.ts --outfile=dist/utils/build.js --external:esbuild",
