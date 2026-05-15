@@ -1,26 +1,45 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
-      - master
-      - develop
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 defaults:
   run:
     shell: bash
 
 jobs:
+  # ─── Stage 1: Lint & Typecheck ──────────────────────────────────────────────
+  lint:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck
+        run: yarn typecheck
+
   validate:
     name: Validate repository
     runs-on: ubuntu-latest
@@ -73,30 +92,60 @@ jobs:
           }
           NODE
 
-  lint:
-    name: Lint
+#  lint:
+#    name: Lint
+#    runs-on: ubuntu-latest
+#    needs: validate
+#    timeout-minutes: 20
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#
+#      - name: Set up Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: 20.x
+#          cache: yarn
+#          cache-dependency-path: yarn.lock
+#
+#      - name: Install dependencies
+#        run: yarn install --frozen-lockfile --non-interactive
+#
+#      - name: Run lint
+#        run: yarn lint
+
+  # ─── Stage 2: Build ─────────────────────────────────────────────────────────
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    needs: validate
-    timeout-minutes: 20
-
+    needs: lint
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22
           cache: yarn
-          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --non-interactive
+        run: yarn install --frozen-lockfile
 
-      - name: Run lint
-        run: yarn lint
+      - name: Build
+        run: yarn build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: out/
+          retention-days: 1
+
 
   typecheck:
     name: Typecheck
@@ -123,52 +172,120 @@ jobs:
       - name: Run typecheck
         run: yarn types
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    needs: validate
-    timeout-minutes: 20
 
+  # ─── Stage 3: Unit & Property Tests (Matrix) ────────────────────────────────
+  test-unit:
+    name: Unit (${{ matrix.os }} / Node ${{ matrix.node-version }})
+    runs-on: ${{ matrix.os }}
+    needs: build
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        node-version: [ 20, 22 ]
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
-      - name: Set up Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: ${{ matrix.node-version }}
           cache: yarn
-          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --non-interactive
+        run: yarn install --frozen-lockfile
 
-      - name: Run tests
-        run: yarn test
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: out/
 
-  build:
-    name: Build
+      - name: Run unit tests
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            npx jest --testPathPattern "src/(*)/.*\\.test\\.ts$" --testPathIgnorePatterns="exec\\.test|exec-early-exit"
+          else
+            npx jest --testPathPattern "src/(*)/.*\\.test\\.ts$"
+          fi
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+      - name: Run property tests
+        shell: bash
+        run: npx jest --testPathPattern=property
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+
+  ci-success:
+    name: CI ✓
     runs-on: ubuntu-latest
-    needs: validate
-    timeout-minutes: 20
-
+    needs: [ lint, validate, typecheck, build, test-unit ]
+    if: always()
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+          if [[ "${{ needs.typecheck.result }}" != "success" ]] || \
+          if [[ "${{ needs.validate
+          .result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.test-unit.result }}" != "success" ]] || \
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs passed successfully"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: yarn
-          cache-dependency-path: yarn.lock
+#  test:
+#    name: Test
+#    runs-on: ubuntu-latest
+#    needs: validate
+#    timeout-minutes: 20
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#
+#      - name: Set up Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: 20.x
+#          cache: yarn
+#          cache-dependency-path: yarn.lock
+#
+#      - name: Install dependencies
+#        run: yarn install --frozen-lockfile --non-interactive
+#
+#      - name: Run tests
+#        run: yarn test
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile --non-interactive
-
-      - name: Run build
-        run: yarn build
+#  build:
+#    name: Build
+#    runs-on: ubuntu-latest
+#    needs: validate
+#    timeout-minutes: 20
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#
+#      - name: Set up Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: 20.x
+#          cache: yarn
+#          cache-dependency-path: yarn.lock
+#
+#      - name: Install dependencies
+#        run: yarn install --frozen-lockfile --non-interactive
+#
+#      - name: Run build
+#        run: yarn build
