@@ -7,15 +7,15 @@
 </p>
 
 <p align="center">
-  <a href="https://aws.amazon.com/marketplace/pp/prodview-dce6qhwrlygwo" target="_blank"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem"></a>
-  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/npm-@lambdakata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package"></a>
-  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/version-0.1.3--rc.97-brightgreen?style=for-the-badge&logo=semver" alt="Version"></a>
-  <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html" target="_blank"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2"></a>
-  <a href="https://nodejs.org" target="_blank"><img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 18+"></a>
-  <a href="https://www.typescriptlang.org" target="_blank"><img src="https://img.shields.io/badge/TypeScript-5.3%2B-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.3+"></a>
-  <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&logo=opensourceinitiative" alt="License Apache-2.0"></a>
-  <a href="https://jestjs.io" target="_blank"><img src="https://img.shields.io/badge/tests-Jest%20%7C%20fast--check-brightgreen?style=for-the-badge&logo=jest" alt="Tests"></a>
-  <a href="https://esbuild.github.io" target="_blank"><img src="https://img.shields.io/badge/build-esbuild%20%2B%20tsc-FFCF00?style=for-the-badge&logo=esbuild" alt="Build"></a>
+  <a href="https://aws.amazon.com/marketplace/pp/prodview-dce6qhwrlygwo" target="_blank"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem" title="Lambda Kata Ecosystem"></a>
+  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/npm-@lambdakata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package"></a>
+  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/version-0.1.3--rc.97-brightgreen?style=for-the-badge&logo=semver" alt="Version" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package version"></a>
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html" target="_blank"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2" title="Lambda Kata AWS CDK – AWS CDK v2 support"></a>
+  <a href="https://nodejs.org" target="_blank"><img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 20+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package for Node.js 20+"></a>
+  <a href="https://www.typescriptlang.org" target="_blank"><img src="https://img.shields.io/badge/TypeScript-5.3%2B-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.3+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package supports TypeScript 5.3+"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&logo=opensourceinitiative" alt="License Apache-2.0" title="Lambda Kata AWS CDK – @lambdakata/cdk License Apache-2.0"></a>
+  <a href="https://jestjs.io" target="_blank"><img src="https://img.shields.io/badge/tests-Jest%20%7C%20fast--check-brightgreen?style=for-the-badge&logo=jest" alt="Tests" title="Lambda Kata AWS CDK – @lambdakata/cdk test coverage"></a>
+  <a href="https://esbuild.github.io" target="_blank"><img src="https://img.shields.io/badge/build-esbuild%20%2B%20tsc-FFCF00?style=for-the-badge&logo=esbuild" alt="Build" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package build"></a>
 </p>
 
 
