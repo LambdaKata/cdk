@@ -1,6 +1,6 @@
 /*
  * Apache-2.0
- * Copyright (C) 2025–present Raman Marozau, Work Target Insight Function. All rights reserved.
+ * Copyright (C) 2025–present Raman Marozau, Target Insight Function. All rights reserved.
  * Contact: raman@worktif.com
  *
  * This file is part of the Licensed Work: lambda_kata_npm_cdk, <worktif_lambda_kata_npm_cdk>.
