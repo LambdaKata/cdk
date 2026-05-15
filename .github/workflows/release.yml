@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  package:
+    name: Build release artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate repository layout
+        run: |
+          test -f package.json
+          test -f yarn.lock
+          node <<'NODE'
+          const fs = require('fs');
+
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const requiredScripts = ['test', 'build'];
+          const missingScripts = requiredScripts.filter((name) => !pkg.scripts || !pkg.scripts[name]);
+
+          if (missingScripts.length > 0) {
+            console.error(`Missing scripts: ${missingScripts.join(', ')}`);
+            process.exit(1);
+          }
+
+          if (!pkg.packageManager || !pkg.packageManager.startsWith('yarn@1.')) {
+            console.error('packageManager must declare Yarn v1 for deterministic installs.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+
+      - name: Run tests
+        run: yarn test
+
+      - name: Run build
+        run: yarn build
+
+      - name: Create npm package tarball
+        run: |
+          mkdir -p release-artifacts
+          npm pack --pack-destination release-artifacts
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: release-artifacts/*.tgz
+          if-no-files-found: error
