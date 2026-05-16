@@ -92,7 +92,7 @@ export class MiddlewareExampleStack extends Stack {
             handler: 'handler',
 
             // Original runtime - will be transformed to Python 3.12
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
 
             // Standard Lambda configuration
             memorySize: 256,

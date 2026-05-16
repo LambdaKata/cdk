@@ -125,7 +125,7 @@ describe('Region Resolution', () => {
     });
 
     const lambda = new LambdaFunction(stack, 'CrossRegionFunction', {
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       handler: 'handler.main',
       code: Code.fromInline('exports.main = async () => ({ statusCode: 200 });'),
     });

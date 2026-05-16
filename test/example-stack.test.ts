@@ -51,7 +51,7 @@ function createTestLambda(
   },
 ): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: options?.runtime ?? Runtime.NODEJS_18_X,
+    runtime: options?.runtime ?? Runtime.NODEJS_20_X,
     handler: options?.handler ?? 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
     environment: options?.environment,
@@ -104,7 +104,7 @@ describe('Example Stack Integration Tests', () => {
       // Create a Lambda function equivalent to the example stack
       const myFunction = createTestLambda(stack, 'ExampleKataFunction', {
         handler: 'index.handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 256,
         timeout: Duration.seconds(30),
         environment: {
@@ -244,7 +244,7 @@ describe('Example Stack Integration Tests', () => {
       // Function 1: API handler
       const apiHandler = createTestLambda(stack, 'ApiHandler', {
         handler: 'index.handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 512,
         timeout: Duration.seconds(10),
       });
@@ -252,7 +252,7 @@ describe('Example Stack Integration Tests', () => {
       // Function 2: Background processor
       const processor = createTestLambda(stack, 'BackgroundProcessor', {
         handler: 'index.process',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 1024,
         timeout: Duration.minutes(5),
       });
@@ -332,7 +332,7 @@ describe('Example Stack Integration Tests', () => {
       const stack = new Stack(app, 'NoEnvStack');
 
       const lambda = createTestLambda(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 256,
       });
       kata(lambda);
@@ -405,7 +405,7 @@ describe('Example Stack Integration Tests', () => {
 
       const lambda = createTestLambda(stack, 'TestFunction', {
         handler: 'src/handlers/api.handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 512,
         timeout: Duration.seconds(60),
         environment: {
@@ -445,7 +445,7 @@ describe('Example Stack Integration Tests', () => {
 
       // Minimal Lambda - just runtime and handler
       const lambda = new LambdaFunction(stack, 'MinimalFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({});'),
       });

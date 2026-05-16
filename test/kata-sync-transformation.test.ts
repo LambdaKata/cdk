@@ -61,7 +61,7 @@ function mockNotEntitled(message?: string): void {
  */
 function createTestLambda(stack: Stack, id: string): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: Runtime.NODEJS_18_X,
+    runtime: Runtime.NODEJS_20_X,
     handler: 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
   });
@@ -178,7 +178,7 @@ describe('Synchronous kata() transformation', () => {
 
       // Verify Lambda was NOT transformed
       const cfnFunction = lambda.node.defaultChild as CfnFunction;
-      expect(cfnFunction.runtime).toBe('nodejs18.x');
+      expect(cfnFunction.runtime).toBe('nodejs20.x');
       expect(cfnFunction.handler).toBe('index.handler');
     });
 

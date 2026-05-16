@@ -26,7 +26,7 @@ describe.skip('Node.js Layer Integration Tests', () => {
   it.skip('should handle Node.js layer creation failure gracefully', async () => {
     // Create a Node.js Lambda function
     const lambda = new LambdaFunction(stack, 'TestFunction', {
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       handler: 'src/handler.main',
       code: Code.fromInline('exports.main = async () => ({ statusCode: 200 });'),
     });

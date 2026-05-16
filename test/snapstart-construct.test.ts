@@ -41,7 +41,7 @@ function createTestStack(): { app: App; stack: Stack } {
  */
 function createTestLambda(stack: Stack, id: string): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: Runtime.NODEJS_18_X,
+    runtime: Runtime.NODEJS_20_X,
     handler: 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
   });
@@ -229,7 +229,7 @@ describe('snapstart-construct', () => {
         });
 
         const handlerResource = Object.values(lambdaResources)[0];
-        expect(handlerResource?.Properties?.Runtime).toBe('nodejs18.x');
+        expect(handlerResource?.Properties?.Runtime).toBe('nodejs20.x');
       });
 
       it('should set default timeout for provider when snapshotTimeoutSeconds is not specified', () => {

@@ -43,8 +43,8 @@ import { MockLicensingService } from '../src/mock-licensing';
  * Test data for Node.js runtime and architecture combinations
  */
 const NODEJS_RUNTIME_TEST_CASES = [
-  { runtime: Runtime.NODEJS_18_X, runtimeName: 'nodejs18.x', architecture: Architecture.X86_64, archName: 'x86_64' },
-  { runtime: Runtime.NODEJS_18_X, runtimeName: 'nodejs18.x', architecture: Architecture.ARM_64, archName: 'arm64' },
+  { runtime: Runtime.NODEJS_20_X, runtimeName: 'nodejs18.x', architecture: Architecture.X86_64, archName: 'x86_64' },
+  { runtime: Runtime.NODEJS_20_X, runtimeName: 'nodejs18.x', architecture: Architecture.ARM_64, archName: 'arm64' },
   { runtime: Runtime.NODEJS_20_X, runtimeName: 'nodejs20.x', architecture: Architecture.X86_64, archName: 'x86_64' },
   { runtime: Runtime.NODEJS_20_X, runtimeName: 'nodejs20.x', architecture: Architecture.ARM_64, archName: 'arm64' },
   { runtime: Runtime.NODEJS_22_X, runtimeName: 'nodejs22.x', architecture: Architecture.X86_64, archName: 'x86_64' },
@@ -367,7 +367,7 @@ describe.skip('kata() Wrapper Integration Tests', () => {
     it('should handle unlicensed account gracefully', async () => {
       const { app, stack } = createTestApp('999999999999');
       const lambda = createTestLambda(stack, 'UnlicensedFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
       });
 
@@ -442,7 +442,7 @@ describe.skip('kata() Wrapper Integration Tests', () => {
 
       // Create Node.js function
       const nodejsLambda = createTestLambda(stack, 'NodejsFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'nodejs.handler',
       });
 
@@ -580,7 +580,7 @@ describe.skip('kata() Wrapper Integration Tests', () => {
     it('should maintain proper layer reference integrity', async () => {
       const { app, stack } = createTestApp('123456789012');
       const lambda = createTestLambda(stack, 'LayerRefFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'layerref.handler',
       });
 
@@ -694,7 +694,7 @@ describe.skip('kata() Wrapper Integration Tests', () => {
       // Create stack without account context
       const { app, stack } = createTestApp();
       const lambda = createTestLambda(stack, 'NoAccountFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'noaccount.handler',
       });
 

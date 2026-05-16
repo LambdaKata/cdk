@@ -34,13 +34,13 @@ describe('Node.js Runtime Detection in kata wrapper', () => {
   describe('getOriginalRuntime', () => {
     it('should detect nodejs18.x runtime', () => {
       const lambda = new LambdaFunction(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
       });
 
       const runtime = getOriginalRuntime(lambda);
-      expect(runtime).toBe('nodejs18.x');
+      expect(runtime).toBe('nodejs20.x');
     });
 
     it('should detect nodejs20.x runtime', () => {
@@ -69,7 +69,7 @@ describe('Node.js Runtime Detection in kata wrapper', () => {
   describe('isNodejsRuntime', () => {
     it('should return true for nodejs18.x', () => {
       const lambda = new LambdaFunction(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
       });
@@ -111,7 +111,7 @@ describe('Node.js Runtime Detection in kata wrapper', () => {
   describe('getLambdaArchitecture', () => {
     it('should return x86_64 as default architecture', () => {
       const lambda = new LambdaFunction(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
       });
@@ -122,7 +122,7 @@ describe('Node.js Runtime Detection in kata wrapper', () => {
 
     it('should detect arm64 architecture when specified', () => {
       const lambda = new LambdaFunction(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
         architecture: Architecture.ARM_64,

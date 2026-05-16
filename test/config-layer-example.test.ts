@@ -52,7 +52,7 @@ function createTestLambda(
   },
 ): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: options?.runtime ?? Runtime.NODEJS_18_X,
+    runtime: options?.runtime ?? Runtime.NODEJS_20_X,
     handler: options?.handler ?? 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
     environment: options?.environment,
@@ -106,7 +106,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
       // This mimics the ConfigLayerExampleStack's Lambda configuration
       const configLayerExample = createTestLambda(stack, 'ConfigLayerExampleFunction', {
         handler: 'handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 256,
         timeout: Duration.seconds(30),
         functionName: 'ConfigLayerExampleFunction',
@@ -332,7 +332,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
       const lambda = createTestLambda(stack, 'TestFunction', {
         handler: 'handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         memorySize: 256,
       });
 
@@ -425,7 +425,7 @@ describe('Config Layer Example Stack Integration Tests', () => {
 
       const lambda = createTestLambda(stack, 'TestFunction', {
         handler: 'bundle.handler',
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
       });
 
       const mockLicensing = createEntitledMockLicensing(accountId);

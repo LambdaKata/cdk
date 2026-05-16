@@ -112,7 +112,7 @@ export class ExampleLambdaKataStack extends Stack {
             handler: 'handler',
 
             // Original runtime - this will be transformed to Python 3.12
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
 
             // Standard Lambda configuration - all preserved after transformation
             memorySize: 256,
@@ -174,9 +174,6 @@ export class ExampleLambdaKataStack extends Stack {
         //     // Fail CDK synthesis if account is not licensed
         //     // Default is 'warn' which keeps original Lambda and emits warning
         //     unlicensedBehavior: 'fail',
-        //
-        //     // Override licensing endpoint (for testing)
-        //     licensingEndpoint: 'https://custom-licensing.example.com',
         // });
 
         // ============================================================
@@ -211,7 +208,7 @@ export class MultipleKataFunctionsStack extends Stack {
         const apiHandler = new NodejsFunction(this, 'ApiHandler', {
             entry: path.join(__dirname, 'handlers/api-handler.ts'),
             handler: 'handler',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 512,
             timeout: Duration.seconds(10),
         });
@@ -220,7 +217,7 @@ export class MultipleKataFunctionsStack extends Stack {
         const processor = new NodejsFunction(this, 'BackgroundProcessor', {
             entry: path.join(__dirname, 'handlers/processor.ts'),
             handler: 'process',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 1024,
             timeout: Duration.minutes(5),
         });
@@ -273,7 +270,7 @@ export class MiddlewareExampleStack extends Stack {
             handler: 'handler',
 
             // Original runtime - this will be transformed to Python 3.12
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
 
             // Standard Lambda configuration
             memorySize: 256,
@@ -331,7 +328,7 @@ export class AdvancedKataConfigStack extends Stack {
         const advancedFunction = new NodejsFunction(this, 'AdvancedFunction', {
             entry: path.join(__dirname, 'handlers/example-handler.ts'),
             handler: 'handler',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 512,
             timeout: Duration.seconds(30),
             functionName: 'AdvancedKataFunction',
@@ -391,7 +388,7 @@ export class InlineHandlerResolverStack extends Stack {
         const simpleFunction = new NodejsFunction(this, 'SimpleFunction', {
             entry: path.join(__dirname, 'handlers/example-handler.ts'),
             handler: 'handler',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 256,
             timeout: Duration.seconds(30),
             functionName: 'InlineResolverSimple',
@@ -411,7 +408,7 @@ export class InlineHandlerResolverStack extends Stack {
         const loggingFunction = new NodejsFunction(this, 'LoggingFunction', {
             entry: path.join(__dirname, 'handlers/example-handler.ts'),
             handler: 'handler',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 256,
             timeout: Duration.seconds(30),
             functionName: 'InlineResolverWithLogging',
@@ -444,7 +441,7 @@ export class InlineHandlerResolverStack extends Stack {
         const envBasedFunction = new NodejsFunction(this, 'EnvBasedFunction', {
             entry: path.join(__dirname, 'handlers/example-handler.ts'),
             handler: 'handler',
-            runtime: Runtime.NODEJS_18_X,
+            runtime: Runtime.NODEJS_20_X,
             memorySize: 256,
             timeout: Duration.seconds(30),
             functionName: 'InlineResolverEnvBased',

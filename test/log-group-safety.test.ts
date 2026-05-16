@@ -68,7 +68,7 @@ function createStackWithoutLogGroupFlag(): { app: App; stack: Stack } {
 /** Helper: create a Lambda function */
 function createLambda(stack: Stack, id: string, props?: { functionName?: string }): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: Runtime.NODEJS_18_X,
+    runtime: Runtime.NODEJS_20_X,
     handler: 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({});'),
     functionName: props?.functionName,
@@ -187,7 +187,7 @@ describe('LogGroup Safety Fix', () => {
       });
 
       const lambda = new LambdaFunction(stack, 'TestFn', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
         code: Code.fromInline('exports.handler = async () => ({});'),
         logGroup: userLogGroup,

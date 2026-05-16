@@ -168,7 +168,7 @@ export class SnapStartActivator extends Construct {
     const handlerDir = path.join(__dirname);
 
     const fn = new LambdaFunction(this, 'Handler', {
-      runtime: Runtime.NODEJS_18_X,
+      runtime: Runtime.NODEJS_20_X,
       handler: 'snapstart-handler.handler',
       code: Code.fromAsset(handlerDir, {
         // Only include the handler file, not the entire dist directory

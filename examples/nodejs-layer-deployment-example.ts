@@ -31,7 +31,7 @@ import { AWSLayerManager } from '../src/aws-layer-manager';
 import { createDefaultLogger } from '../src/logger';
 
 async function deployNodejsLayerExample() {
-  console.log('🚀 Node.js Lambda Layer Deployment Example');
+  console.log('Node.js Lambda Layer Deployment Example');
   console.log('==========================================\n');
 
   // Initialize the layer manager with S3 support for large layers
@@ -51,14 +51,14 @@ async function deployNodejsLayerExample() {
     const deployAll = process.argv.includes('--all');
 
     if (deployAll) {
-      console.log('📦 Deploying layers for all architectures...\n');
+      console.log('Deploying layers for all architectures...\n');
 
       const result = await manager.deployAllArchitectures({
         region: process.env.AWS_REGION || 'us-east-1',
         baseDirectory: process.cwd(), // Look for ZIP files in current directory
       });
 
-      console.log('\n✅ Multi-architecture deployment completed!');
+      console.log('\n✓ Multi-architecture deployment completed!');
       console.log(`Success: ${result.success}`);
       console.log(`Successful deployments: ${result.successful.length}`);
       console.log(`Failed deployments: ${result.failed.length}\n`);
@@ -73,7 +73,7 @@ async function deployNodejsLayerExample() {
       });
 
     } else {
-      console.log(`📦 Deploying layer for ${architecture} architecture...\n`);
+      console.log(`Deploying layer for ${architecture} architecture...\n`);
 
       const result = await manager.deployNodejsLayer({
         region: process.env.AWS_REGION || 'us-east-1',
@@ -84,7 +84,7 @@ async function deployNodejsLayerExample() {
         // description: 'Custom Node.js runtime layer for Lambda Kata',
       });
 
-      console.log('\n✅ Layer deployment completed!');
+      console.log('\n✓ Layer deployment completed!');
       console.log(`Layer ARN: ${result.layerVersionArn}`);
       console.log(`Layer Name: ${result.layerName}`);
       console.log(`Version: ${result.version}`);
@@ -94,13 +94,13 @@ async function deployNodejsLayerExample() {
       console.log(`ZIP File: ${result.zipFilePath}`);
     }
 
-    console.log('\n📋 Next Steps:');
+    console.log('\n Next Steps:');
     console.log('1. Use the layer ARN in your Lambda functions');
     console.log('2. The layer provides Node.js runtime binaries for Lambda Kata');
     console.log('3. Layers are region-specific - deploy in each required region');
 
   } catch (error) {
-    console.error('\n❌ Deployment failed:', error instanceof Error ? error.message : String(error));
+    console.error('\n✗ Deployment failed:', error instanceof Error ? error.message : String(error));
 
     if (error instanceof Error && error.message.includes('No layer ZIP found')) {
       console.log('\n💡 Expected ZIP files:');

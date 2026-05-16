@@ -110,7 +110,7 @@ function createTestLambda(
   },
 ): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: options?.runtime ?? Runtime.NODEJS_18_X,
+    runtime: options?.runtime ?? Runtime.NODEJS_20_X,
     handler: options?.handler ?? 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
     environment: options?.environment,
@@ -141,7 +141,7 @@ describe('kata-wrapper', () => {
       it('should change runtime from Node.js 18.x to Python 3.12', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
         });
 
         const config: TransformationConfig = {
@@ -299,7 +299,7 @@ describe('kata-wrapper', () => {
       it('should create SnapStartActivator Custom Resource', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
         });
 
         const config: TransformationConfig = {
@@ -413,7 +413,7 @@ describe('kata-wrapper', () => {
       it('should create SnapStartActivator when kata() transforms a function via kataWithAccountId', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
         const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
@@ -466,7 +466,7 @@ describe('kata-wrapper', () => {
       it('should create SnapStartActivator as child of Lambda when kata() transforms via licensing', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
         const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:1';
@@ -494,7 +494,7 @@ describe('kata-wrapper', () => {
       it('should NOT create SnapStartActivator when account is not entitled', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -573,7 +573,7 @@ describe('kata-wrapper', () => {
       it('should create Node.js runtime layer for nodejs18.x', () => {
         const { stack } = createTestStack();
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
         });
 
         const config: TransformationConfig = {
@@ -887,7 +887,7 @@ describe('kata-wrapper', () => {
     it('should not transform Lambda when account is not entitled', async () => {
       const { stack } = createTestStack('123456789012');
       const lambda = createTestLambda(stack, 'TestFunction', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: 'index.handler',
       });
 
@@ -900,7 +900,7 @@ describe('kata-wrapper', () => {
 
       // Verify transformation was NOT applied - runtime should still be Node.js
       const cfnFunction = lambda.node.defaultChild as CfnFunction;
-      expect(cfnFunction.runtime).toBe('nodejs18.x');
+      expect(cfnFunction.runtime).toBe('nodejs20.x');
       expect(cfnFunction.handler).toBe('index.handler');
     });
   });
@@ -927,7 +927,7 @@ describe('kata-wrapper', () => {
       it('should keep Node.js 18.x runtime unchanged when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -936,7 +936,7 @@ describe('kata-wrapper', () => {
         await kataWithAccountId(lambda, '123456789012', 'us-east-1');
 
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
-        expect(cfnFunction.runtime).toBe('nodejs18.x');
+        expect(cfnFunction.runtime).toBe('nodejs20.x');
       });
 
       it('should keep Node.js 20.x runtime unchanged when unlicensed', async () => {
@@ -968,7 +968,7 @@ describe('kata-wrapper', () => {
         const { stack } = createTestStack('123456789012');
         const originalHandler = 'index.handler';
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: originalHandler,
         });
 
@@ -984,7 +984,7 @@ describe('kata-wrapper', () => {
         const { stack } = createTestStack('123456789012');
         const originalHandler = 'src/handlers/api/users.createUser';
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: originalHandler,
         });
 
@@ -1009,7 +1009,7 @@ describe('kata-wrapper', () => {
       it('should not attach any layers when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1027,7 +1027,7 @@ describe('kata-wrapper', () => {
       it('should preserve existing layers but not add Lambda Kata layer when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1058,7 +1058,7 @@ describe('kata-wrapper', () => {
       it('should emit warning with default message when unlicensed', async () => {
         const { app, stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1080,7 +1080,7 @@ describe('kata-wrapper', () => {
       it('should emit the exact expected warning message', async () => {
         const { app, stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1104,7 +1104,7 @@ describe('kata-wrapper', () => {
       it('should emit custom warning message from licensing response', async () => {
         const { app, stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1136,7 +1136,7 @@ describe('kata-wrapper', () => {
       it('should not add JS_HANDLER_PATH environment variable when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1158,7 +1158,7 @@ describe('kata-wrapper', () => {
           DATABASE_URL: 'postgres://localhost:5432/mydb',
         };
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
           environment: existingEnvVars,
         });
@@ -1191,7 +1191,7 @@ describe('kata-wrapper', () => {
       it('should return transformed: false when unlicensed', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1275,7 +1275,7 @@ describe('kata-wrapper', () => {
       it('should throw error with licensing response message when unlicensedBehavior is fail', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1301,7 +1301,7 @@ describe('kata-wrapper', () => {
       it('should treat account as unlicensed when service is unreachable', async () => {
         const { stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1314,14 +1314,14 @@ describe('kata-wrapper', () => {
 
         // Verify Lambda is unchanged
         const cfnFunction = lambda.node.defaultChild as CfnFunction;
-        expect(cfnFunction.runtime).toBe('nodejs18.x');
+        expect(cfnFunction.runtime).toBe('nodejs20.x');
         expect(cfnFunction.handler).toBe('index.handler');
       });
 
       it('should emit appropriate warning when service is unreachable', async () => {
         const { app, stack } = createTestStack('123456789012');
         const lambda = createTestLambda(stack, 'TestFunction', {
-          runtime: Runtime.NODEJS_18_X,
+          runtime: Runtime.NODEJS_20_X,
           handler: 'index.handler',
         });
 
@@ -1429,7 +1429,7 @@ describe('kata-wrapper', () => {
       const layerArn = 'arn:aws:lambda:us-east-1:999999999999:layer:LambdaKata:5';
 
       const lambda = createTestLambda(stack, 'ApiHandler', {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_20_X,
         handler: originalHandler,
         environment: existingEnvVars,
         memorySize,

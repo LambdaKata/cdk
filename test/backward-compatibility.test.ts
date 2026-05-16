@@ -68,7 +68,7 @@ function createTestLambda(
   },
 ): LambdaFunction {
   return new LambdaFunction(stack, id, {
-    runtime: options?.runtime ?? Runtime.NODEJS_18_X,
+    runtime: options?.runtime ?? Runtime.NODEJS_20_X,
     handler: options?.handler ?? 'index.handler',
     code: Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
     environment: options?.environment,
