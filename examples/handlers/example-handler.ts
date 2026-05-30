@@ -55,7 +55,6 @@ export async function handler(
     // When running via Lambda Kata, these additional env vars are available:
     // - JS_HANDLER_PATH: The original handler path (e.g., "index.handler")
     // - JS_BUNDLE_PATH: Path to the JS bundle in the Layer
-    // - USE_CTYPES_BRIDGE: Whether ctypes bridge is enabled
     const jsHandlerPath = process.env.JS_HANDLER_PATH;
     const isLambdaKata = jsHandlerPath !== undefined;
 

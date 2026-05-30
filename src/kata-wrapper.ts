@@ -377,7 +377,7 @@ export async function kataWithAccountId<T extends NodejsFunction | LambdaFunctio
  * Performs the kata transformation SYNCHRONOUSLY.
  *
  * This is the primary transformation function used by kata().
- * It uses the native C licensing module for synchronous validation.
+ * It uses the native licensing module for synchronous validation.
  * The native module contains all licensing logic including endpoint,
  * security, and validation - no HTTP fallback is used.
  *
@@ -417,11 +417,11 @@ function performKataTransformationSync<T extends NodejsFunction | LambdaFunction
   // Resolve region SYNCHRONOUSLY
   const deploymentRegion = resolveRegionSync(scope);
 
-  // Check entitlement SYNCHRONOUSLY using native C-module
+  // Check entitlement SYNCHRONOUSLY using native module
   let licensingResponse: LicensingResponse;
 
   // Use native licensing module - this is the ONLY path
-  // The native C-module contains all licensing logic (endpoint, security, validation)
+  // The native module contains all licensing logic (endpoint, security, validation)
   try {
     const nativeService = new NativeLicensingService();
     licensingResponse = nativeService.checkEntitlementSync(accountId);
@@ -617,7 +617,7 @@ function getOriginalHandler(lambda: NodejsFunction | LambdaFunction): string {
  * Lambda task root directory where function code is deployed.
  * This is the standard AWS Lambda directory for function code.
  *
- * @deprecated C-lang Lambda Kata makes its own decision for either absolute or relative path
+ * @deprecated Lambda Kata engine makes its own decision for either absolute or relative path
  */
 
 // const LAMBDA_TASK_ROOT = '/var/task';
@@ -676,7 +676,7 @@ export function extractBundlePathFromHandler(handler: string): string {
 export function getOriginalRuntime(lambda: NodejsFunction | LambdaFunction): string {
   // Access the underlying CloudFormation resource to get the runtime
   const cfnFunction = lambda.node.defaultChild as CfnFunction;
-  return cfnFunction.runtime ?? 'nodejs18.x';
+  return cfnFunction.runtime ?? 'nodejs20.x';
 }
 
 /**
@@ -998,7 +998,6 @@ export function applyTransformation(
   // Note: No environment variables are added by kata()
   // - JS_HANDLER_PATH: Stored in config layer
   // - JS_BUNDLE_PATH: Stored in config layer (bundle_path)
-  // - USE_CTYPES_BRIDGE: Removed - ctypes bridge is always used
 }
 
 /**

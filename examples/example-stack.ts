@@ -19,8 +19,7 @@
  * ## How Lambda Kata Works
  *
  * Lambda Kata is a high-performance AWS Lambda runtime that enables Python 3.12
- * Lambda functions to execute JavaScript code through an embedded Node.js engine
- * via a C extension module.
+ * Lambda functions to execute JavaScript code through an embedded Node.js engine.
  *
  * ## The Handler-From-Layer Pattern
  *
@@ -50,8 +49,6 @@
  * Python 3.12 Runtime
  *       ↓
  * /opt/python/lambdakata/optimized_handler.py (from Layer)
- *       ↓
- * C Bridge (ctypes) → Node.js Subprocess
  *       ↓
  * Your JS Handler (via JS_HANDLER_PATH)
  *       ↓

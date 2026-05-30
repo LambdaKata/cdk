@@ -40,8 +40,7 @@
     "lambdakata",
     "lambda-kata",
     "nodejs",
-    "python",
-    "serverless"
+    "python"
   ],
   "author": "Raman Marozau, raman@worktif.com",
   "license": "Apache-2.0",

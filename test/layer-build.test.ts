@@ -56,7 +56,7 @@ const EXPECTED_PYTHON_MODULES = [
  * These are the .so files from c_shared_objects/ plus js_bridge.so
  *
  * **Validates: Requirement 4.4**
- * THE Lambda_Layer SHALL contain all required C shared libraries (`.so` files)
+ * THE Lambda_Layer SHALL contain all required shared libraries
  */
 const EXPECTED_SHARED_LIBRARIES = [
   'js_bridge_pure.so',
@@ -545,7 +545,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
    * **Validates: Requirements 4.1, 4.2, 4.4, 4.5**
    * - 4.1: THE Lambda_Layer SHALL contain the Python handler module at `/opt/python/lambdakata/optimized_handler.py`
    * - 4.2: THE Lambda_Layer SHALL contain all required Python modules in the `lambdakata` package
-   * - 4.4: THE Lambda_Layer SHALL contain all required C shared libraries (`.so` files)
+   * - 4.4: THE Lambda_Layer SHALL contain all required shared engine libraries
    * - 4.5: THE Lambda_Layer SHALL contain the JavaScript runtime components
    */
   describe('Layer Structure File Paths', () => {
@@ -597,7 +597,7 @@ describe('Feature: cdk-integration, Property 7: Layer Contains Only Bytecode', (
      * Test: Verify all required .so files are present
      *
      * **Validates: Requirement 4.4**
-     * THE Lambda_Layer SHALL contain all required C shared libraries (`.so` files)
+     * THE Lambda_Layer SHALL contain all required shared engine libraries
      */
     it('should have all required shared library files', () => {
       // Verify expected shared libraries are defined
