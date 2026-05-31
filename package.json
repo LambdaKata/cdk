@@ -1,6 +1,6 @@
 {
   "name": "@lambdakata/cdk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "AWS CDK integration for Lambda Kata - Node.js Lambdas running via Lambda Kata runtime",
   "main": "out/dist/index.js",
   "types": "out/tsc/src/index.d.ts",
