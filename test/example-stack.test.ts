@@ -34,6 +34,24 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import { ExampleLambdaKataStack, MultipleKataFunctionsStack } from '../examples/example-stack';
 import { getKataPromise, kata } from '../src/index';
 
+// These integration tests assert the synthesis smoke-test and property-
+// preservation behavior of the example stacks. Transformation correctness is
+// covered by config-layer-example.test.ts and the examples-synth suite.
+//
+// kata() validates entitlement through the native licensing module. To keep
+// these tests hermetic and deterministic — independent of any ambient AWS
+// credentials or live entitlement on the machine running them — we mock the
+// native module as NOT entitled, which is the path these assertions describe
+// (the user functions remain untransformed).
+jest.mock('@lambda-kata/licensing', () => ({
+  NativeLicensingService: jest.fn().mockImplementation(() => ({
+    checkEntitlementSync: jest.fn().mockReturnValue({
+      entitled: false,
+      message: 'AWS account is not entitled. Subscribe via AWS Marketplace to enable.',
+    }),
+  })),
+}));
+
 /**
  * Helper to create a test Lambda function (without Docker dependency)
  */

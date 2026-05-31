@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/npm-@lambdakata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package"></a>
   <a href="https://www.npmjs.com/package/@lambdakata/cdk"><img src="https://img.shields.io/npm/v/@lambdakata/cdk?style=for-the-badge&logo=npm" alt="npm" /></a>
   <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html" target="_blank"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2" title="Lambda Kata AWS CDK – AWS CDK v2 support"></a>
-  <a href="https://nodejs.org" target="_blank"><img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 20+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package for Node.js 20+"></a>
+  <a href="https://nodejs.org" target="_blank"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 20+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package for Node.js 20+"></a>
   <a href="https://www.typescriptlang.org" target="_blank"><img src="https://img.shields.io/badge/TypeScript-5.3%2B-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.3+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package supports TypeScript 5.3+"></a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&logo=opensourceinitiative" alt="License Apache-2.0" title="Lambda Kata AWS CDK – @lambdakata/cdk License Apache-2.0"></a>
   <a href="https://jestjs.io" target="_blank"><img src="https://img.shields.io/badge/tests-Jest%20%7C%20fast--check-brightgreen?style=for-the-badge&logo=jest" alt="Tests" title="Lambda Kata AWS CDK – @lambdakata/cdk test coverage"></a>
@@ -50,14 +50,18 @@ export class MyStack extends Stack {
 
 ## How It Works
 
-The `kata()` wrapper transforms your Node.js Lambda function to run via the Lambda Kata runtime:
+On an entitled AWS account, the `kata()` wrapper transforms your Node.js Lambda function to run via the Lambda Kata runtime:
 
-1. **Runtime Change**: Switches from Node.js to Python 3.12
-2. **Handler Update**: Sets handler to `lambdakata.optimized_handler.lambda_handler`
-3. **Layer Attachment**: Attaches the customer-specific Lambda Kata Layer
-4. **Config Layer**: Creates a config layer with handler path at `/opt/.kata/original_handler.json`
+1. **Runtime Change**: Switches the runtime to Python 3.12
+2. **Handler Update**: Sets the handler to `lambdakata.optimized_handler.lambda_handler`
+3. **Customer Layer**: Attaches the customer-specific Lambda Kata layer (resolved from your Marketplace entitlement)
+4. **Config Layer**: Creates a config layer with the original handler path at `/opt/.kata/original_handler.json`
+5. **Node.js Runtime Layer**: Attaches a Node.js runtime layer (region-specific) so the runtime can execute your JavaScript
+6. **SnapStart**: Enables SnapStart and publishes a `kata` alias for reduced cold starts
 
 Your original JavaScript/TypeScript code remains unchanged - the Lambda Kata runtime executes it through an embedded Node.js engine.
+
+If the account is **not** entitled, `kata()` leaves the function unchanged (Node.js runtime) and emits a warning by default. See `unlicensedBehavior` to fail synthesis instead.
 
 ## Custom Handler Resolution
 
@@ -167,7 +171,7 @@ Transforms a Node.js Lambda function to use Lambda Kata runtime.
 ## Requirements
 
 - AWS CDK v2
-- Node.js 18+
+- Node.js 20+
 - Valid AWS Marketplace subscription for Lambda Kata
 
 ## Examples

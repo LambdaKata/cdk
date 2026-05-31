@@ -11,6 +11,10 @@ lib/
 # Keep source files
 !jest.config.js
 
+# Keep e2e harness scripts (real-AWS verification)
+!test/e2e/app.js
+!test/e2e/assert-response.js
+
 # Test coverage
 coverage/
 
