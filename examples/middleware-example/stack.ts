@@ -44,8 +44,7 @@
  *
  * @example
  * ```bash
- * # Deploy this stack
- * cd cdk-integration
+ * # From your CDK application directory
  * npx cdk deploy MiddlewareExampleStack
  *
  * # Test the function
@@ -119,22 +118,16 @@ export class MiddlewareExampleStack extends Stack {
         //
         // 1. Compiles middleware.ts with esbuild
         // 2. Places compiled middleware at /opt/.kata/middleware.js
-        // 3. Sets has_middleware: true in config JSON
-        // 4. Applies standard Lambda Kata transformations
+        // 3. Sets has_middleware: true in the config JSON
+        // 4. Attaches the config layer and the customer Lambda Kata layer
+        // 5. Changes the runtime to python3.12
+        // 6. Sets the handler to lambdakata.optimized_handler.lambda_handler
         //
-        // BEFORE kata():
-        //   - Runtime: nodejs18.x
-        //   - Handler: index.handler
-        //   - Layers: (none)
-        //
-        // AFTER kata():
-        //   - Runtime: python3.12
-        //   - Handler: handler.lambda_handler
-        //   - Layers: [KataConfigLayer (with middleware.js), LambdaKataLayer]
-        //   - Config: {
-        //       original_js_handler: "index.handler",
-        //       has_middleware: true
-        //     }
+        // The config layer at /opt/.kata/original_handler.json contains:
+        //   {
+        //     "original_js_handler": "handler",
+        //     "has_middleware": true
+        //   }
         //
         kata(middlewareExample, {
             middlewarePath: path.join(__dirname, 'middleware.ts'),

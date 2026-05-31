@@ -48,21 +48,14 @@ export async function handler(
         memoryLimit: context.memoryLimitInMB,
     });
 
-    // Access environment variables (including those added by kata())
+    // Access environment variables (your own variables are preserved by kata())
     const logLevel = process.env.LOG_LEVEL ?? 'INFO';
     const configValue = process.env.MY_CONFIG_VALUE ?? 'default';
-
-    // When running via Lambda Kata, these additional env vars are available:
-    // - JS_HANDLER_PATH: The original handler path (e.g., "index.handler")
-    // - JS_BUNDLE_PATH: Path to the JS bundle in the Layer
-    const jsHandlerPath = process.env.JS_HANDLER_PATH;
-    const isLambdaKata = jsHandlerPath !== undefined;
 
     // Your business logic here
     const response = {
         message: 'Hello from Lambda Kata!',
         timestamp: new Date().toISOString(),
-        runtime: isLambdaKata ? 'Lambda Kata (Python + Node.js)' : 'Native Node.js',
         config: {
             logLevel,
             configValue,

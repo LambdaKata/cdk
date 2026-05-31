@@ -11,37 +11,35 @@
  */
 
 /**
- * Example Node.js Lambda Handler for Config Layer Demo
+ * Example Node.js Lambda Handler for the Config Layer Example
  *
- * This handler demonstrates the config layer approach where the original
- * handler path is stored in a Lambda Layer at /opt/.kata/original_handler.json
- * instead of the JS_HANDLER_PATH environment variable.
+ * When this function is wrapped with `kata()`, a config layer is attached
+ * that exposes the original handler path to the Lambda Kata runtime at
+ * `/opt/.kata/original_handler.json`.
  *
- * Key differences from the old approach:
- * - JS_HANDLER_PATH environment variable is NOT set
- * - Handler path is read from /opt/.kata/original_handler.json by the runtime
- * - This provides cleaner separation between config and environment variables
+ * This handler reads that file and returns its contents, demonstrating how
+ * the config layer artifact is available inside the running function.
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import * as fs from 'fs';
 
 /**
- * Configuration file path in the Lambda Layer.
- * This is where the Lambda Kata runtime reads the original handler path.
+ * Path to the config layer file mounted by the Lambda Kata config layer.
+ * The Lambda Kata runtime reads this file during initialization to determine
+ * which JavaScript handler to invoke.
  */
 const CONFIG_PATH = '/opt/.kata/original_handler.json';
 
 /**
  * Main Lambda handler function.
  *
- * This handler demonstrates the config layer approach and includes
- * verification that the handler path is correctly resolved from the
- * config layer (not from environment variables).
+ * Reads the config layer file and returns its contents so you can observe the
+ * configuration the Lambda Kata runtime uses at startup.
  *
  * @param event - The Lambda event
  * @param context - The Lambda context object
- * @returns The handler response with config layer verification
+ * @returns The handler response including the config layer contents
  */
 export async function handler(
     event: APIGatewayProxyEvent,
@@ -52,61 +50,40 @@ export async function handler(
         functionName: context.functionName,
     });
 
-    // Verify that JS_HANDLER_PATH is NOT set (Requirement 7.2)
-    const jsHandlerPathEnv = process.env.JS_HANDLER_PATH;
-    const jsHandlerPathNotSet = jsHandlerPathEnv === undefined;
-
-    // Read the config layer to verify handler path resolution (Requirement 7.4)
-    let configLayerParsed: { original_js_handler?: string } | null = null;
-    let configLayerExists = false;
-    let configReadError: string | null = null;
+    // Read the config layer file (/opt/.kata/original_handler.json)
+    let configContent: { original_js_handler?: string; bundle_path?: string; has_middleware?: boolean } | null = null;
+    let configExists = false;
+    let readError: string | null = null;
 
     try {
         if (fs.existsSync(CONFIG_PATH)) {
-            configLayerExists = true;
-            const configLayerContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
-            configLayerParsed = JSON.parse(configLayerContent) as { original_js_handler?: string };
+            configExists = true;
+            const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+            configContent = JSON.parse(raw);
         }
     } catch (error) {
-        configReadError = error instanceof Error ? error.message : String(error);
-        console.error('Error reading config layer:', configReadError);
+        readError = error instanceof Error ? error.message : String(error);
+        console.error('Error reading config layer:', readError);
     }
 
-    // Build verification results
-    const verification = {
-        // Requirement 7.2: JS_HANDLER_PATH should NOT be set
-        jsHandlerPathNotSet,
-        jsHandlerPathValue: jsHandlerPathEnv ?? null,
-
-        // Requirement 7.4: Config layer should exist and contain handler path
-        configLayerExists,
-        configLayerPath: CONFIG_PATH,
-        configLayerContent: configLayerParsed,
-
-        // Overall verification status
-        allChecksPass: jsHandlerPathNotSet && configLayerExists && configLayerParsed?.original_js_handler !== undefined,
-    };
-
-    // Build response
     const response = {
-        message: 'Config Layer Example - Handler Path from Layer',
+        message: 'Config Layer Example - Handler Path from Config Layer',
         timestamp: new Date().toISOString(),
-        verification,
+        configLayer: {
+            path: CONFIG_PATH,
+            exists: configExists,
+            content: configContent,
+            readError,
+        },
         context: {
             requestId: context.awsRequestId,
             functionName: context.functionName,
             memoryLimitInMB: context.memoryLimitInMB,
         },
-        environment: {
-            // Note: Lambda Kata no longer sets environment variables for config
-            // Handler path and bundle path are read from config layer
-            JS_HANDLER_PATH: process.env.JS_HANDLER_PATH ?? '(not set - as expected)',
-            JS_BUNDLE_PATH: process.env.JS_BUNDLE_PATH ?? '(not set - read from config layer)',
-        },
     };
 
     return {
-        statusCode: verification.allChecksPass ? 200 : 500,
+        statusCode: configExists && configContent?.original_js_handler !== undefined ? 200 : 500,
         headers: {
             'Content-Type': 'application/json',
         },

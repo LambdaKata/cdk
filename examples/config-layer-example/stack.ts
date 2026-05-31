@@ -13,42 +13,35 @@
 /**
  * Config Layer Example CDK Stack
  *
- * This example demonstrates the config layer approach for Lambda Kata integration.
- * Instead of using environment variables, the original handler path and bundle path
- * are stored in a dedicated config layer at /opt/.kata/original_handler.json.
+ * This example demonstrates the config layer that `kata()` attaches to a
+ * transformed Lambda function. The original handler path is stored in a
+ * dedicated config layer at `/opt/.kata/original_handler.json`, which the
+ * Lambda Kata runtime reads during initialization.
  *
- * ## Key Points
+ * ## What kata() does
  *
- * 1. **No JS_HANDLER_PATH**: The kata() wrapper does not set this environment variable
- * 2. **No JS_BUNDLE_PATH**: Bundle path is also stored in config layer
- * 3. **Config Layer**: All config is stored in /opt/.kata/original_handler.json
- * 4. **Cleaner Separation**: Configuration is separated from environment variables
- * 5. **Same Developer Experience**: Just call kata(myFunction) - it works the same way
+ * When you call `kata(myFunction)` on an entitled AWS account:
  *
- * ## How It Works
+ * 1. Creates a config layer containing `/opt/.kata/original_handler.json`
+ *    with `{ "original_js_handler": "<your handler>" }`
+ * 2. Attaches the config layer and the customer-specific Lambda Kata layer
+ * 3. Changes the runtime to `python3.12`
+ * 4. Sets the handler to `lambdakata.optimized_handler.lambda_handler`
  *
- * When you call kata(myFunction):
- * 1. A config layer is created with your original handler path
- * 2. The config layer is attached to your Lambda
- * 3. Runtime is changed to Python 3.12
- * 4. Handler is set to handler.lambda_handler
- * 5. Lambda Kata Layer is attached
- * 6. No Lambda Kata-specific environment variables are added
+ * Your original JavaScript/TypeScript code remains unchanged.
  *
  * ## Verification
  *
- * The example handler includes verification logic to confirm:
- * - JS_HANDLER_PATH environment variable is NOT set
- * - Config layer exists at /opt/.kata/original_handler.json
- * - Config layer contains the correct original_js_handler value
+ * The example handler reads `/opt/.kata/original_handler.json` and returns its
+ * contents, so you can confirm the config layer is mounted and contains the
+ * original handler path.
  *
  * @example
  * ```bash
- * # Deploy this stack
- * cd cdk-integration
+ * # From your CDK application directory
  * npx cdk deploy ConfigLayerExampleStack
  *
- * # Test the function
+ * # Invoke the deployed function
  * aws lambda invoke --function-name ConfigLayerExampleFunction output.json
  * cat output.json
  * ```
@@ -64,16 +57,10 @@ import * as path from 'path';
 import { kata } from '@lambdakata/cdk';
 
 /**
- * Example CDK Stack demonstrating the config layer approach.
+ * Example CDK Stack demonstrating the config layer.
  *
- * This stack creates a Lambda function that verifies the config layer
- * is correctly set up and that JS_HANDLER_PATH is NOT used.
- *
- * Requirements validated:
- * - 7.1: Demonstrates kata() wrapper with config layer
- * - 7.2: Does NOT use JS_HANDLER_PATH environment variable
- * - 7.3: Deployable and testable end-to-end
- * - 7.4: Includes verification of handler path resolution from config layer
+ * This stack creates a Lambda function whose handler reads the config layer
+ * file and returns its contents.
  */
 export class ConfigLayerExampleStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
@@ -83,17 +70,17 @@ export class ConfigLayerExampleStack extends Stack {
         // Create a Node.js Lambda function
         // ============================================================
         //
-        // This is a standard NodejsFunction. The handler includes
-        // verification logic to confirm the config layer approach works.
+        // A standard NodejsFunction. The handler reads the config layer file
+        // to demonstrate the config layer is mounted at runtime.
         //
         const configLayerExample = new NodejsFunction(this, 'ConfigLayerExampleFunction', {
             // Entry point to the handler
             entry: path.join(__dirname, 'handler.ts'),
 
-            // Handler export name - this will be stored in the config layer
+            // Handler export name - this is stored in the config layer
             handler: 'handler',
 
-            // Original runtime - will be transformed to Python 3.12
+            // Original runtime - transformed to python3.12 by kata()
             runtime: Runtime.NODEJS_20_X,
 
             // Standard Lambda configuration
@@ -104,9 +91,9 @@ export class ConfigLayerExampleStack extends Stack {
             functionName: 'ConfigLayerExampleFunction',
 
             // Description
-            description: 'Example Lambda demonstrating config layer approach (no JS_HANDLER_PATH)',
+            description: 'Example Lambda demonstrating the Lambda Kata config layer',
 
-            // User environment variables - these are preserved
+            // User environment variables - preserved by kata()
             environment: {
                 LOG_LEVEL: 'DEBUG',
                 EXAMPLE_CONFIG: 'config-layer-demo',
@@ -114,41 +101,24 @@ export class ConfigLayerExampleStack extends Stack {
         });
 
         // ============================================================
-        // Wrap with kata() - Config Layer Approach
+        // Wrap with kata()
         // ============================================================
         //
-        // The kata() wrapper now uses a config layer instead of
-        // JS_HANDLER_PATH environment variable.
+        // kata() creates the config layer with the original handler path,
+        // attaches it alongside the customer Lambda Kata layer, switches the
+        // runtime to python3.12, and sets the handler to
+        // lambdakata.optimized_handler.lambda_handler.
         //
-        // BEFORE kata():
-        //   - Runtime: nodejs18.x
-        //   - Handler: index.handler
-        //   - Layers: (none)
-        //   - Environment: { LOG_LEVEL, EXAMPLE_CONFIG }
-        //
-        // AFTER kata():
-        //   - Runtime: python3.12
-        //   - Handler: handler.lambda_handler
-        //   - Layers: [KataConfigLayer, LambdaKataLayer]
-        //   - Environment: {
-        //       LOG_LEVEL: 'DEBUG',           // Original preserved
-        //       EXAMPLE_CONFIG: '...',        // Original preserved
-        //       // NOTE: No Lambda Kata env vars added - all config in layer
-        //     }
-        //
-        // The original handler path ('index.handler') is stored in:
+        // The original handler path ('handler') is stored in:
         //   /opt/.kata/original_handler.json
         //
-        // Content: { "original_js_handler": "index.handler" }
+        // Content: { "original_js_handler": "handler" }
         //
         kata(configLayerExample);
 
         // ============================================================
         // Stack Outputs
         // ============================================================
-        //
-        // Output the function name and ARN for easy testing
-        //
         new CfnOutput(this, 'FunctionName', {
             value: configLayerExample.functionName,
             description: 'Lambda function name for testing',
@@ -160,22 +130,3 @@ export class ConfigLayerExampleStack extends Stack {
         });
     }
 }
-
-// ============================================================
-// CDK App Entry Point (for standalone deployment)
-// ============================================================
-//
-// To deploy this stack directly:
-//
-// 1. Uncomment the code below
-// 2. Run: npx cdk deploy ConfigLayerExampleStack
-//
-// import { App } from 'aws-cdk-lib';
-//
-// const app = new App();
-// new ConfigLayerExampleStack(app, 'ConfigLayerExampleStack', {
-//     env: {
-//         account: process.env.CDK_DEFAULT_ACCOUNT,
-//         region: process.env.CDK_DEFAULT_REGION,
-//     },
-// });
