@@ -35,13 +35,6 @@
   <a href="https://esbuild.github.io" target="_blank"><img src="https://img.shields.io/badge/built%20with-esbuild%20%2B%20tsc-ffcf00?style=for-the-badge&logo=esbuild&logoColor=black" alt="Built with esbuild and tsc" title="Bundled with esbuild, typed with tsc"></a>
 </p>
 
-<!-- Repository -->
-<p align="center">
-  <a href="https://github.com/LambdaKata/cdk/commits/main" target="_blank"><img src="https://img.shields.io/github/last-commit/LambdaKata/cdk/main?style=for-the-badge&logo=git&logoColor=white" alt="Last commit" title="Most recent commit on main"></a>
-  <a href="https://github.com/LambdaKata/cdk/issues" target="_blank"><img src="https://img.shields.io/github/issues/LambdaKata/cdk?style=for-the-badge&logo=github" alt="Open issues" title="Open issues"></a>
-  <a href="https://github.com/LambdaKata/cdk/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/LambdaKata/cdk?style=for-the-badge&logo=github" alt="GitHub stars" title="GitHub stars"></a>
-</p>
-
 
 
 ## Installation
