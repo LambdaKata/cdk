@@ -17,7 +17,7 @@ kata(myFunction, {
     const handler = (bundle as Record<string, Function>)[handlerName];
     
     // Wrap with logging
-    return async (event, lambdaCtx) => {
+    return async (event: unknown, lambdaCtx: unknown) => {
       console.log('Invocation started');
       const result = await handler(event, lambdaCtx);
       console.log('Invocation completed');
