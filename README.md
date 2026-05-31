@@ -7,15 +7,39 @@
 </p>
 
 <p align="center">
-  <a href="https://aws.amazon.com/marketplace/pp/prodview-dce6qhwrlygwo" target="_blank"><img src="https://img.shields.io/badge/AWS Marketplace-Lambda%20Kata-ff4500?style=for-the-badge" alt="Lambda Kata ecosystem" title="Lambda Kata Ecosystem"></a>
-  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/badge/npm-@lambdakata%2Fcdk-cc3534?style=for-the-badge&logo=npm" alt="npm package" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package"></a>
-  <a href="https://www.npmjs.com/package/@lambdakata/cdk"><img src="https://img.shields.io/npm/v/@lambdakata/cdk?style=for-the-badge&logo=npm" alt="npm" /></a>
-  <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html" target="_blank"><img src="https://img.shields.io/badge/AWS%20CDK-v2-4B8BBE?style=for-the-badge&logo=amazonwebservices" alt="AWS CDK v2" title="Lambda Kata AWS CDK – AWS CDK v2 support"></a>
-  <a href="https://nodejs.org" target="_blank"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=nodedotjs" alt="Node.js 20+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package for Node.js 20+"></a>
-  <a href="https://www.typescriptlang.org" target="_blank"><img src="https://img.shields.io/badge/TypeScript-5.3%2B-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.3+" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package supports TypeScript 5.3+"></a>
-  <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&logo=opensourceinitiative" alt="License Apache-2.0" title="Lambda Kata AWS CDK – @lambdakata/cdk License Apache-2.0"></a>
-  <a href="https://jestjs.io" target="_blank"><img src="https://img.shields.io/badge/tests-Jest%20%7C%20fast--check-brightgreen?style=for-the-badge&logo=jest" alt="Tests" title="Lambda Kata AWS CDK – @lambdakata/cdk test coverage"></a>
-  <a href="https://esbuild.github.io" target="_blank"><img src="https://img.shields.io/badge/build-esbuild%20%2B%20tsc-FFCF00?style=for-the-badge&logo=esbuild" alt="Build" title="Lambda Kata AWS CDK – @lambdakata/cdk npm package build"></a>
+  <a href="https://aws.amazon.com/marketplace/pp/prodview-dce6qhwrlygwo" target="_blank"><img src="https://img.shields.io/badge/AWS%20Marketplace-Lambda%20Kata-ff4500?style=for-the-badge&logo=amazonaws&logoColor=white" alt="AWS Marketplace – Lambda Kata" title="Lambda Kata on AWS Marketplace"></a>
+  <a href="https://github.com/LambdaKata/cdk/blob/main/LICENSE" target="_blank"><img src="https://img.shields.io/github/license/LambdaKata/cdk?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=blue" alt="License Apache-2.0" title="@lambdakata/cdk is licensed under Apache-2.0"></a>
+</p>
+
+<!-- Package -->
+<p align="center">
+  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/npm/v/@lambdakata/cdk?style=for-the-badge&logo=npm&label=npm" alt="npm version" title="Latest @lambdakata/cdk version on npm"></a>
+  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/npm/dm/@lambdakata/cdk?style=for-the-badge&logo=npm&label=downloads" alt="npm downloads per month" title="@lambdakata/cdk monthly downloads"></a>
+  <a href="https://www.npmjs.com/package/@lambdakata/cdk" target="_blank"><img src="https://img.shields.io/node/v/@lambdakata/cdk?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Required Node.js version" title="Minimum supported Node.js version"></a>
+  <a href="https://www.typescriptlang.org" target="_blank"><img src="https://img.shields.io/npm/types/@lambdakata/cdk?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript types included" title="Ships with TypeScript type definitions"></a>
+</p>
+
+<!-- Platform & peers -->
+<p align="center">
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html" target="_blank"><img src="https://img.shields.io/github/package-json/dependency-version/LambdaKata/cdk/peer/aws-cdk-lib?style=for-the-badge&logo=amazonwebservices&logoColor=white&label=aws-cdk-lib" alt="aws-cdk-lib peer dependency" title="Required aws-cdk-lib version"></a>
+  <a href="https://github.com/aws/constructs" target="_blank"><img src="https://img.shields.io/github/package-json/dependency-version/LambdaKata/cdk/peer/constructs?style=for-the-badge&logo=amazonwebservices&logoColor=white&label=constructs" alt="constructs peer dependency" title="Required constructs version"></a>
+  <a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html" target="_blank"><img src="https://img.shields.io/badge/target%20runtime-python3.12-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Target runtime Python 3.12" title="kata() transforms functions to the python3.12 runtime"></a>
+</p>
+
+
+<!-- Build & quality -->
+<p align="center">
+  <a href="https://github.com/LambdaKata/cdk/actions/workflows/ci.yml" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/LambdaKata/cdk/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI status" title="CI workflow status on main"></a>
+  <a href="https://github.com/LambdaKata/cdk/actions/workflows/release.yml" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/LambdaKata/cdk/release.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=release" alt="Release build status" title="Release workflow status"></a>
+  <a href="https://jestjs.io" target="_blank"><img src="https://img.shields.io/badge/tested%20with-Jest%20%2B%20fast--check-99425b?style=for-the-badge&logo=jest&logoColor=white" alt="Tested with Jest and fast-check" title="Unit and property-based tests"></a>
+  <a href="https://esbuild.github.io" target="_blank"><img src="https://img.shields.io/badge/built%20with-esbuild%20%2B%20tsc-ffcf00?style=for-the-badge&logo=esbuild&logoColor=black" alt="Built with esbuild and tsc" title="Bundled with esbuild, typed with tsc"></a>
+</p>
+
+<!-- Repository -->
+<p align="center">
+  <a href="https://github.com/LambdaKata/cdk/commits/main" target="_blank"><img src="https://img.shields.io/github/last-commit/LambdaKata/cdk/main?style=for-the-badge&logo=git&logoColor=white" alt="Last commit" title="Most recent commit on main"></a>
+  <a href="https://github.com/LambdaKata/cdk/issues" target="_blank"><img src="https://img.shields.io/github/issues/LambdaKata/cdk?style=for-the-badge&logo=github" alt="Open issues" title="Open issues"></a>
+  <a href="https://github.com/LambdaKata/cdk/stargazers" target="_blank"><img src="https://img.shields.io/github/stars/LambdaKata/cdk?style=for-the-badge&logo=github" alt="GitHub stars" title="GitHub stars"></a>
 </p>
 
 
