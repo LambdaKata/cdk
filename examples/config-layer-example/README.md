@@ -16,7 +16,7 @@ When you call `kata(myFunction)` on an entitled AWS account:
 
    ```json
    {
-     "original_js_handler": "handler"
+     "original_js_handler": "index.handler"
    }
    ```
 
@@ -32,7 +32,7 @@ Your original JavaScript/TypeScript code remains unchanged. The Lambda Kata runt
 
 | Key | When present | Description |
 |-----|--------------|-------------|
-| `original_js_handler` | Always | The original handler path (e.g. `"handler"`) |
+| `original_js_handler` | Always | The original handler path. For a `NodejsFunction`, the code is bundled to `index.js`, so this is `"index.handler"` |
 | `bundle_path` | When `bundlePath` option is passed to `kata()` | Custom path to the JavaScript bundle |
 | `has_middleware` | When `middlewarePath` or `handlerResolver` is passed to `kata()` | `true` if compiled middleware is included at `/opt/.kata/middleware.js` |
 
@@ -90,7 +90,7 @@ A successful invocation returns the contents of the config layer file:
     "path": "/opt/.kata/original_handler.json",
     "exists": true,
     "content": {
-      "original_js_handler": "handler"
+      "original_js_handler": "index.handler"
     },
     "readError": null
   },
@@ -107,7 +107,7 @@ A successful invocation returns the contents of the config layer file:
 | Field | Expected | Description |
 |-------|----------|-------------|
 | `configLayer.exists` | `true` | The config file exists at `/opt/.kata/original_handler.json` |
-| `configLayer.content.original_js_handler` | `"handler"` | Contains the original handler path |
+| `configLayer.content.original_js_handler` | `"index.handler"` | Contains the original handler path |
 | `statusCode` | `200` | Returned when the config layer is present and contains the handler path |
 
 ## Cleanup

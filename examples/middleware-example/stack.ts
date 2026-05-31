@@ -123,9 +123,10 @@ export class MiddlewareExampleStack extends Stack {
         // 5. Changes the runtime to python3.12
         // 6. Sets the handler to lambdakata.optimized_handler.lambda_handler
         //
-        // The config layer at /opt/.kata/original_handler.json contains:
+        // The config layer at /opt/.kata/original_handler.json contains
+        // (the NodejsFunction code is bundled to index.js):
         //   {
-        //     "original_js_handler": "handler",
+        //     "original_js_handler": "index.handler",
         //     "has_middleware": true
         //   }
         //

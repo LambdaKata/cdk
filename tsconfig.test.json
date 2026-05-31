@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@lambdakata/cdk": [
+        "src/index.ts"
+      ],
+      "@lambdakata/cdk/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*",
+    "examples/**/*"
+  ]
+}

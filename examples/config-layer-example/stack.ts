@@ -109,10 +109,12 @@ export class ConfigLayerExampleStack extends Stack {
         // runtime to python3.12, and sets the handler to
         // lambdakata.optimized_handler.lambda_handler.
         //
-        // The original handler path ('handler') is stored in:
+        // The original handler path is stored in:
         //   /opt/.kata/original_handler.json
         //
-        // Content: { "original_js_handler": "handler" }
+        // For a NodejsFunction the code is bundled to index.js, so the stored
+        // value is:
+        //   { "original_js_handler": "index.handler" }
         //
         kata(configLayerExample);
 
