@@ -617,8 +617,12 @@ describe('kata-wrapper', () => {
         )).toBe(false);
       });
 
-      it('should reference S3 bucket for Node.js layer code', () => {
-        const { stack } = createTestStack();
+      it('should reference the region-specific S3 bucket for Node.js layer code', () => {
+        // Use a concrete region so the bucket name resolves to a literal value.
+        const app = new App({ context: { 'aws:cdk:account': '123456789012' } });
+        const stack = new Stack(app, 'TestStack', {
+          env: { account: '123456789012', region: 'eu-central-1' },
+        });
         const lambda = createTestLambda(stack, 'TestFunction', {
           runtime: Runtime.NODEJS_20_X,
         });
@@ -634,10 +638,11 @@ describe('kata-wrapper', () => {
         applyTransformation(lambda, config);
 
         const template = Template.fromStack(stack);
-        // Verify layer references S3 bucket
+        // The bucket must be region-specific: `<prefix>-<region>`. AWS Lambda
+        // can only build a layer from an S3 object in the same region.
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
           Content: Match.objectLike({
-            S3Bucket: Match.stringLikeRegexp('lambda-kata-website-product-layer-content-dev'),
+            S3Bucket: 'lambda-kata-website-product-layer-content-dev-eu-central-1',
             S3Key: 'nodejs_layers/nodejs-20-layer-x86_64.zip',
           }),
         });

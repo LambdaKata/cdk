@@ -88,13 +88,17 @@ class S3CodeWithoutWarning extends Code {
 }
 
 /**
- * S3 bucket containing pre-built Node.js runtime layers.
- * This bucket is publicly accessible and contains ZIP files for each
- * Node.js runtime version and architecture combination.
+ * Base name (prefix) of the S3 bucket that hosts the pre-built Node.js runtime
+ * layer ZIPs for the Lambda Kata product.
+ *
+ * The product publishes one bucket PER REGION, named `<base>-<region>`
+ * (e.g. `lambda-kata-website-product-layer-content-dev-eu-central-1`). A
+ * region-specific bucket is required because AWS Lambda can only create a layer
+ * from an S3 object that resides in the SAME region as the layer being created.
+ *
+ * The bucket holds ZIP files for each Node.js runtime version and architecture.
  */
-// const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-nodejs-layers';
-// lambda-kata-website-product-layer-content-dev-eu-central-1
-const NODEJS_LAYER_S3_BUCKET = 'lambda-kata-website-product-layer-content-dev';
+const NODEJS_LAYER_S3_BUCKET_PREFIX = 'lambda-kata-website-product-layer-content-dev';
 const NODEJS_LAYER_S3_FOLDER_KEY = 'nodejs_layers';
 
 /**
@@ -777,16 +781,21 @@ function createNodejsRuntimeLayer(
     );
   }
 
-  // Construct the S3 key: node-js-layers/nodejs-{version}-layer-{architecture}.zip
+  // Construct the S3 key: nodejs_layers/nodejs-{version}-layer-{architecture}.zip
   const s3Key = `${NODEJS_LAYER_S3_FOLDER_KEY}/${runtimePrefix}-${architecture}.zip`;
 
-  // Get the deployment region from the stack
+  // AWS Lambda can only build a layer from an S3 object located in the SAME
+  // region as the layer, so the bucket name is region-specific:
+  // `<prefix>-<region>`.
+  //
+  // `stack.region` may be a concrete string (when the Stack has an explicit
+  // env.region) or an unresolved CDK token (for region-agnostic stacks). In
+  // both cases interpolating it is correct:
+  //   - concrete  -> literal name, e.g. `...-content-dev-eu-central-1`
+  //   - token     -> CloudFormation `Fn::Join` with `AWS::Region`, resolved at
+  //                  deploy time to whichever region the stack is deployed to.
   const stack = Stack.of(lambda);
-  const region = stack.region;
-
-  // Use the canonical public bucket name. The layer keys are region-agnostic
-  // and the bucket reference itself must remain stable for CDK synthesis.
-  const bucketName = NODEJS_LAYER_S3_BUCKET;
+  const bucketName = `${NODEJS_LAYER_S3_BUCKET_PREFIX}-${stack.region}`;
 
   // @note: debug logs
   // console.log(`[Lambda Kata] S3 Layer path: s3://${bucketName}/${s3Key}`);
