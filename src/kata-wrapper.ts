@@ -219,7 +219,7 @@ interface _TransformationState {
  * This function performs the following steps SYNCHRONOUSLY:
  * 1. Resolves the target AWS account ID
  * 2. Calls the licensing service to validate entitlement
- * 3. If entitled, applies transformations (runtime, handler, layer, env vars)
+ * 3. If entitled, applies transformations (runtime, handler, layers, config layer)
  * 4. If not entitled, handles according to unlicensedBehavior option
  *
  * IMPORTANT: This function is SYNCHRONOUS to work correctly with CDK synthesis.
@@ -821,19 +821,16 @@ function createNodejsRuntimeLayer(
  * 2. Change the runtime to Python 3.12
  * 3. Set the handler to the Lambda Kata handler
  * 4. Attach the customer-specific Lambda Layer
- * 5. Add additional environment variables for the Lambda Kata runtime
  *
  * @param lambda - The Lambda function to transform
  * @param config - The transformation configuration
  *
  * @remarks
- * Validates: Requirements 2.2, 2.3, 2.4, 3.3, 3.4, 4.1, 4.2, 5.4
+ * Validates: Requirements 2.2, 2.3, 2.4, 3.3, 4.2, 5.4
  * - 2.2: THE kata_Wrapper SHALL change the Lambda runtime from Node.js to Python 3.12
- * - 2.3: THE kata_Wrapper SHALL set the Lambda handler to `handler.lambda_handler`
+ * - 2.3: THE kata_Wrapper SHALL set the Lambda handler to `lambdakata.optimized_handler.lambda_handler`
  * - 2.4: THE kata_Wrapper SHALL attach the customer-specific Lambda_Layer ARN to the Lambda
  * - 3.3: THE kata_Wrapper SHALL attach the Config_Layer to the transformed Lambda
- * - 3.4: THE kata_Wrapper SHALL NOT set the `JS_HANDLER_PATH` environment variable
- * - 4.1: THE kata_Wrapper SHALL NOT add the `JS_HANDLER_PATH` environment variable to transformed Lambdas
  * - 4.2: WHEN `bundlePath` is specified, THE kata_Wrapper SHALL write it to the Config_Layer JSON as `bundle_path`
  * - 5.4: THE compiled middleware SHALL be included in the Config_Layer at `/opt/.kata/middleware.js`
  *
@@ -960,8 +957,8 @@ export function applyTransformation(
     snapshotTimeoutSeconds: 180,
   });
 
-  // 5. Create and attach config layer with original handler path (Requirements 3.3, 3.4, 4.1, 4.2, 5.4)
-  // This replaces the JS_HANDLER_PATH environment variable approach
+  // 5. Create and attach config layer with original handler path (Requirements 3.3, 4.2, 5.4)
+  // The config layer carries the original handler path read by the Lambda Kata runtime.
   // Also includes bundlePath and middlewarePath when provided
   // If bundlePath is not explicitly provided, extract it from originalHandler
   const effectiveBundlePath = config.bundlePath ?? extractBundlePathFromHandler(config.originalHandler);
@@ -996,8 +993,8 @@ export function applyTransformation(
   }
 
   // Note: No environment variables are added by kata()
-  // - JS_HANDLER_PATH: Stored in config layer
-  // - JS_BUNDLE_PATH: Stored in config layer (bundle_path)
+  // The handler path and bundle path are stored in the config layer
+  // (original_js_handler and bundle_path in /opt/.kata/original_handler.json)
 }
 
 /**

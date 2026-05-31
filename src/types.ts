@@ -120,7 +120,7 @@ export interface TransformationConfig {
 
   /**
    * The handler path for the Lambda Kata runtime.
-   * Always "handler.lambda_handler"
+   * Always "lambdakata.optimized_handler.lambda_handler"
    */
   targetHandler: string;
 

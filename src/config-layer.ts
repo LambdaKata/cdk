@@ -17,8 +17,8 @@
  * the kata configuration. The configuration includes the original Node.js
  * handler path, which the Lambda Kata runtime reads during initialization.
  *
- * The config layer replaces the JS_HANDLER_PATH environment variable approach,
- * providing cleaner separation between runtime configuration and environment variables.
+ * The config layer keeps runtime configuration separate from the Lambda's
+ * environment variables.
  *
  * @module config-layer
  */
