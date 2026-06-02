@@ -60,11 +60,14 @@
     "@aws-sdk/client-lambda": "^3.500.0",
     "@aws-sdk/client-s3": "^3.500.0",
     "@aws-sdk/client-sts": "^3.500.0",
-    "dotenv": "^17.2.3",
     "@lambda-kata/licensing": "0.1.33",
+    "dotenv": "^17.2.3",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.500.0",
+    "@aws-sdk/client-dynamodb": "^3.500.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
