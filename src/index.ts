@@ -123,3 +123,6 @@ export {
 
 // Main API function export
 export { ensureNodeRuntimeLayer } from './ensure-node-runtime-layer';
+
+// Benchmark Harness (additive layer; see src/benchmark)
+export * from './benchmark';
