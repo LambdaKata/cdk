@@ -30,7 +30,7 @@
  * @module benchmark/runner
  */
 
-// Shared run-time report types (task 16).
+// Shared run-time report types (task 16 + task 22 layered model).
 export type {
   ReportSample,
   Distribution,
@@ -39,6 +39,18 @@ export type {
   VariantStats,
   BenchmarkHeadline,
   BenchmarkReport,
+  MetricLayerId,
+  MetricLayerBase,
+  ColdStartVariantView,
+  RuntimeColdStartLayer,
+  HandlerExecutionVariantView,
+  HandlerExecutionLayer,
+  TriggerDeliveryMetrics,
+  DerivedAggregate,
+  TriggerDeliveryLayer,
+  MetricLayers,
+  RunWindowRecord,
+  LayeredBenchmarkReport,
 } from './types';
 
 // Manifest loader — run-time half of the synth→run-time bridge (task 16).
@@ -109,12 +121,28 @@ export type {
 } from './trace-correlator';
 
 // ReportRenderer — layered HTML+JSON report (task 22).
-export { renderReport } from './report-renderer';
-export type { RenderedReport } from './report-renderer';
+export { renderReport, ReportRenderer, computeDistribution, buildVariantStats, DEFAULT_HIGH_PERCENTILE_MIN_SAMPLES } from './report-renderer';
+export type { RenderedReport, RenderReportContext } from './report-renderer';
 
 // LifecycleManager — tagging, guardrails, tag-scoped cleanup (task 23).
-export { cleanupRun } from './lifecycle-manager';
-export type { CleanupResult } from './lifecycle-manager';
+export {
+  LifecycleManager,
+  LambdaBenchmarkResourceCleanup,
+  CostLimitExceededError,
+  LifecycleConfigurationError,
+  cleanupRun,
+  DEFAULT_OWNERSHIP_TAG_KEY,
+} from './lifecycle-manager';
+export type {
+  CleanupResult,
+  LifecycleManagerOptions,
+  RunGuardrails,
+  OwnershipTag,
+  BenchmarkResourceCleanupClient,
+  BenchmarkResourceType,
+  TaggedResource,
+  CleanupRunOptions,
+} from './lifecycle-manager';
 
 // BenchmarkRunner state machine (task 21).
 export {
@@ -149,4 +177,10 @@ export type {
 } from './runner';
 
 // CLI entry point (task 24).
-export { main } from './cli';
+export { main, CliError, parseArgs, handleRun, handleReport, handleCleanup } from './cli';
+export type {
+  ParsedArgs,
+  RunDependencies,
+  ReportDependencies,
+  CleanupDependencies,
+} from './cli';
