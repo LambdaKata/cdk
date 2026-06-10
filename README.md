@@ -69,12 +69,10 @@ export class MyStack extends Stack {
 
 On an entitled AWS account, the `kata()` wrapper transforms your Node.js Lambda function to run via the Lambda Kata runtime:
 
-1. **Runtime Change**: Switches the runtime to Python 3.12
-2. **Handler Update**: Sets the handler to `lambdakata.optimized_handler.lambda_handler`
-3. **Customer Layer**: Attaches the customer-specific Lambda Kata layer (resolved from your Marketplace entitlement)
-4. **Config Layer**: Creates a config layer with the original handler path at `/opt/.kata/original_handler.json`
-5. **Node.js Runtime Layer**: Attaches a Node.js runtime layer (region-specific) so the runtime can execute your JavaScript
-6. **SnapStart**: Enables SnapStart and publishes a `kata` alias for reduced cold starts
+1. **Customer Layer**: Attaches the customer-specific Lambda Kata layer (resolved from your Marketplace entitlement)
+2. **Config Layer**: Creates a config layer with the original handler path
+3. **Node.js Runtime Layer**: Attaches a Node.js runtime layer (region-specific) so the runtime can execute your JavaScript
+4. **SnapStart**: Enables SnapStart and publishes a `kata` alias for reduced cold starts
 
 Your original JavaScript/TypeScript code remains unchanged - the Lambda Kata runtime executes it through an embedded Node.js engine.
 
